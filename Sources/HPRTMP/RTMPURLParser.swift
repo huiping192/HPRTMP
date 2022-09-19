@@ -11,6 +11,10 @@ struct RTMPURLInfo {
     let url: URL
     let key: String
     let port: Int
+    
+    var host: String {
+        return url.absoluteString + key
+    }
 }
 
 class RTMPURLParser {
