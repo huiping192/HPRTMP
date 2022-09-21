@@ -16,12 +16,13 @@ class RTMPHandshake {
         case none
     }
     
-    static let PacketSize = 1536
+    // const 1536 byte
+    static let packetSize = 1536
     static let rtmpVersion: UInt8 = 3
     var timestamp:TimeInterval = 0
-    var data = Data() {
+    var serverData = Data() {
         didSet {
-            if checkTimer == nil && data.count > 0 {
+            if checkTimer == nil && serverData.count > 0 {
                 checkTimer = Timer.scheduledTimer(timeInterval: 0.1, target: self, selector: #selector(statusCheck), userInfo: nil, repeats: true)
             }
         }
@@ -58,7 +59,7 @@ class RTMPHandshake {
         data.write([0x00,0x00,0x00,0x00])
         
         // random
-        let randomSize = RTMPHandshake.PacketSize - data.count
+        let randomSize = RTMPHandshake.packetSize - data.count
         (0...randomSize).forEach { _ in
             data.write(UInt8(arc4random_uniform(0xff)))
         }
@@ -68,11 +69,11 @@ class RTMPHandshake {
     var c2Packet: Data {
         var data = Data()
         // s1 timestamp
-        data.append(self.data.subdata(in: 1..<5))
+        data.append(self.serverData.subdata(in: 1..<5))
         // timestamp
         data.write(UInt32(Date().timeIntervalSince1970 - timestamp).toUInt8Array())
         // c2 random
-        data.append(self.data.subdata(in: 9..<RTMPHandshake.PacketSize+1))
+        data.append(self.serverData.subdata(in: 9..<RTMPHandshake.packetSize+1))
         return data
     }
 
@@ -84,29 +85,29 @@ class RTMPHandshake {
     func reset() {
         checkTimer?.invalidate()
         checkTimer = nil
-        data.removeAll()
+        serverData.removeAll()
         self.status = .none
     }
     
     @objc func statusCheck() {
         switch self.status {
         case .uninitalized:
-            if self.data.count < RTMPHandshake.PacketSize+1  {
+            if self.serverData.count < RTMPHandshake.packetSize+1  {
                 break
             }
             self.status = .verSent
-            self.data.removeSubrange(0...RTMPHandshake.PacketSize)
+            self.serverData.removeSubrange(0...RTMPHandshake.packetSize)
         case .verSent:
-            if self.data.count < RTMPHandshake.PacketSize {
+            if self.serverData.count < RTMPHandshake.packetSize {
                 return
             }
             self.status = .ackSent
         case .ackSent:
-            if self.data.isEmpty {
+            if self.serverData.isEmpty {
                 return
             }
             self.status = .handshakeDone
-            self.data.removeAll()
+            self.serverData.removeAll()
             checkTimer?.invalidate()
             checkTimer = nil
         default:
