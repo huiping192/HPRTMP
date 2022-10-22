@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		7D1B00EF2903C3CD007FA9F4 /* HPRTMP in Frameworks */ = {isa = PBXBuildFile; productRef = 7D1B00EE2903C3CD007FA9F4 /* HPRTMP */; };
 		7DE0F9702903AD6C00D08613 /* HPRTMPExampleApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7DE0F9602903AD6B00D08613 /* HPRTMPExampleApp.swift */; };
 		7DE0F9712903AD6C00D08613 /* HPRTMPExampleApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7DE0F9602903AD6B00D08613 /* HPRTMPExampleApp.swift */; };
 		7DE0F9722903AD6C00D08613 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7DE0F9612903AD6B00D08613 /* ContentView.swift */; };
@@ -19,6 +20,7 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		7D1B00F02903C41D007FA9F4 /* HPRTMPExample--iOS--Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = "HPRTMPExample--iOS--Info.plist"; sourceTree = "<group>"; };
 		7DE0F9602903AD6B00D08613 /* HPRTMPExampleApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HPRTMPExampleApp.swift; sourceTree = "<group>"; };
 		7DE0F9612903AD6B00D08613 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		7DE0F9622903AD6C00D08613 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
@@ -34,6 +36,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				7D1B00EF2903C3CD007FA9F4 /* HPRTMP in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -51,6 +54,7 @@
 		7DE0F95A2903AD6B00D08613 = {
 			isa = PBXGroup;
 			children = (
+				7D1B00F02903C41D007FA9F4 /* HPRTMPExample--iOS--Info.plist */,
 				7DE0F97E2903AE2600D08613 /* Packages */,
 				7DE0F95F2903AD6B00D08613 /* Shared */,
 				7DE0F96E2903AD6C00D08613 /* macOS */,
@@ -118,6 +122,9 @@
 			dependencies = (
 			);
 			name = "HPRTMPExample (iOS)";
+			packageProductDependencies = (
+				7D1B00EE2903C3CD007FA9F4 /* HPRTMP */,
+			);
 			productName = "HPRTMPExample (iOS)";
 			productReference = 7DE0F9672903AD6C00D08613 /* HPRTMPExample.app */;
 			productType = "com.apple.product-type.application";
@@ -338,8 +345,10 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = Q2N4A2LNJ8;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "HPRTMPExample--iOS--Info.plist";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -367,8 +376,10 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = Q2N4A2LNJ8;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "HPRTMPExample--iOS--Info.plist";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -396,9 +407,11 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = macOS/macOS.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = Q2N4A2LNJ8;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
@@ -408,7 +421,7 @@
 				);
 				MACOSX_DEPLOYMENT_TARGET = 12.3;
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = cn.huiping192.HPRTMPExample;
+				PRODUCT_BUNDLE_IDENTIFIER = com.huiping.HPRTMPExample;
 				PRODUCT_NAME = HPRTMPExample;
 				SDKROOT = macosx;
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -422,6 +435,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = macOS/macOS.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 1;
@@ -475,6 +489,10 @@
 /* End XCConfigurationList section */
 
 /* Begin XCSwiftPackageProductDependency section */
+		7D1B00EE2903C3CD007FA9F4 /* HPRTMP */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = HPRTMP;
+		};
 		7DE0F9852903AF5900D08613 /* HPRTMP */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = HPRTMP;

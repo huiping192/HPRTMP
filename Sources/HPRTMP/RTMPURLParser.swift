@@ -13,7 +13,7 @@ struct RTMPURLInfo {
     let port: Int
     
     var host: String {
-        return url.absoluteString + key
+      return url.host!
     }
 }
 

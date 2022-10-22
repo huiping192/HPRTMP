@@ -42,7 +42,9 @@ public class RTMPSocket: NSObject {
     private let urlInfo: RTMPURLInfo
   
   private lazy var handshake: RTMPHandshake = {
-    return RTMPHandshake(statusChange: { [unowned self] (status) in
+    return RTMPHandshake(statusChange: { [weak self] (status) in
+      guard let self = self else { return }
+      print("[HPRTMP] handshake status: \(status)")
       switch status {
       case .uninitalized:
         self.send(self.handshake.c0c1Packet)
@@ -82,8 +84,8 @@ extension RTMPSocket {
     public func resume() {
         guard state != .connected else { return }
         inputQueue.async { [unowned self] in
-            Stream.getStreamsToHost(withName: self.urlInfo.host,
-                                    port: self.urlInfo.port,
+          Stream.getStreamsToHost(withName: urlInfo.host,
+                                    port: urlInfo.port,
                                     inputStream: &self.input,
                                     outputStream: &self.output)
             self.setParameter()
@@ -110,15 +112,15 @@ extension RTMPSocket {
       self.input?.delegate = self
       self.output?.delegate = self
       
-        self.runloop = .current
-        self.input?.setProperty(StreamNetworkServiceTypeValue.voIP, forKey: Stream.PropertyKey.networkServiceType)
-        self.input?.schedule(in: self.runloop!, forMode: RunLoop.Mode.default)
-        self.input?.setProperty(StreamSocketSecurityLevel.none, forKey: .socketSecurityLevelKey)
-        self.output?.schedule(in: self.runloop!, forMode: RunLoop.Mode.default)
-        self.output?.setProperty(StreamNetworkServiceTypeValue.voIP, forKey: Stream.PropertyKey.networkServiceType)
-        self.input?.open()
-        self.output?.open()
-        self.runloop?.run()
+      self.runloop = .current
+      self.input?.setProperty(StreamNetworkServiceTypeValue.voIP, forKey: Stream.PropertyKey.networkServiceType)
+      self.input?.schedule(in: self.runloop!, forMode: RunLoop.Mode.default)
+      self.input?.setProperty(StreamSocketSecurityLevel.none, forKey: .socketSecurityLevelKey)
+      self.output?.schedule(in: self.runloop!, forMode: RunLoop.Mode.default)
+      self.output?.setProperty(StreamNetworkServiceTypeValue.voIP, forKey: Stream.PropertyKey.networkServiceType)
+      self.input?.open()
+      self.output?.open()
+      self.runloop?.run()
     }
     
     open func clearParameter() {
@@ -143,14 +145,33 @@ extension RTMPSocket {
     }
 }
 
+extension Stream.Event: CustomStringConvertible {
+  public var description: String {
+    switch self {
+    case Stream.Event.openCompleted:
+      return "openCompleted"
+    case Stream.Event.hasBytesAvailable:
+      return "hasBytesAvailable"
+    case Stream.Event.hasSpaceAvailable:
+      return "hasSpaceAvailable"
+    case Stream.Event.errorOccurred:
+      return "errorOccurred"
+    case Stream.Event.endEncountered:
+        return "endEncountered"
+    default:
+      return "unknown"
+    }
+  }
+}
 
 
 extension RTMPSocket: StreamDelegate {
     public func stream(_ aStream: Stream, handle eventCode: Stream.Event) {
+      print("[HPRTMP] stream \(aStream) eventCode: \(eventCode)")
         switch eventCode {
         case Stream.Event.openCompleted:
             if input?.streamStatus == .open && output?.streamStatus == .open,
-               input == aStream{
+               input == aStream {
                 self.handshake.startHandShake()
             }
         case Stream.Event.hasBytesAvailable:
@@ -161,6 +182,8 @@ extension RTMPSocket: StreamDelegate {
             break
         case Stream.Event.errorOccurred:
             if let e = aStream.streamError {
+              print("[HPRTMP] error: \(e.localizedDescription)")
+
 //                self.delegate?.socketError(self, err: .uknown(desc: e.localizedDescription))
             }
             self.invalidate()
