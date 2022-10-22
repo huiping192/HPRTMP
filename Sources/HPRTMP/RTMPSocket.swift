@@ -17,8 +17,33 @@ public enum RTMPState {
 }
 
 
-public protocol RTMPSocketDelegate: AnyObject {
-    
+public enum RTMPError: Error {
+    case stream(desc: String)
+    case command(desc: String)
+    case uknown(desc: String)
+    var localizedDescription: String {
+        get {
+            switch self {
+            case .stream(let desc):
+                return desc
+            case .command(let desc):
+                return desc
+            case .uknown(let desc):
+                return desc
+            }
+        }
+    }
+}
+
+protocol RTMPSocketDelegate: AnyObject {
+  func socketHandShakeDone(_ socket: RTMPSocket)
+  func socketPinRequest(_ socket: RTMPSocket, data: Data)
+//  func socketConnectDone(_ socket: RTMPSocket, obj: ConnectResponse)
+//  func socketCreateStreamDone(_ socket: RTMPSocket, obj: StreamResponse)
+  func socketError(_ socket: RTMPSocket, err: RTMPError)
+//  func socketGetMeta(_ socket: RTMPSocket, meta: MetaDataResponse)
+  func socketPeerBandWidth(_ socket: RTMPSocket, size: UInt32)
+  func socketDisconnected(_ socket: RTMPSocket)
 }
 
 
@@ -48,18 +73,14 @@ public class RTMPSocket: NSObject {
       switch status {
       case .uninitalized:
         self.send(self.handshake.c0c1Packet)
+        print("[HPRTMP] send handshake c0c1Packet")
       case .verSent:
         self.send(self.handshake.c2Packet)
+        print("[HPRTMP] send handshake c2Packet")
       case .ackSent, .none:
         break
       case .handshakeDone:
-        
-        break
-//        guard let i = self.info.url else {
-//          self.invalidate()
-//          return
-//        }
-//        self.delegate?.socketHandShakeDone(self)
+        self.delegate?.socketHandShakeDone(self)
       }
     })
   }()
@@ -184,7 +205,7 @@ extension RTMPSocket: StreamDelegate {
             if let e = aStream.streamError {
               print("[HPRTMP] error: \(e.localizedDescription)")
 
-//                self.delegate?.socketError(self, err: .uknown(desc: e.localizedDescription))
+              self.delegate?.socketError(self, err: .uknown(desc: e.localizedDescription))
             }
             self.invalidate()
         case Stream.Event.endEncountered:
