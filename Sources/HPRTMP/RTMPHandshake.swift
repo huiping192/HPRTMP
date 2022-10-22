@@ -28,7 +28,7 @@ class RTMPHandshake {
         }
     }
     
-    var checkTimer: Timer?
+    private var checkTimer: Timer?
     public var changeBlock:((_ status:Status)->Void)?
     public init(statusChange: ((_ status:Status)->Void)?) {
         self.changeBlock = statusChange
