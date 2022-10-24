@@ -116,7 +116,7 @@ extension RTMPSocket {
     public func invalidate() {
         guard state != .closed && state != .none else { return }
         self.clearParameter()
-//        handshake.reset()
+        handshake.reset()
 //        decoder.reset()
 //        encoder.reset()
 //        info.reset(clearInfo)
@@ -218,20 +218,20 @@ extension RTMPSocket: StreamDelegate {
 
 extension RTMPSocket {
   private func readData() {
-      guard let i = input, let b = buffer else {
-          return
-      }
-      let length = i.read(b, maxLength: RTMPSocket.maxReadSize)
-      if length > 0 {
-          if self.handshake.status == .handshakeDone {
-//              inputData.append(b, count: length)
-//              let bytes:Data = self.inputData
-//              inputData.removeAll()
-//              self.decode(data: bytes)
-          } else {
-            handshake.serverData.append(Data(bytes: b, count: length))
-          }
-      }
+    guard let i = input, let b = buffer else {
+      return
+    }
+    let length = i.read(b, maxLength: RTMPSocket.maxReadSize)
+    guard length > 0 else { return }
+    if self.handshake.status == .handshakeDone {
+      //              inputData.append(b, count: length)
+      //              let bytes:Data = self.inputData
+      //              inputData.removeAll()
+      //              self.decode(data: bytes)
+    } else {
+      handshake.serverData.append(Data(bytes: b, count: length))
+    }
+    
   }
   
   func send(_ data: Data) {
