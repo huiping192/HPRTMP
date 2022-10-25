@@ -7,8 +7,7 @@
 
 import Foundation
 
-protocol MessageHeader {
-  func encode() -> Data
+protocol MessageHeader: Encodable {
 }
 
 struct MessageHeaderType0: MessageHeader {

@@ -7,16 +7,28 @@
 
 import Foundation
 
-struct Chunk {
+protocol Encodable {
+  func encode() -> Data
+}
+
+struct Chunk: Encodable {
   let chunkHeader: ChunkHeader
-  let chunkData: ChunkData
+  let chunkData: Data
+  
+  func encode() -> Data {
+    return chunkHeader.encode() + chunkData
+  }
 }
 
 
-struct ChunkHeader {
+struct ChunkHeader: Encodable {
   let basicHeader: BasicHeader
   let messageHeader: MessageHeader
-  let extendedTimestamp: ExtendedTimestamp
+  let extendedTimestamp: TimeInterval
+  
+  func encode() -> Data {
+    return basicHeader.encode() + messageHeader.encode()
+  }
 }
 
 enum MessageHeaderType: Int {
@@ -44,12 +56,4 @@ struct BasicHeader {
     // 使用bigEndian
     return Data([fmt | 0b00000001] + (streamId - 64).bigEndian.data)
   }
-}
-
-struct ExtendedTimestamp {
-  
-}
-
-struct ChunkData {
-  
 }
