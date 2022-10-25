@@ -46,10 +46,6 @@ struct BasicHeader {
   }
 }
 
-struct MessageHeader {
-  
-}
-
 struct ExtendedTimestamp {
   
 }
