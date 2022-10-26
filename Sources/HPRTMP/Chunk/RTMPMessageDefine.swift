@@ -14,12 +14,15 @@ public enum ObjectEncodingType: UInt8, Decodable {
 
 enum MessageType {
     
+    // controll
     case chunkSize
     case abort
     case acknowledgement
     case control
     case windowAcknowledgement
     case peerBandwidth
+  
+  
     case command(type: ObjectEncodingType)
     case data(type: ObjectEncodingType)
     case share(type: ObjectEncodingType)
@@ -36,6 +39,8 @@ enum MessageType {
         case 4:  self = .control
         case 5:  self = .windowAcknowledgement
         case 6:  self = .peerBandwidth
+          
+          
         case 20: self = .command(type: .amf0)
         case 17: self = .command(type: .amf3)
         case 18: self = .data(type: .amf0)
