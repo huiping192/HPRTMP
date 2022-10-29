@@ -16,6 +16,10 @@ extension Data {
     self.append(contentsOf: value)
   }
   
+  mutating func write(_ value: UInt16) {
+    self.append(value.bigEndian.data)
+  }
+  
   mutating func write(_ value: UInt32) {
     self.append(value.bigEndian.data)
   }
