@@ -12,6 +12,37 @@ public enum ObjectEncodingType: UInt8, Decodable {
     case amf3 = 3
 }
 
+enum RTMPVideoFunction: UInt8 {
+    case seek = 1
+}
+
+enum RTMPAudioCodecsType: UInt16 {
+    case none    = 0x0001
+    case adpcm   = 0x0002
+    case mp3     = 0x0004
+    case intel   = 0x0008 //not use
+    case unused  = 0x0010 // not use
+    case nelly   = 0x0040
+    case g711a   = 0x0080
+    case g711u   = 0x0100
+    case nelly16 = 0x0200
+    case aac     = 0x0400
+    case speex   = 0x0800
+    case all     = 0x0FFF
+}
+
+enum RTMPVideoCodecsType: UInt16 {
+    case unused    = 0x0001   //Obsolete value
+    case jpeg      = 0x0002   //Obsolete value
+    case sorenson  = 0x0004   //Sorenson Flash Video
+    case homebrew  = 0x0008   // V1 screen sharning
+    case vp6       = 0x0010   // on2 video(Flash 8+)
+    case vp6Alpha  = 0x0020
+    case homebrewv = 0x0040
+    case h264      = 0x0080
+    case all       = 0x00FF
+}
+
 enum MessageType {
     
     // controll
