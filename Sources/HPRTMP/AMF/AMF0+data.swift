@@ -23,10 +23,34 @@ enum RTMPAMF0Type: UInt8 {
   case switchAMF3  = 0x11
 }
 
+extension Int: AMF0Encode {
+  var amf0Value: Data {
+    return Double(self).amf0Value
+  }
+}
+
+extension Int8: AMF0Encode {
+  var amf0Value: Data {
+    return Double(self).amf0Value
+  }
+}
+
+extension Int16: AMF0Encode {
+  var amf0Value: Data {
+    return Double(self).amf0Value
+  }
+}
+
+extension Int32: AMF0Encode {
+  var amf0Value: Data {
+    return Double(self).amf0Value
+  }
+}
+
 extension UInt: AMF0Encode {
-    var amf0Value: Data {
-        return Double(self).amf0Value
-    }
+  var amf0Value: Data {
+    return Double(self).amf0Value
+  }
 }
 
 extension UInt8: AMF0Encode {
