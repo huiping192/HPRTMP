@@ -140,3 +140,70 @@ extension Date: AMF0Encode {
     return data
   }
 }
+
+
+// Object - 0x03 (Set of key/value pairs)
+// Object End - 0x09 (preceded by an empty 16-bit string length)
+extension Dictionary where Key == String {
+  var amf0Encode: Data {
+    var data = Data()
+    data.write(RTMPAMF0Type.object.rawValue)
+    data.append(keyValueEncode())
+    data.write([0x00,0x00,RTMPAMF0Type.objectEnd.rawValue])
+    return data
+  }
+  
+  // ECMA Array
+  var amf0EcmaArray: Data {
+    var data = Data()
+    data.write(RTMPAMF0Type.array.rawValue)
+    data.write(UInt32(self.count))
+    data.append(self.keyValueEncode())
+    return data
+  }
+  
+  fileprivate func keyValueEncode() -> Data {
+    var data = Data()
+    self.forEach { (key, value) in
+      let keyEncode = key.amf0Value
+      data.append(keyEncode)
+      if let valueEncode = (value as? AMF0Encode)?.amf0Value {
+        data.append(valueEncode)
+      } else {
+        data.write(RTMPAMF0Type.null.rawValue)
+      }
+    }
+    return data
+  }
+}
+
+// Strict Array - 0x0a (32-bit entry count)
+extension Array: AMF0Encode {
+  var amf0Value: Data {
+    var data = Data()
+    data.write(RTMPAMF0Type.strictArray.rawValue)
+    data.write(UInt32(self.count))
+    self.forEach {
+      if let valueEncode = ($0 as? AMF0Encode)?.amf0Value {
+        data.append(valueEncode)
+      } else if let dic = $0 as? [String: Any] {
+        data.append(dic.amf0Encode)
+      }
+    }
+    return data
+  }
+}
+
+extension Array {
+  var amf0GroupEncode: Data {
+    var group = Data()
+    self.forEach {
+      if let data = ($0 as? AMF0Encode)?.amf0Value {
+        group.append(data)
+      } else if let dic = $0 as? [String: Any?] {
+        group.append(dic.amf0Encode)
+      }
+    }
+    return group
+  }
+}
