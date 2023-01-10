@@ -10,61 +10,63 @@ import AVFoundation
 
 
 public enum RTMPState {
-    case none
-    case open
-    case connected
-    case closed
+  case none
+  case open
+  case connected
+  case closed
 }
 
 
 public enum RTMPError: Error {
-    case stream(desc: String)
-    case command(desc: String)
-    case uknown(desc: String)
-    var localizedDescription: String {
-        get {
-            switch self {
-            case .stream(let desc):
-                return desc
-            case .command(let desc):
-                return desc
-            case .uknown(let desc):
-                return desc
-            }
-        }
+  case stream(desc: String)
+  case command(desc: String)
+  case uknown(desc: String)
+  var localizedDescription: String {
+    get {
+      switch self {
+      case .stream(let desc):
+        return desc
+      case .command(let desc):
+        return desc
+      case .uknown(let desc):
+        return desc
+      }
     }
+  }
 }
 
 protocol RTMPSocketDelegate: AnyObject {
   func socketHandShakeDone(_ socket: RTMPSocket)
   func socketPinRequest(_ socket: RTMPSocket, data: Data)
-//  func socketConnectDone(_ socket: RTMPSocket, obj: ConnectResponse)
-//  func socketCreateStreamDone(_ socket: RTMPSocket, obj: StreamResponse)
+  //  func socketConnectDone(_ socket: RTMPSocket, obj: ConnectResponse)
+  //  func socketCreateStreamDone(_ socket: RTMPSocket, obj: StreamResponse)
   func socketError(_ socket: RTMPSocket, err: RTMPError)
-//  func socketGetMeta(_ socket: RTMPSocket, meta: MetaDataResponse)
+  //  func socketGetMeta(_ socket: RTMPSocket, meta: MetaDataResponse)
   func socketPeerBandWidth(_ socket: RTMPSocket, size: UInt32)
   func socketDisconnected(_ socket: RTMPSocket)
 }
 
 
 public class RTMPSocket: NSObject {
-    
-    private static let maxReadSize = Int(UInt16.max)
-    
-    private let inputQueue = DispatchQueue(label: "HPRTMP.inputQueue")
-    private let outputQueue = DispatchQueue(label: "HPRTMP.outputQueue")
-    private var input: InputStream?
-    private var output: OutputStream?
-    private var runloop: RunLoop?
-    
-    private var buffer: UnsafeMutablePointer<UInt8>?
-    private var inputData = Data()
-    
-    private var state: RTMPState = .none
-    
-    weak var delegate: RTMPSocketDelegate?
-    
-    private let urlInfo: RTMPURLInfo
+  
+  private static let maxReadSize = Int(UInt16.max)
+  
+  private let inputQueue = DispatchQueue(label: "HPRTMP.inputQueue")
+  private let outputQueue = DispatchQueue(label: "HPRTMP.outputQueue")
+  private var input: InputStream?
+  private var output: OutputStream?
+  private var runloop: RunLoop?
+  
+  private var buffer: UnsafeMutablePointer<UInt8>?
+  private var inputData = Data()
+  
+  private var state: RTMPState = .none
+  
+  weak var delegate: RTMPSocketDelegate?
+  
+  private let urlInfo: RTMPURLInfo
+  
+  var connectId: Int = 0
   
   private lazy var handshake: RTMPHandshake = {
     return RTMPHandshake(statusChange: { [weak self] (status) in
@@ -84,86 +86,86 @@ public class RTMPSocket: NSObject {
       }
     })
   }()
-    
-    public init?(url: String) {
-        let urlParser = RTMPURLParser()
-        guard let urlInfo = try? urlParser.parse(url: url) else { return nil }
-        self.urlInfo = urlInfo
-    }
-    
-    public init?(streamURL: URL, streamKey: String, port: Int = 1935) {
-        let urlInfo = RTMPURLInfo(url: streamURL, key: streamKey, port: port)
-        self.urlInfo = urlInfo
-    }
-    
-    
-    
+  
+  public init?(url: String) {
+    let urlParser = RTMPURLParser()
+    guard let urlInfo = try? urlParser.parse(url: url) else { return nil }
+    self.urlInfo = urlInfo
+  }
+  
+  public init?(streamURL: URL, streamKey: String, port: Int = 1935) {
+    let urlInfo = RTMPURLInfo(url: streamURL, key: streamKey, port: port)
+    self.urlInfo = urlInfo
+  }
+  
+  
+  
 }
 
 // public func
 extension RTMPSocket {
-    public func resume() {
-        guard state != .connected else { return }
-        inputQueue.async { [unowned self] in
-          Stream.getStreamsToHost(withName: urlInfo.host,
-                                    port: urlInfo.port,
-                                    inputStream: &self.input,
-                                    outputStream: &self.output)
-            self.setParameter()
-        }
+  public func resume() {
+    guard state != .connected else { return }
+    inputQueue.async { [unowned self] in
+      Stream.getStreamsToHost(withName: urlInfo.host,
+                              port: urlInfo.port,
+                              inputStream: &self.input,
+                              outputStream: &self.output)
+      self.setParameter()
     }
-    
-    public func invalidate() {
-        guard state != .closed && state != .none else { return }
-        self.clearParameter()
-        handshake.reset()
-//        decoder.reset()
-//        encoder.reset()
-//        info.reset(clearInfo)
-    }
-    
-    
+  }
+  
+  public func invalidate() {
+    guard state != .closed && state != .none else { return }
+    self.clearParameter()
+    handshake.reset()
+    //        decoder.reset()
+    //        encoder.reset()
+    //        info.reset(clearInfo)
+  }
+  
+  
 }
 
 // socket handling
 extension RTMPSocket {
-    func setParameter() {
-        buffer = UnsafeMutablePointer<UInt8>.allocate(capacity: RTMPSocket.maxReadSize)
-      buffer?.initialize(repeating: 0, count: RTMPSocket.maxReadSize)
-      self.input?.delegate = self
-      self.output?.delegate = self
-      
-      self.runloop = .current
-      self.input?.setProperty(StreamNetworkServiceTypeValue.voIP, forKey: Stream.PropertyKey.networkServiceType)
-      self.input?.schedule(in: self.runloop!, forMode: RunLoop.Mode.default)
-      self.input?.setProperty(StreamSocketSecurityLevel.none, forKey: .socketSecurityLevelKey)
-      self.output?.schedule(in: self.runloop!, forMode: RunLoop.Mode.default)
-      self.output?.setProperty(StreamNetworkServiceTypeValue.voIP, forKey: Stream.PropertyKey.networkServiceType)
-      self.input?.open()
-      self.output?.open()
-      self.runloop?.run()
-    }
+  func setParameter() {
+    buffer = UnsafeMutablePointer<UInt8>.allocate(capacity: RTMPSocket.maxReadSize)
+    buffer?.initialize(repeating: 0, count: RTMPSocket.maxReadSize)
+    self.input?.delegate = self
+    self.output?.delegate = self
     
-    open func clearParameter() {
-        self.input?.close()
-        self.input?.remove(from: runloop!, forMode: RunLoop.Mode.default)
-        self.input?.delegate = nil
-        self.output?.close()
-        self.output?.remove(from: runloop!, forMode: RunLoop.Mode.default)
-        self.output?.delegate = nil
-        self.input = nil
-        self.output = nil
-        buffer?.deinitialize(count: RTMPSocket.maxReadSize)
-        buffer?.deallocate()
-        buffer = nil
-        inputData.removeAll()
-        
-        guard let r = self.runloop else {
-            return
-        }
-        CFRunLoopStop(r.getCFRunLoop())
-        self.runloop = nil
+    self.runloop = .current
+    self.input?.setProperty(StreamNetworkServiceTypeValue.voIP, forKey: Stream.PropertyKey.networkServiceType)
+    self.input?.schedule(in: self.runloop!, forMode: RunLoop.Mode.default)
+    self.input?.setProperty(StreamSocketSecurityLevel.none, forKey: .socketSecurityLevelKey)
+    self.output?.schedule(in: self.runloop!, forMode: RunLoop.Mode.default)
+    self.output?.setProperty(StreamNetworkServiceTypeValue.voIP, forKey: Stream.PropertyKey.networkServiceType)
+    self.input?.open()
+    self.output?.open()
+    self.runloop?.run()
+  }
+  
+  open func clearParameter() {
+    self.input?.close()
+    self.input?.remove(from: runloop!, forMode: RunLoop.Mode.default)
+    self.input?.delegate = nil
+    self.output?.close()
+    self.output?.remove(from: runloop!, forMode: RunLoop.Mode.default)
+    self.output?.delegate = nil
+    self.input = nil
+    self.output = nil
+    buffer?.deinitialize(count: RTMPSocket.maxReadSize)
+    buffer?.deallocate()
+    buffer = nil
+    inputData.removeAll()
+    
+    guard let r = self.runloop else {
+      return
     }
+    CFRunLoopStop(r.getCFRunLoop())
+    self.runloop = nil
+  }
 }
 
 extension Stream.Event: CustomStringConvertible {
@@ -178,7 +180,7 @@ extension Stream.Event: CustomStringConvertible {
     case Stream.Event.errorOccurred:
       return "errorOccurred"
     case Stream.Event.endEncountered:
-        return "endEncountered"
+      return "endEncountered"
     default:
       return "unknown"
     }
@@ -187,34 +189,40 @@ extension Stream.Event: CustomStringConvertible {
 
 
 extension RTMPSocket: StreamDelegate {
-    public func stream(_ aStream: Stream, handle eventCode: Stream.Event) {
-      print("[HPRTMP] stream \(aStream) eventCode: \(eventCode)")
-        switch eventCode {
-        case Stream.Event.openCompleted:
-            if input?.streamStatus == .open && output?.streamStatus == .open,
-               input == aStream {
-                self.handshake.startHandShake()
-            }
-        case Stream.Event.hasBytesAvailable:
-            if aStream == input {
-                self.readData()
-            }
-        case Stream.Event.hasSpaceAvailable:
-            break
-        case Stream.Event.errorOccurred:
-            if let e = aStream.streamError {
-              print("[HPRTMP] error: \(e.localizedDescription)")
-
-              self.delegate?.socketError(self, err: .uknown(desc: e.localizedDescription))
-            }
-            self.invalidate()
-        case Stream.Event.endEncountered:
-            self.invalidate()
-        default: break
-        }
+  public func stream(_ aStream: Stream, handle eventCode: Stream.Event) {
+    print("[HPRTMP] stream \(aStream) eventCode: \(eventCode)")
+    switch eventCode {
+    case Stream.Event.openCompleted:
+      if input?.streamStatus == .open && output?.streamStatus == .open,
+         input == aStream {
+        self.handshake.startHandShake()
+      }
+    case Stream.Event.hasBytesAvailable:
+      if aStream == input {
+        self.readData()
+      }
+    case Stream.Event.hasSpaceAvailable:
+      break
+    case Stream.Event.errorOccurred:
+      if let e = aStream.streamError {
+        print("[HPRTMP] error: \(e.localizedDescription)")
+        
+        self.delegate?.socketError(self, err: .uknown(desc: e.localizedDescription))
+      }
+      self.invalidate()
+    case Stream.Event.endEncountered:
+      self.invalidate()
+    default: break
     }
+  }
 }
 
+extension RTMPSocket {
+  func send(message: RTMPBaseMessageProtocol & Encodable, firstType: Bool) {
+    
+  }
+  
+}
 
 extension RTMPSocket {
   private func readData() {
@@ -236,19 +244,19 @@ extension RTMPSocket {
   
   func send(_ data: Data) {
     outputQueue.async { [weak self] in
-        guard let o = self?.output else {
-            return
+      guard let o = self?.output else {
+        return
+      }
+      data.withUnsafeBytes { (buffer: UnsafePointer<UInt8>) -> Void in
+        var total: Int = 0
+        while total < data.count {
+          let length = o.write(buffer.advanced(by: total), maxLength: data.count)
+          if length <= 0 {
+            break
+          }
+          total += length
         }
-        data.withUnsafeBytes { (buffer: UnsafePointer<UInt8>) -> Void in
-            var total: Int = 0
-            while total < data.count {
-                let length = o.write(buffer.advanced(by: total), maxLength: data.count)
-                if length <= 0 {
-                    break
-                }
-                total += length
-            }
-        }
+      }
     }
   }
 }
