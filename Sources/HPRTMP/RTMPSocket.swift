@@ -64,7 +64,7 @@ public class RTMPSocket: NSObject {
   
   weak var delegate: RTMPSocketDelegate?
   
-  private let urlInfo: RTMPURLInfo
+  let urlInfo: RTMPURLInfo
   
   var connectId: Int = 0
   
