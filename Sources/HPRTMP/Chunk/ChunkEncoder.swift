@@ -47,13 +47,14 @@ class ChunkEncoder {
                                   chunkPayload: Data($0.element))
           data.append(basic.encode())
         }
-        return data        
+        return data
       })
   }
 }
 
-extension Data {
+public extension Data {
   public func split(size: Int) -> [Data] {
+    guard size != 0 else { return [] }
     return stride(from: 0, to: count, by: size).map({
       let end = $0 + size >= count ? count : $0 + size
       return self.subdata(in: $0 ..< end)
@@ -61,11 +62,3 @@ extension Data {
   }
 }
 
-extension Array {
-  func split(size: Int) -> [[Element]] {
-    return stride(from: 0, to: count, by: size).map({
-      let end = $0 + size >= count ? count : $0 + size
-      return Array(self[$0..<end])
-    })
-  }
-}
