@@ -24,10 +24,32 @@ struct Chunk: Encodable {
 struct ChunkHeader: Encodable {
   let basicHeader: BasicHeader
   let messageHeader: MessageHeader
-  let extendedTimestamp: TimeInterval
+  let chunkPayload: Data
+  
+  init(streamId: Int,messageHeader: MessageHeader, chunkPayload: Data) {
+    self.messageHeader = messageHeader
+    self.chunkPayload = chunkPayload
+    
+    
+    let basicHeaderType: MessageHeaderType
+    switch messageHeader {
+    case _ as MessageHeaderType0:
+        basicHeaderType = .type0
+    case _ as MessageHeaderType1:
+        basicHeaderType = .type1
+    case _ as MessageHeaderType2:
+        basicHeaderType = .type2
+    case _ as MessageHeaderType3:
+        basicHeaderType = .type3
+    default:
+        basicHeaderType = .type0
+    }
+    
+    self.basicHeader = BasicHeader(streamId: UInt16(streamId), type: basicHeaderType)
+  }
   
   func encode() -> Data {
-    return basicHeader.encode() + messageHeader.encode()
+    return basicHeader.encode() + messageHeader.encode() + chunkPayload
   }
 }
 

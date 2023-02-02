@@ -50,15 +50,16 @@ extension RTMPPublishSession: RTMPSocketDelegate {
   }
   
   func socketPinRequest(_ socket: RTMPSocket, data: Data) {
-    
+//    let message = UserControlMessage(type: .pingRequest, data: data)
+//    self.socket.send(message: message, firstType: true)
   }
   
   func socketError(_ socket: RTMPSocket, err: RTMPError) {
-    
+    // todo : error handling
   }
   
   func socketPeerBandWidth(_ socket: RTMPSocket, size: UInt32) {
-    
+//    self.socket.send(message: WindowAckMessage(size: size), firstType: true)
   }
   
   func socketDisconnected(_ socket: RTMPSocket) {
