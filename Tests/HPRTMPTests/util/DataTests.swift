@@ -12,18 +12,19 @@ import XCTest
 class DataTests: XCTestCase {
   func testSplit() {
     // Given
-    let data = Data("0123456789".utf8)
+    let bytes: [UInt8] = [01,02,03,04,05,06,07,08,09,10]
+    let data = Data(bytes)
     
     // When
     let result = data.split(size: 2)
     
     // Then
     XCTAssertEqual(result.count, 5)
-    XCTAssertEqual(result[0], Data("01".utf8))
-    XCTAssertEqual(result[1], Data("23".utf8))
-    XCTAssertEqual(result[2], Data("45".utf8))
-    XCTAssertEqual(result[3], Data("67".utf8))
-    XCTAssertEqual(result[4], Data("89".utf8))
+    XCTAssertEqual(result[0], Data([01,02]))
+    XCTAssertEqual(result[1], Data([03,04]))
+    XCTAssertEqual(result[2], Data([05,06]))
+    XCTAssertEqual(result[3], Data([07,08]))
+    XCTAssertEqual(result[4], Data([09,10]))
   }
   
   func testSplitWithRemainder() {
