@@ -20,17 +20,17 @@ struct Chunk: Encodable {
   }
 }
 
-
 struct ChunkHeader: Encodable {
   let basicHeader: BasicHeader
   let messageHeader: MessageHeader
   let chunkPayload: Data
   
+  // Initialize the ChunkHeader struct with a stream ID, message header, and chunk payload
   init(streamId: Int,messageHeader: MessageHeader, chunkPayload: Data) {
     self.messageHeader = messageHeader
     self.chunkPayload = chunkPayload
     
-    
+    // Determine the basic header type based on the type of the message header
     let basicHeaderType: MessageHeaderType
     switch messageHeader {
     case _ as MessageHeaderType0:
@@ -42,13 +42,17 @@ struct ChunkHeader: Encodable {
     case _ as MessageHeaderType3:
         basicHeaderType = .type3
     default:
+        // If the message header is not one of the four defined types, set the basic header type to type0
         basicHeaderType = .type0
     }
     
+    // Initialize the basic header with the stream ID and type
     self.basicHeader = BasicHeader(streamId: UInt16(streamId), type: basicHeaderType)
   }
   
+  // Encode the chunk header into a data object
   func encode() -> Data {
+    // Concatenate the encoded basic header, message header, and chunk payload
     return basicHeader.encode() + messageHeader.encode() + chunkPayload
   }
 }
@@ -65,17 +69,25 @@ struct BasicHeader {
   let type: MessageHeaderType
   
   func encode() -> Data {
+    // Calculates the format field (fmt) by left shifting the MessageHeaderType's raw value 6 bits to the left
     let fmt = UInt8(type.rawValue << 6)
     
+    // Checks if streamId is less than or equal to 63, in which case the Basic Header will only consist of one byte
     if streamId <= 63 {
+      // Returns a single-byte Data object that contains the value of `fmt` ORed with the value of streamId casted to UInt8
       return Data([UInt8(fmt | UInt8(streamId))])
     }
     
+    // Checks if streamId is less than or equal to 319, in which case the Basic Header will consist of two bytes
     if streamId <= 319 {
+      // Returns a two-byte Data object where the first byte is the value of `fmt` ORed with 0b00000000 (0 in binary),
+      // and the second byte is the value of streamId minus 64 casted to UInt8
       return Data([UInt8(fmt | 0b00000000), UInt8(streamId - 64)])
     }
-    // Basic Header是采用小端存储的方式，越往后的字节数量级越高，因此通过3个字节的每一个bit的值来计算CSID时，应该是: <第三个字节的值> * 256 + <第二个字节的值> + 64.
-    // 使用bigEndian
+    
+    // If streamId is greater than 319, the Basic Header will consist of three bytes.
+    // In this case, the first byte is the value of `fmt` ORed with 0b00000001 (1 in binary),
+    // and the next two bytes are the value of `streamId` minus 64 in big endian byte order.
     return Data([fmt | 0b00000001] + (streamId - 64).bigEndian.data)
   }
 }
