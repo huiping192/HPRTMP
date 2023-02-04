@@ -14,7 +14,7 @@ class ControlMessage: RTMPBaseMessage {
 }
 
 // Set Chunk Size (1)
-class ChunkSizeMessage:ControlMessage, Encodable {
+class ChunkSizeMessage: Encodable {
   let size: UInt32
   init(size: UInt32) {
     self.size = size

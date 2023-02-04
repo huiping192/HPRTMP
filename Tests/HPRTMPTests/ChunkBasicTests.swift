@@ -13,7 +13,7 @@ class BasicHeaderTests: XCTestCase {
     let header = BasicHeader(streamId: 63, type: .type0)
     let encodedData = header.encode()
     
-    XCTAssertEqual(encodedData, Data([63 << 6 | 0]))
+    XCTAssertEqual(encodedData, Data([0 << 6 | 63]))
   }
   
   func testEncodeForStreamIdLessThanOrEqualTo319() {
@@ -27,7 +27,8 @@ class BasicHeaderTests: XCTestCase {
     let header = BasicHeader(streamId: 320, type: .type2)
     let encodedData = header.encode()
     
-    XCTAssertEqual(encodedData, Data([(2 << 6) | 1] + (320 - 64).bigEndian.data))
+    let expectedData = Data([(2 << 6) | 0b00000001] + (UInt16(320 - 64)).bigEndian.data)
+    XCTAssertEqual(encodedData, expectedData)
   }
   
   func testEncodeForDifferentTypes() {
