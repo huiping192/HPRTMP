@@ -247,13 +247,22 @@ extension RTMPSocket {
       guard let o = self?.output else {
         return
       }
-      data.withUnsafeBytes { (buffer: UnsafePointer<UInt8>) -> Void in
+      data.withUnsafeBytes { (buffer: UnsafeRawBufferPointer) -> Void in
+        // Keep track of the total number of bytes written
         var total: Int = 0
+        
+        let bufferPoint = buffer.bindMemory(to: UInt8.self).baseAddress!
+        // Write the data to the output stream in chunks
         while total < data.count {
-          let length = o.write(buffer.advanced(by: total), maxLength: data.count)
+          // Get the next chunk of data to write
+          let length = o.write(bufferPoint.advanced(by: total),maxLength: data.count)
+          
+          // Check if the write was successful
           if length <= 0 {
             break
           }
+          
+          // Increment the total number of bytes written
           total += length
         }
       }

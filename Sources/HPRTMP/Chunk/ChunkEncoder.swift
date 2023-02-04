@@ -53,7 +53,7 @@ class ChunkEncoder {
 }
 
 public extension Data {
-  public func split(size: Int) -> [Data] {
+  func split(size: Int) -> [Data] {
     guard size != 0 else { return [] }
     return stride(from: 0, to: count, by: size).map({
       let end = $0 + size >= count ? count : $0 + size
