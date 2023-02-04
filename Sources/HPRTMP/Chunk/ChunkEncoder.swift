@@ -13,7 +13,7 @@ class ChunkEncoder {
   
   var chunkSize = UInt32(ChunkEncoder.maxChunkSize)
   
-  func encode(message: RTMPBaseMessageProtocol & Encodable, isFirstType0: Bool = true) -> [Data] {
+  func chunk(message: RTMPBaseMessageProtocol & Encodable, isFirstType0: Bool = true) -> [Data] {
     let payload = message.encode()
     
     return payload.split(size: Int(chunkSize))

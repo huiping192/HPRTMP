@@ -68,6 +68,10 @@ public class RTMPSocket: NSObject {
   
   var connectId: Int = 0
   
+  private let encoder = ChunkEncoder()
+  private let decoder = ChunkDecoder()
+
+  
   private lazy var handshake: RTMPHandshake = {
     return RTMPHandshake(statusChange: { [weak self] (status) in
       guard let self = self else { return }
@@ -218,12 +222,16 @@ extension RTMPSocket: StreamDelegate {
 }
 
 extension RTMPSocket {
-  func send(message: RTMPBaseMessageProtocol & Encodable, firstType: Bool) {
+  func send(message: RTMPBaseMessageProtocol & Encodable, firstType: Bool = true) {
     if let message = message as? ChunkSizeMessage {
-      
+      encoder.chunkSize = message.size
     }
+    self.sendChunk(encoder.chunk(message: message, isFirstType0: firstType))
   }
   
+  private func sendChunk(_ data: [Data]) {
+    data.forEach { [unowned self] in self.send($0) }
+  }
 }
 
 extension RTMPSocket {
@@ -234,14 +242,26 @@ extension RTMPSocket {
     let length = i.read(b, maxLength: RTMPSocket.maxReadSize)
     guard length > 0 else { return }
     if self.handshake.status == .handshakeDone {
-      //              inputData.append(b, count: length)
-      //              let bytes:Data = self.inputData
-      //              inputData.removeAll()
-      //              self.decode(data: bytes)
+      inputData.append(b, count: length)
+      let bytes:Data = self.inputData
+      inputData.removeAll()
+      self.decode(data: bytes)
     } else {
       handshake.serverData.append(Data(bytes: b, count: length))
     }
-    
+  }
+  
+  private func decode(data: Data) {
+      self.decoder.decode(data: data) { [unowned self] (header) in
+//          switch header.messageHeader {
+//          case let c as MessageHeaderType0:
+//              self.chunk(header0: c, chunk: header)
+//          case let c as MessageHeaderType1:
+//              self.chunk(header1: c, chunk: header)
+//          default:
+//              break
+//          }
+      }
   }
   
   func send(_ data: Data) {
