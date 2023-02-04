@@ -19,7 +19,10 @@ class ChunkDecoder {
   // chunk size 128
   private static let maxChunkSize: UInt8 = 128
   var chunkSize: UInt32 = UInt32(ChunkDecoder.maxChunkSize)
-  
+  var preLength: UInt32 = 0
+  var map = [Int: ChunkHeader]()
+  var chunkBlock:((ChunkHeader)->Void)?
+
   private var isStart = false
   private var decodeData = Data() {
       didSet {
@@ -96,7 +99,51 @@ class ChunkDecoder {
   }
   
   func decodeType0(streamId: Int, basicHeaderSize: Int) -> RTMPMessageDecodeStatus {
-    return .error(desc: "desc")
+    guard let dataTime = self.decodeData[safe: (0...2).shift(index: basicHeaderSize)],
+          let dataLength = self.decodeData[safe:(3...5).shift(index: basicHeaderSize)] else {
+        return .notEnoughData
+    }
+    
+    var time = Data(dataTime.reversed()).uint32
+    
+    let isExtendTime = (Double(time) == maxTimestamp)
+    let headerSize = isExtendTime ? 15 : 11
+    if isExtendTime {
+        guard let dataExtend = self.decodeData[safe: (11...14).shift(index: basicHeaderSize)] else {
+            return .notEnoughData
+        }
+        time = Data(dataExtend.reversed()).uint32
+    }
+    
+    preLength = Data(dataLength.reversed()).uint32
+    
+    switch self.decodePayload(length: preLength, headerSize: headerSize+basicHeaderSize) {
+    case .payload(let data, let isChunk):
+        let type = MessageType(rawValue: Data([self.decodeData[6+basicHeaderSize]]).uint8)
+        let msgStreamId = Data(self.decodeData[(7...10).shift(index: basicHeaderSize)].reversed()).uint32
+        
+        let header0 = MessageHeaderType0(timestamp: TimeInterval(time),
+                                         messageLength: Int(preLength),
+                                         type: type,
+                                         messageStreamId: Int(msgStreamId))
+
+        let header =  ChunkHeader(streamId: Int(streamId),
+                                      messageHeader:
+            header0,
+                                      chunkPayload: Data(data))
+
+        if isChunk {
+            self.map[Int(streamId)] = header
+        } else {
+            chunkBlock?(header)
+        }
+        self.decodeData.removeSubrange(0..<headerSize+basicHeaderSize+data.count)
+        return .payload(data: data, isChunk: isChunk)
+    case .notEnoughData:
+        return .notEnoughData
+    case .error(let desc):
+        return .error(desc: desc)
+    }
   }
 
   func decodeType1(streamId: Int, basicHeaderSize: Int) -> RTMPMessageDecodeStatus {
@@ -111,5 +158,18 @@ class ChunkDecoder {
 
   func reset() {
     
+  }
+  
+  private func decodePayload(length: UInt32, headerSize: Int) -> RTMPMessageDecodeStatus {
+      var payloadRange = 0..<Int(length)
+      let isChunk = length > self.chunkSize
+      if isChunk {
+          payloadRange = 0..<Int(self.chunkSize)
+      }
+      if let data = decodeData[safe: payloadRange.shift(index: headerSize)] {
+          return .payload(data: data, isChunk: isChunk)
+      } else {
+          return .notEnoughData
+      }
   }
 }
