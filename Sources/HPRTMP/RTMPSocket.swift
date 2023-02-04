@@ -219,7 +219,9 @@ extension RTMPSocket: StreamDelegate {
 
 extension RTMPSocket {
   func send(message: RTMPBaseMessageProtocol & Encodable, firstType: Bool) {
-//    if message 
+    if let message = message as? ChunkSizeMessage {
+      
+    }
   }
   
 }

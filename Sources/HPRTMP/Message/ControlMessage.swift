@@ -7,8 +7,14 @@
 
 import Foundation
 
+class ControlMessage: RTMPBaseMessage {
+    init(type: MessageType) {
+        super.init(type: type, streamId: RTMPStreamId.control.rawValue)
+    }
+}
+
 // Set Chunk Size (1)
-class ChunkSizeMessage: Encodable {
+class ChunkSizeMessage:ControlMessage, Encodable {
   let size: UInt32
   init(size: UInt32) {
     self.size = size
