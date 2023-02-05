@@ -32,7 +32,8 @@ struct MessageHeaderType0: MessageHeader {
     data.append(UInt32(time).bigEndian.data)
     data.append(UInt32(messageLength).bigEndian.data)
     data.append(type.rawValue)
-    
+    data.append(UInt32(messageStreamId).data)
+
     if isExtendTime {
       data.append(UInt32(Int(timestamp)).bigEndian.data)
     }
