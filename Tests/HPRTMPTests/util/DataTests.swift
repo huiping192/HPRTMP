@@ -65,3 +65,36 @@ class DataTests: XCTestCase {
     XCTAssertEqual(result.count, 0)
   }
 }
+
+class DataWriteU24Tests: XCTestCase {
+  
+  func testWriteU24LittleEndian() {
+    var data = Data()
+    data.writeU24(0x00FF_FFFF, bigEndian: false)
+    let expected = Data([0xff, 0xff, 0xff])
+    XCTAssertEqual(data, expected)
+  }
+  
+  func testWriteU24BigEndian() {
+    var data = Data()
+    data.writeU24(0x00FF_FFFF, bigEndian: true)
+    let expected = Data([0xff, 0xff, 0xff])
+    XCTAssertEqual(data, expected)
+  }
+  
+  func testWriteU24MaxValueBigEndian() {
+    var data = Data()
+    data.writeU24(0xFFFF_FFFF, bigEndian: true)
+    let expected = Data([0xff, 0xff, 0xff])
+    XCTAssertEqual(data, expected)
+  }
+  
+  func testWriteU24MaxValueLittleEndian() {
+    var data = Data()
+    data.writeU24(0xFFFF_FFFF, bigEndian: false)
+    let expected = Data([0xff, 0xff, 0xff])
+    XCTAssertEqual(data, expected)
+  }
+}
+
+
