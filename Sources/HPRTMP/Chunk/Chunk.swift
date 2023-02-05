@@ -23,7 +23,7 @@ struct Chunk: Encodable {
 struct ChunkHeader: Encodable {
   let basicHeader: BasicHeader
   let messageHeader: MessageHeader
-  let chunkPayload: Data
+  var chunkPayload: Data = Data()
   
   // Initialize the ChunkHeader struct with a stream ID, message header, and chunk payload
   init(streamId: Int,messageHeader: MessageHeader, chunkPayload: Data) {
