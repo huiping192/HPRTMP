@@ -57,6 +57,12 @@ struct ChunkHeader: Encodable {
   }
 }
 
+extension ChunkHeader: Equatable {
+  static func == (lhs: ChunkHeader, rhs: ChunkHeader) -> Bool {
+    return lhs.basicHeader == rhs.basicHeader && lhs.messageHeader.encode() == rhs.messageHeader.encode() && lhs.chunkPayload == rhs.chunkPayload
+  }
+}
+
 enum MessageHeaderType: Int {
     case type0 = 0
     case type1 = 1
@@ -64,7 +70,7 @@ enum MessageHeaderType: Int {
     case type3 = 3
 }
 
-struct BasicHeader {
+struct BasicHeader: Equatable {
   let streamId: UInt16
   let type: MessageHeaderType
   

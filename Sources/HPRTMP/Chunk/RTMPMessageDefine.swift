@@ -43,7 +43,7 @@ enum RTMPVideoCodecsType: UInt16 {
     case all       = 0x00FF
 }
 
-enum MessageType {
+enum MessageType: Equatable {
     
     // controll
     case chunkSize
@@ -115,5 +115,9 @@ enum MessageType {
             return 0xff
         }
     }
+  
+  static func == (lhs: MessageType, rhs: MessageType) -> Bool {
+    lhs.rawValue == rhs.rawValue
+  }
 
 }
