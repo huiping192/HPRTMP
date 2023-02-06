@@ -106,7 +106,7 @@ class ChunkDecoder {
       return .notEnoughData
     }
     
-    var time = Data([0x00] + dataTime.reversed()).uint32
+    var time = Data(dataTime.reversed() + [0x00]).uint32
     
     let isExtendTime = (Double(time) == maxTimestamp)
     let headerSize = isExtendTime ? 15 : 11
@@ -114,10 +114,10 @@ class ChunkDecoder {
       guard let dataExtend = self.decodeData[safe: (11...14).shift(index: basicHeaderSize)] else {
         return .notEnoughData
       }
-      time = Data([0x00] + dataExtend.reversed()).uint32
+      time = Data(dataExtend.reversed() + [0x00]).uint32
     }
     
-    preLength = Data([0x00] + dataLength.reversed()).uint32
+    preLength = Data(dataLength.reversed() + [0x00]).uint32
     
     switch self.decodePayload(length: preLength, headerSize: headerSize+basicHeaderSize) {
     case .payload(let data, let isChunk):
