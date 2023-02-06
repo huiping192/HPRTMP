@@ -60,7 +60,7 @@ struct MessageHeaderType2: MessageHeader {
   
   func encode() -> Data {
     var data = Data()
-    data.append(UInt32(timestampDelta).bigEndian.data)
+    data.writeU24(Int(timestampDelta), bigEndian: true)
     return data
   }
 }

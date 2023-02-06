@@ -49,3 +49,11 @@ class MessageHeaderType1Tests: XCTestCase {
     XCTAssertEqual(header.encode(), expectedData)
   }
 }
+
+class MessageHeaderType2Tests: XCTestCase {
+  func testEncode() {
+    let header = MessageHeaderType2(timestampDelta: 100)
+    let expectedData = Data([0x00, 0x00, 0x64])
+    XCTAssertEqual(header.encode(), expectedData)
+  }
+}
