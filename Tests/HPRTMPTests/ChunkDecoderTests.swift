@@ -12,13 +12,12 @@ class ChunkDecoderTests: XCTestCase {
   
 //  func testDecodeType0() {
 //    let decoder = ChunkDecoder()
-//    let message = Data([0x00, 0x05, 0x00, 0x00, 0x00, 0x14, 0x02, 0x00, 0x00, 0x00, 0x00])
 //    let expectedHeader = ChunkHeader(streamId: 2, messageHeader: MessageHeaderType0(timestamp: 5, messageLength: 20, type: .audio, messageStreamId: 0), chunkPayload: Data())
 //    var decodedHeader: ChunkHeader?
 //    decoder.chunkBlock = { header in
 //      decodedHeader = header
 //    }
-//    decoder.decode(data: message, chunk: nil)
+//    decoder.decode(data: expectedHeader.encode(), chunk: nil)
 //    XCTAssertEqual(decodedHeader, expectedHeader)
 //  }
   
