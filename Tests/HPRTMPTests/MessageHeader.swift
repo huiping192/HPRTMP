@@ -41,3 +41,11 @@ class MessageHeaderType0Tests: XCTestCase {
     XCTAssertEqual(header.encode(), expected)
   }
 }
+
+class MessageHeaderType1Tests: XCTestCase {
+  func testEncode() {
+    let header = MessageHeaderType1(timestampDelta: 100, messageLength: 100, type: .audio)
+    let expectedData = Data([0x00, 0x00, 0x64, 0x00, 0x00, 0x64, 0x08])
+    XCTAssertEqual(header.encode(), expectedData)
+  }
+}

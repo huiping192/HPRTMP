@@ -48,9 +48,9 @@ struct MessageHeaderType1: MessageHeader {
   
   func encode() -> Data {
     var data = Data()
-    data.append(UInt32(timestampDelta).bigEndian.data)
-    data.append(UInt32(messageLength).bigEndian.data)
-    data.write(UInt8(type.rawValue))
+    data.writeU24(Int(timestampDelta), bigEndian: true)
+    data.writeU24(messageLength, bigEndian: true)
+    data.write(type.rawValue)
     return data
   }
 }
