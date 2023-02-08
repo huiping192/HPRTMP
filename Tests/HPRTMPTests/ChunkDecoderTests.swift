@@ -25,7 +25,7 @@ class ChunkDecoderTests: XCTestCase {
     
     XCTAssertEqual(decodedHeader, expectedHeader)
   }
-  
+//
 //  func testDecodeType1() {
 //    let decoder = ChunkDecoder()
 //
@@ -76,27 +76,34 @@ class ChunkDecoderTests: XCTestCase {
 //  }
 //
 //  func testDecodeType2() {
+//    let expectation = XCTestExpectation(description: "Waiting for header to decode")
+//
 //    let decoder = ChunkDecoder()
-//    let message = Data([0x80, 0x05, 0x00, 0x14, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00])
-//    let expectedHeader = ChunkHeader(streamId: 2, header: MessageHeaderType0(timestamp: 5, messageLength: 20, type: .audio, messageStreamId: 0))
+//    let messageHeaderType2 = MessageHeaderType2(timestampDelta: 5)
+//    let expectedHeader = ChunkHeader(streamId: 2, messageHeader: messageHeaderType2, chunkPayload: Data())
 //    var decodedHeader: ChunkHeader?
-//    decoder.chunkBlock = { header in
+//    decoder.decode(data: expectedHeader.encode()) { header in
 //      decodedHeader = header
+//      expectation.fulfill()
 //    }
-//    decoder.decode(data: message, chunk: nil)
+//    wait(for: [expectation], timeout: 2.0)
+//    
 //    XCTAssertEqual(decodedHeader, expectedHeader)
 //  }
 //
 //  func testDecodeType3() {
+//    let expectation = XCTestExpectation(description: "Waiting for header to decode")
+//
 //    let decoder = ChunkDecoder()
-//    let message = Data([0xC0, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00])
-//    let expectedHeader = ChunkHeader(streamId: 2, header: MessageHeaderType3(timestamp: 0, messageLength: 0, type: .audio))
+//    let expectedHeader = ChunkHeader(streamId: 2, messageHeader: MessageHeaderType3(), chunkPayload: Data())
 //    var decodedHeader: ChunkHeader?
-//    decoder.chunkBlock = { header in
+//    decoder.decode(data: expectedHeader.encode()) { header in
 //      decodedHeader = header
+//      expectation.fulfill()
 //    }
-//    decoder.decode(data: message, chunk: nil)
+//    wait(for: [expectation], timeout: 2.0)
+//
 //    XCTAssertEqual(decodedHeader, expectedHeader)
 //  }
-//
+
 }
