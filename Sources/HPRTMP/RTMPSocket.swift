@@ -48,16 +48,12 @@ protocol RTMPSocketDelegate: AnyObject {
 }
 
 
-public class RTMPSocket: NSObject {
+public class RTMPSocket {
   
   private static let maxReadSize = Int(UInt16.max)
-  
-  private let inputQueue = DispatchQueue(label: "HPRTMP.inputQueue")
-  private let outputQueue = DispatchQueue(label: "HPRTMP.outputQueue")
-    
+      
   private var connection: NWConnection?
   
-  private var buffer: UnsafeMutablePointer<UInt8>?
   private var inputData = Data()
   
   private var state: RTMPState = .none
@@ -71,28 +67,7 @@ public class RTMPSocket: NSObject {
   private let encoder = ChunkEncoder()
   private let decoder = ChunkDecoder()
 
-  
-  private lazy var handshake: RTMPHandshake = {
-    return RTMPHandshake(statusChange: { [weak self] (status) in
-      guard let self = self else { return }
-      print("[HPRTMP] handshake status: \(status)")
-      switch status {
-      case .uninitalized:
-        self.send(self.handshake.c0c1Packet) {
-          self.startReceiveData()
-        }
-
-        print("[HPRTMP] send handshake c0c1Packet")
-      case .verSent:
-        self.send(self.handshake.c2Packet)
-        print("[HPRTMP] send handshake c2Packet")
-      case .ackSent, .none:
-        break
-      case .handshakeDone:
-        self.delegate?.socketHandShakeDone(self)
-      }
-    })
-  }()
+  private var handshake: RTMPHandshake?
   
   public init?(url: String) {
     let urlParser = RTMPURLParser()
@@ -104,59 +79,85 @@ public class RTMPSocket: NSObject {
     let urlInfo = RTMPURLInfo(url: streamURL, key: streamKey, port: port)
     self.urlInfo = urlInfo
   }
-  
-  
-  
 }
 
 // public func
 extension RTMPSocket {
   public func resume() {
     guard state != .connected else { return }
-    inputQueue.async { [unowned self] in
-      let port = NWEndpoint.Port(rawValue: UInt16(urlInfo.port))
-      let host = NWEndpoint.Host(urlInfo.host)
-      let connection = NWConnection(host: host, port: port ?? 1935, using: .tcp)
-      self.connection = connection
-      connection.stateUpdateHandler = { newState in
-        print("[HPRTMP] connection \(connection) state: \(newState)")
-          switch newState {
-          case .ready:
-            self.handshake.startHandShake()
-          case .failed(let error):
-            print("[HPRTMP] connection error: \(error.localizedDescription)")
-            self.delegate?.socketError(self, err: .uknown(desc: error.localizedDescription))
-            self.invalidate()
-          default:
-              break
-          }
+    let port = NWEndpoint.Port(rawValue: UInt16(urlInfo.port))
+    let host = NWEndpoint.Host(urlInfo.host)
+    let connection = NWConnection(host: host, port: port ?? 1935, using: .tcp)
+    self.connection = connection
+    connection.stateUpdateHandler = { newState in
+      print("[HPRTMP] connection \(connection) state: \(newState)")
+      switch newState {
+      case .ready:
+        Task {
+          try? await self.handshake?.start()
+        }
+      case .failed(let error):
+        print("[HPRTMP] connection error: \(error.localizedDescription)")
+        self.delegate?.socketError(self, err: .uknown(desc: error.localizedDescription))
+        self.invalidate()
+      default:
+        break
       }
-      connection.start(queue: self.outputQueue)
+    }
+    
+    handshake = RTMPHandshake(dataSender: sendData(data:), dataReceiver: receiveData)
+    connection.start(queue: DispatchQueue.global(priority: .default))
+  }
+  
+  private func sendData(data: Data) async throws -> Void {
+    try await withCheckedThrowingContinuation {  (continuation: CheckedContinuation<Void, Error>) in
+      self.connection?.send(content: data, completion: .contentProcessed({error in
+        if let error = error {
+          print("Error sending: \(error)")
+          continuation.resume(throwing: error)
+          return
+        }
+        continuation.resume(returning: ())
+      }))
+    }
+  }
+  
+  private func receiveData() async throws -> Data {
+    try await withCheckedThrowingContinuation { continuation in
+      connection?.receive(minimumIncompleteLength: Int(1), maximumLength: Self.maxReadSize) { data, context, isComplete, error in
+        if let error {
+          continuation.resume(throwing: error)
+          return
+        }
+        
+        guard let data else { return }
+        continuation.resume(returning: data)
+      }
     }
   }
   
   private func startReceiveData() {
-    connection?.receive(minimumIncompleteLength: 1, maximumLength: 1536) { [weak self](data, context, isComplete, error) in
-      guard let self else { return }
-      
-      self.outputQueue.async {
-        print("[HPRTMP] test \(data), \(context), \(isComplete), \(error)")
-        guard let data else { return }
-        self.handleOutputData(data: data)
-        
-        if isComplete {
-          self.connection?.cancel()
-        } else {
-          self.startReceiveData()
-        }
-      }
-    }
+//    connection?.receive(minimumIncompleteLength: 1, maximumLength: 1536) { [weak self](data, context, isComplete, error) in
+//      guard let self else { return }
+//
+//      print("[HPRTMP] test \(data), \(context), \(isComplete), \(error)")
+//      guard let data else { return }
+//      self.handleOutputData(data: data)
+//
+//      if isComplete {
+//        self.connection?.cancel()
+//      } else {
+//        self.startReceiveData()
+//      }
+//    }
   }
   
   public func invalidate() {
     guard state != .closed && state != .none else { return }
 //    self.clearParameter()
-    handshake.reset()
+    Task {
+      await handshake?.reset()
+    }
     //        decoder.reset()
     //        encoder.reset()
     //        info.reset(clearInfo)
@@ -230,16 +231,16 @@ extension RTMPSocket {
 
 extension RTMPSocket {
   private func handleOutputData(data: Data) {
-    let length = data.count
-    guard length > 0 else { return }
-    if handshake.status == .handshakeDone {
-      inputData.append(data)
-      let bytes: Data = self.inputData
-      self.inputData.removeAll()
-      self.decode(data: bytes)
-    } else {
-      handshake.serverData.append(data)
-    }
+//    let length = data.count
+//    guard length > 0 else { return }
+//    if handshake?.status == .handshakeDone {
+//      inputData.append(data)
+//      let bytes: Data = self.inputData
+//      self.inputData.removeAll()
+//      self.decode(data: bytes)
+//    } else {
+//      handshake.serverData.append(data)
+//    }
   }
   
   private func decode(data: Data) {
@@ -256,16 +257,15 @@ extension RTMPSocket {
   }
   
   func send(_ data: Data, complete: @escaping () -> Void = {}) {
-    connection?.send(content: data, completion: .contentProcessed({ [weak self] error in
-      guard let self = self else { return }
-      if let error = error {
-        print("Error sending C2 bytes: \(error)")
-        self.connection?.cancel()
-        return
-      }
-      
-      complete()
-    }))
-    
+//    connection?.send(content: data, completion: .contentProcessed({ [weak self] error in
+//      guard let self = self else { return }
+//      if let error = error {
+//        print("Error sending C2 bytes: \(error)")
+//        self.connection?.cancel()
+//        return
+//      }
+//
+//      complete()
+//    }))
   }
 }
