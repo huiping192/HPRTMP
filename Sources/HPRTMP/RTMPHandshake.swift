@@ -21,11 +21,13 @@ class RTMPHandshake {
     static let rtmpVersion: UInt8 = 3
     var timestamp:TimeInterval = 0
     var serverData = Data() {
-        didSet {
-            if checkTimer == nil && serverData.count > 0 {
-                checkTimer = Timer.scheduledTimer(timeInterval: 0.1, target: self, selector: #selector(statusCheck), userInfo: nil, repeats: true)
-            }
+      didSet {
+        DispatchQueue.main.async {
+          if self.checkTimer == nil && self.serverData.count > 0 {
+            self.checkTimer = Timer.scheduledTimer(timeInterval: 0.1, target: self, selector: #selector(self.statusCheck), userInfo: nil, repeats: true)
+          }
         }
+      }
     }
     
     private var checkTimer: Timer?

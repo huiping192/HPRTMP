@@ -7,6 +7,7 @@
 
 import Foundation
 import AVFoundation
+import Network
 
 
 public enum RTMPState {
@@ -53,9 +54,8 @@ public class RTMPSocket: NSObject {
   
   private let inputQueue = DispatchQueue(label: "HPRTMP.inputQueue")
   private let outputQueue = DispatchQueue(label: "HPRTMP.outputQueue")
-  private var input: InputStream?
-  private var output: OutputStream?
-  private var runloop: RunLoop?
+    
+  private var connection: NWConnection?
   
   private var buffer: UnsafeMutablePointer<UInt8>?
   private var inputData = Data()
@@ -78,7 +78,10 @@ public class RTMPSocket: NSObject {
       print("[HPRTMP] handshake status: \(status)")
       switch status {
       case .uninitalized:
-        self.send(self.handshake.c0c1Packet)
+        self.send(self.handshake.c0c1Packet) {
+          self.startReceiveData()
+        }
+
         print("[HPRTMP] send handshake c0c1Packet")
       case .verSent:
         self.send(self.handshake.c2Packet)
@@ -111,17 +114,48 @@ extension RTMPSocket {
   public func resume() {
     guard state != .connected else { return }
     inputQueue.async { [unowned self] in
-      Stream.getStreamsToHost(withName: urlInfo.host,
-                              port: urlInfo.port,
-                              inputStream: &self.input,
-                              outputStream: &self.output)
-      self.setParameter()
+      let port = NWEndpoint.Port(rawValue: UInt16(urlInfo.port))
+      let host = NWEndpoint.Host(urlInfo.host)
+      let connection = NWConnection(host: host, port: port ?? 1935, using: .tcp)
+      self.connection = connection
+      connection.stateUpdateHandler = { newState in
+        print("[HPRTMP] connection \(connection) state: \(newState)")
+          switch newState {
+          case .ready:
+            self.handshake.startHandShake()
+          case .failed(let error):
+            print("[HPRTMP] connection error: \(error.localizedDescription)")
+            self.delegate?.socketError(self, err: .uknown(desc: error.localizedDescription))
+            self.invalidate()
+          default:
+              break
+          }
+      }
+      connection.start(queue: self.outputQueue)
+    }
+  }
+  
+  private func startReceiveData() {
+    connection?.receive(minimumIncompleteLength: 1, maximumLength: 1536) { [weak self](data, context, isComplete, error) in
+      guard let self else { return }
+      
+      self.outputQueue.async {
+        print("[HPRTMP] test \(data), \(context), \(isComplete), \(error)")
+        guard let data else { return }
+        self.handleOutputData(data: data)
+        
+        if isComplete {
+          self.connection?.cancel()
+        } else {
+          self.startReceiveData()
+        }
+      }
     }
   }
   
   public func invalidate() {
     guard state != .closed && state != .none else { return }
-    self.clearParameter()
+//    self.clearParameter()
     handshake.reset()
     //        decoder.reset()
     //        encoder.reset()
@@ -131,46 +165,6 @@ extension RTMPSocket {
   
 }
 
-// socket handling
-extension RTMPSocket {
-  func setParameter() {
-    buffer = UnsafeMutablePointer<UInt8>.allocate(capacity: RTMPSocket.maxReadSize)
-    buffer?.initialize(repeating: 0, count: RTMPSocket.maxReadSize)
-    self.input?.delegate = self
-    self.output?.delegate = self
-    
-    self.runloop = .current
-    self.input?.setProperty(StreamNetworkServiceTypeValue.voIP, forKey: Stream.PropertyKey.networkServiceType)
-    self.input?.schedule(in: self.runloop!, forMode: RunLoop.Mode.default)
-    self.input?.setProperty(StreamSocketSecurityLevel.none, forKey: .socketSecurityLevelKey)
-    self.output?.schedule(in: self.runloop!, forMode: RunLoop.Mode.default)
-    self.output?.setProperty(StreamNetworkServiceTypeValue.voIP, forKey: Stream.PropertyKey.networkServiceType)
-    self.input?.open()
-    self.output?.open()
-    self.runloop?.run()
-  }
-  
-  open func clearParameter() {
-    self.input?.close()
-    self.input?.remove(from: runloop!, forMode: RunLoop.Mode.default)
-    self.input?.delegate = nil
-    self.output?.close()
-    self.output?.remove(from: runloop!, forMode: RunLoop.Mode.default)
-    self.output?.delegate = nil
-    self.input = nil
-    self.output = nil
-    buffer?.deinitialize(count: RTMPSocket.maxReadSize)
-    buffer?.deallocate()
-    buffer = nil
-    inputData.removeAll()
-    
-    guard let r = self.runloop else {
-      return
-    }
-    CFRunLoopStop(r.getCFRunLoop())
-    self.runloop = nil
-  }
-}
 
 extension Stream.Event: CustomStringConvertible {
   public var description: String {
@@ -192,34 +186,34 @@ extension Stream.Event: CustomStringConvertible {
 }
 
 
-extension RTMPSocket: StreamDelegate {
-  public func stream(_ aStream: Stream, handle eventCode: Stream.Event) {
-    print("[HPRTMP] stream \(aStream) eventCode: \(eventCode)")
-    switch eventCode {
-    case Stream.Event.openCompleted:
-      if input?.streamStatus == .open && output?.streamStatus == .open,
-         input == aStream {
-        self.handshake.startHandShake()
-      }
-    case Stream.Event.hasBytesAvailable:
-      if aStream == input {
-        self.readData()
-      }
-    case Stream.Event.hasSpaceAvailable:
-      break
-    case Stream.Event.errorOccurred:
-      if let e = aStream.streamError {
-        print("[HPRTMP] error: \(e.localizedDescription)")
-        
-        self.delegate?.socketError(self, err: .uknown(desc: e.localizedDescription))
-      }
-      self.invalidate()
-    case Stream.Event.endEncountered:
-      self.invalidate()
-    default: break
-    }
-  }
-}
+//extension RTMPSocket: StreamDelegate {
+//  public func stream(_ aStream: Stream, handle eventCode: Stream.Event) {
+//    print("[HPRTMP] stream \(aStream) eventCode: \(eventCode)")
+//    switch eventCode {
+//    case Stream.Event.openCompleted:
+//      if input?.streamStatus == .open && output?.streamStatus == .open,
+//         input == aStream {
+//        self.handshake.startHandShake()
+//      }
+//    case Stream.Event.hasBytesAvailable:
+//      if aStream == input {
+//        self.readData()
+//      }
+//    case Stream.Event.hasSpaceAvailable:
+//      break
+//    case Stream.Event.errorOccurred:
+//      if let e = aStream.streamError {
+//        print("[HPRTMP] error: \(e.localizedDescription)")
+//
+//        self.delegate?.socketError(self, err: .uknown(desc: e.localizedDescription))
+//      }
+//      self.invalidate()
+//    case Stream.Event.endEncountered:
+//      self.invalidate()
+//    default: break
+//    }
+//  }
+//}
 
 extension RTMPSocket {
   func send(message: RTMPBaseMessageProtocol & Encodable, firstType: Bool = true) {
@@ -235,19 +229,16 @@ extension RTMPSocket {
 }
 
 extension RTMPSocket {
-  private func readData() {
-    guard let i = input, let b = buffer else {
-      return
-    }
-    let length = i.read(b, maxLength: RTMPSocket.maxReadSize)
+  private func handleOutputData(data: Data) {
+    let length = data.count
     guard length > 0 else { return }
-    if self.handshake.status == .handshakeDone {
-      inputData.append(b, count: length)
-      let bytes:Data = self.inputData
-      inputData.removeAll()
+    if handshake.status == .handshakeDone {
+      inputData.append(data)
+      let bytes: Data = self.inputData
+      self.inputData.removeAll()
       self.decode(data: bytes)
     } else {
-      handshake.serverData.append(Data(bytes: b, count: length))
+      handshake.serverData.append(data)
     }
   }
   
@@ -264,30 +255,17 @@ extension RTMPSocket {
       }
   }
   
-  func send(_ data: Data) {
-    outputQueue.async { [weak self] in
-      guard let o = self?.output else {
+  func send(_ data: Data, complete: @escaping () -> Void = {}) {
+    connection?.send(content: data, completion: .contentProcessed({ [weak self] error in
+      guard let self = self else { return }
+      if let error = error {
+        print("Error sending C2 bytes: \(error)")
+        self.connection?.cancel()
         return
       }
-      data.withUnsafeBytes { (buffer: UnsafeRawBufferPointer) -> Void in
-        // Keep track of the total number of bytes written
-        var total: Int = 0
-        
-        let bufferPoint = buffer.bindMemory(to: UInt8.self).baseAddress!
-        // Write the data to the output stream in chunks
-        while total < data.count {
-          // Get the next chunk of data to write
-          let length = o.write(bufferPoint.advanced(by: total),maxLength: data.count)
-          
-          // Check if the write was successful
-          if length <= 0 {
-            break
-          }
-          
-          // Increment the total number of bytes written
-          total += length
-        }
-      }
-    }
+      
+      complete()
+    }))
+    
   }
 }

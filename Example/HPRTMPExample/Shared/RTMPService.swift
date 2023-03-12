@@ -13,7 +13,7 @@ class RTMPService {
   private var socket: RTMPSocket!
   
   init() {
-    let url = URL(string: "rtmp://10.123.2.141/stream")!
+    let url = URL(string: "rtmp://192.168.11.23/live")!
     let streamKey = "hello"
     let port = 1935
     socket = RTMPSocket(streamURL: url, streamKey: streamKey, port: port)
