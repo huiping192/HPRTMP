@@ -17,7 +17,6 @@ public enum RTMPState {
   case closed
 }
 
-
 public enum RTMPError: Error {
   case stream(desc: String)
   case command(desc: String)
@@ -50,7 +49,6 @@ protocol RTMPSocketDelegate: AnyObject {
 
 public class RTMPSocket {
   
-      
   private var connection: NWConnection?
   
   private var inputData = Data()
@@ -93,7 +91,9 @@ extension RTMPSocket {
       switch newState {
       case .ready:
         Task {
-          try? await self.handshake?.start()
+          try await self.handshake?.start()
+          
+          try await self.startReceiveData()
         }
       case .failed(let error):
         print("[HPRTMP] connection error: \(error.localizedDescription)")
@@ -111,7 +111,6 @@ extension RTMPSocket {
   
   public func invalidate() {
     guard state != .closed && state != .none else { return }
-//    self.clearParameter()
     Task {
       await handshake?.reset()
     }
@@ -120,7 +119,13 @@ extension RTMPSocket {
     //        info.reset(clearInfo)
   }
   
-  
+  private func startReceiveData() async throws {
+    guard let connection else { return }
+    while true {
+      let data = try await connection.receiveData()
+      self.handleOutputData(data: data)
+    }
+  }
 }
 
 
@@ -143,36 +148,6 @@ extension Stream.Event: CustomStringConvertible {
   }
 }
 
-
-//extension RTMPSocket: StreamDelegate {
-//  public func stream(_ aStream: Stream, handle eventCode: Stream.Event) {
-//    print("[HPRTMP] stream \(aStream) eventCode: \(eventCode)")
-//    switch eventCode {
-//    case Stream.Event.openCompleted:
-//      if input?.streamStatus == .open && output?.streamStatus == .open,
-//         input == aStream {
-//        self.handshake.startHandShake()
-//      }
-//    case Stream.Event.hasBytesAvailable:
-//      if aStream == input {
-//        self.readData()
-//      }
-//    case Stream.Event.hasSpaceAvailable:
-//      break
-//    case Stream.Event.errorOccurred:
-//      if let e = aStream.streamError {
-//        print("[HPRTMP] error: \(e.localizedDescription)")
-//
-//        self.delegate?.socketError(self, err: .uknown(desc: e.localizedDescription))
-//      }
-//      self.invalidate()
-//    case Stream.Event.endEncountered:
-//      self.invalidate()
-//    default: break
-//    }
-//  }
-//}
-
 extension RTMPSocket {
   func send(message: RTMPBaseMessageProtocol & Encodable, firstType: Bool = true) {
     if let message = message as? ChunkSizeMessage {
@@ -182,22 +157,20 @@ extension RTMPSocket {
   }
   
   private func sendChunk(_ data: [Data]) {
-    data.forEach { [unowned self] in self.send($0) }
+    Task {
+      try await self.connection?.sendData(datas: data)
+    }
   }
 }
 
 extension RTMPSocket {
   private func handleOutputData(data: Data) {
-//    let length = data.count
-//    guard length > 0 else { return }
-//    if handshake?.status == .handshakeDone {
-//      inputData.append(data)
-//      let bytes: Data = self.inputData
-//      self.inputData.removeAll()
-//      self.decode(data: bytes)
-//    } else {
-//      handshake.serverData.append(data)
-//    }
+    let length = data.count
+    guard length > 0 else { return }
+    inputData.append(data)
+    let bytes: Data = self.inputData
+    self.inputData.removeAll()
+    self.decode(data: bytes)
   }
   
   private func decode(data: Data) {
@@ -213,16 +186,4 @@ extension RTMPSocket {
       }
   }
   
-  func send(_ data: Data, complete: @escaping () -> Void = {}) {
-//    connection?.send(content: data, completion: .contentProcessed({ [weak self] error in
-//      guard let self = self else { return }
-//      if let error = error {
-//        print("Error sending C2 bytes: \(error)")
-//        self.connection?.cancel()
-//        return
-//      }
-//
-//      complete()
-//    }))
-  }
 }

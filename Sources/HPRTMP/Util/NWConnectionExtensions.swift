@@ -11,6 +11,12 @@ import Network
 
 extension NWConnection {
   private static let maxReadSize = Int(UInt16.max)
+  
+  func sendData(datas: [Data]) async throws -> Void {
+    for data in datas {
+      try await sendData(data: data)
+    }
+  }
 
   func sendData(data: Data) async throws -> Void {
     try await withCheckedThrowingContinuation {  (continuation: CheckedContinuation<Void, Error>) in
