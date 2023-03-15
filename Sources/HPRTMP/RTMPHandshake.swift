@@ -72,28 +72,19 @@ actor RTMPHandshake {
     return data
   }
   
-  
-  func startHandShake() {
-    self.status = .uninitalized
-  }
-  
   func reset() {
     self.status = .none
   }
     
-  func sendC0c1Packet() async throws {
+  private func sendC0c1Packet() async throws {
     try await dataSender(c0c1Packet)
   }
   
-  func sendC2Packet(data: Data) async throws {
+  private func sendC2Packet(data: Data) async throws {
     try await dataSender(c2Packet(s0s1Packet: data))
   }
   
-  
-  func receiveServerData(count: UInt) async throws -> Data {
-    try await dataReceiver()
-  }
-  
+    
   func start() async throws {
     // status: uninitalized
     status = .uninitalized
@@ -106,7 +97,7 @@ actor RTMPHandshake {
     var s0s1Packet: Data = Data()
     while true {
       // receive server data 1536bytes
-      let data = try await receiveServerData(count: 1536)
+      let data = try await dataReceiver()
       handshakeData.append(data)
 
       // first byte is rtmp version, ignore
@@ -119,7 +110,6 @@ actor RTMPHandshake {
       }
     }
    
-    
     // send c2 packet
     try await sendC2Packet(data: c2Packet(s0s1Packet:s0s1Packet))
     
@@ -128,15 +118,13 @@ actor RTMPHandshake {
     
     while true {
       // receive server data 1536bytes
-      let data = try await receiveServerData(count: 1536)
+      let data = try await dataReceiver()
 
       handshakeData.append(data)
 
       if handshakeData.count >= 1536 {
         // remove s2 packet
         handshakeData.removeSubrange(0..<1536)
-        
-
         break
       }
     }

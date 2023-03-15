@@ -106,7 +106,7 @@ extension RTMPSocket {
     }
     
     handshake = RTMPHandshake(dataSender: sendData(data:), dataReceiver: receiveData)
-    connection.start(queue: DispatchQueue.global(priority: .default))
+    connection.start(queue: DispatchQueue.global(qos: .default))
   }
   
   private func sendData(data: Data) async throws -> Void {
