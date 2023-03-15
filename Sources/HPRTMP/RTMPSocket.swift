@@ -50,7 +50,6 @@ protocol RTMPSocketDelegate: AnyObject {
 
 public class RTMPSocket {
   
-  private static let maxReadSize = Int(UInt16.max)
       
   private var connection: NWConnection?
   
@@ -105,52 +104,10 @@ extension RTMPSocket {
       }
     }
     
-    handshake = RTMPHandshake(dataSender: sendData(data:), dataReceiver: receiveData)
+    handshake = RTMPHandshake(dataSender: connection.sendData(data:), dataReceiver: connection.receiveData)
     connection.start(queue: DispatchQueue.global(qos: .default))
   }
   
-  private func sendData(data: Data) async throws -> Void {
-    try await withCheckedThrowingContinuation {  (continuation: CheckedContinuation<Void, Error>) in
-      self.connection?.send(content: data, completion: .contentProcessed({error in
-        if let error = error {
-          print("Error sending: \(error)")
-          continuation.resume(throwing: error)
-          return
-        }
-        continuation.resume(returning: ())
-      }))
-    }
-  }
-  
-  private func receiveData() async throws -> Data {
-    try await withCheckedThrowingContinuation { continuation in
-      connection?.receive(minimumIncompleteLength: Int(1), maximumLength: Self.maxReadSize) { data, context, isComplete, error in
-        if let error {
-          continuation.resume(throwing: error)
-          return
-        }
-        
-        guard let data else { return }
-        continuation.resume(returning: data)
-      }
-    }
-  }
-  
-  private func startReceiveData() {
-//    connection?.receive(minimumIncompleteLength: 1, maximumLength: 1536) { [weak self](data, context, isComplete, error) in
-//      guard let self else { return }
-//
-//      print("[HPRTMP] test \(data), \(context), \(isComplete), \(error)")
-//      guard let data else { return }
-//      self.handleOutputData(data: data)
-//
-//      if isComplete {
-//        self.connection?.cancel()
-//      } else {
-//        self.startReceiveData()
-//      }
-//    }
-  }
   
   public func invalidate() {
     guard state != .closed && state != .none else { return }
