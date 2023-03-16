@@ -46,6 +46,27 @@ protocol RTMPSocketDelegate: AnyObject {
   func socketDisconnected(_ socket: RTMPSocket)
 }
 
+actor MessageHolder {
+  private (set) var transactionId = 1
+
+  var raw = [Int: RTMPBaseMessage]()
+
+  func register(message: RTMPBaseMessage) {
+      raw[transactionId] = message
+  }
+  
+  func removeMessage(id: Int) -> RTMPBaseMessage? {
+      let value = raw[transactionId]
+      raw[transactionId] = nil
+      return value
+  }
+  
+  @discardableResult
+  func shiftTransactionId () -> Int {
+      self.transactionId += 1
+      return self.transactionId
+  }
+}
 
 public class RTMPSocket {
   
@@ -57,7 +78,9 @@ public class RTMPSocket {
   
   weak var delegate: RTMPSocketDelegate?
   
-  let urlInfo: RTMPURLInfo
+  private(set) var urlInfo: RTMPURLInfo?
+  
+  let messageHolder = MessageHolder()
   
   var connectId: Int = 0
   
@@ -66,13 +89,16 @@ public class RTMPSocket {
 
   private var handshake: RTMPHandshake?
   
-  public init?(url: String) {
+  public init() {}
+  
+  
+  public func connect(url: String) {
     let urlParser = RTMPURLParser()
-    guard let urlInfo = try? urlParser.parse(url: url) else { return nil }
+    guard let urlInfo = try? urlParser.parse(url: url) else { return }
     self.urlInfo = urlInfo
   }
   
-  public init?(streamURL: URL, streamKey: String, port: Int = 1935) {
+  public func connect(streamURL: URL, streamKey: String, port: Int = 1935) {
     let urlInfo = RTMPURLInfo(url: streamURL, key: streamKey, port: port)
     self.urlInfo = urlInfo
   }
@@ -82,6 +108,7 @@ public class RTMPSocket {
 extension RTMPSocket {
   public func resume() {
     guard state != .connected else { return }
+    guard let urlInfo else { return }
     let port = NWEndpoint.Port(rawValue: UInt16(urlInfo.port))
     let host = NWEndpoint.Host(urlInfo.host)
     let connection = NWConnection(host: host, port: port ?? 1935, using: .tcp)
@@ -92,7 +119,7 @@ extension RTMPSocket {
       case .ready:
         Task {
           try await self.handshake?.start()
-          
+          self.delegate?.socketHandShakeDone(self)
           // handshake終わったあとのデータ取得
           try await self.startReceiveData()
         }
@@ -150,17 +177,15 @@ extension Stream.Event: CustomStringConvertible {
 }
 
 extension RTMPSocket {
-  func send(message: RTMPBaseMessageProtocol & Encodable, firstType: Bool = true) {
+  func send(message: RTMPBaseMessageProtocol & Encodable, firstType: Bool = false) async throws {
     if let message = message as? ChunkSizeMessage {
       encoder.chunkSize = message.size
     }
-    self.sendChunk(encoder.chunk(message: message, isFirstType0: firstType))
+    try await self.sendChunk(encoder.chunk(message: message, isFirstType0: firstType))
   }
   
-  private func sendChunk(_ data: [Data]) {
-    Task {
-      try await connection?.sendData(data)
-    }
+  private func sendChunk(_ data: [Data]) async throws {
+    try await connection?.sendData(data)
   }
 }
 
