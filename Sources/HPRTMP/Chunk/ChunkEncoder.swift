@@ -50,6 +50,10 @@ class ChunkEncoder {
         return data
       })
   }
+  
+  func reset() {
+    
+  }
 }
 
 public extension Data {

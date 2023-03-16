@@ -93,6 +93,7 @@ extension RTMPSocket {
         Task {
           try await self.handshake?.start()
           
+          // handshake終わったあとのデータ取得
           try await self.startReceiveData()
         }
       case .failed(let error):
@@ -104,7 +105,7 @@ extension RTMPSocket {
       }
     }
     
-    handshake = RTMPHandshake(dataSender: connection.sendData(data:), dataReceiver: connection.receiveData)
+    handshake = RTMPHandshake(dataSender: connection.sendData, dataReceiver: connection.receiveData)
     connection.start(queue: DispatchQueue.global(qos: .default))
   }
   
@@ -114,9 +115,9 @@ extension RTMPSocket {
     Task {
       await handshake?.reset()
     }
-    //        decoder.reset()
-    //        encoder.reset()
-    //        info.reset(clearInfo)
+    decoder.reset()
+    encoder.reset()
+//    info.reset(clearInfo)
   }
   
   private func startReceiveData() async throws {
@@ -158,7 +159,7 @@ extension RTMPSocket {
   
   private func sendChunk(_ data: [Data]) {
     Task {
-      try await self.connection?.sendData(datas: data)
+      try await connection?.sendData(data)
     }
   }
 }
