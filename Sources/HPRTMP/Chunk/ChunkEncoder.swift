@@ -13,7 +13,7 @@ class ChunkEncoder {
   
   var chunkSize = UInt32(ChunkEncoder.maxChunkSize)
   
-  func chunk(message: RTMPBaseMessageProtocol & Encodable, isFirstType0: Bool = true) -> [ChunkHeader] {
+  func chunk(message: RTMPBaseMessageProtocol & Encodable, isFirstType0: Bool = true) -> [Chunk] {
     let payload = message.encode()
     
     return payload.split(size: Int(chunkSize))
@@ -34,13 +34,14 @@ class ChunkEncoder {
                                                type: message.messageType)
           }
           
-          return ChunkHeader(streamId: message.streamId,
-                             messageHeader: messageHeader,
-                             chunkPayload : Data($0.element))
+          let header = ChunkHeader(streamId: message.streamId,
+                             messageHeader: messageHeader)
+          
+          return Chunk(chunkHeader: header, chunkData: Data($0.element))
         }
-        return ChunkHeader(streamId: message.streamId,
-                           messageHeader: MessageHeaderType3(),
-                           chunkPayload: Data($0.element))
+        let header = ChunkHeader(streamId: message.streamId,
+                           messageHeader: MessageHeaderType3())
+        return Chunk(chunkHeader: header, chunkData: Data($0.element))
       })
   }
   

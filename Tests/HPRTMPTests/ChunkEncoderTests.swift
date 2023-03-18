@@ -15,12 +15,12 @@ final class ChunkEncoderTests: XCTestCase {
     let encoder = ChunkEncoder()
     
     // When
-    let headers = encoder.chunk(message: message, isFirstType0: true)
+    let chunks = encoder.chunk(message: message, isFirstType0: true)
     
     // Then
-    XCTAssertEqual(headers.count, 1)
-    let header = headers[0]
-    
+    XCTAssertEqual(chunks.count, 1)
+    let firstChunk = chunks[0]
+    let header = firstChunk.chunkHeader
     XCTAssertTrue(header.messageHeader is MessageHeaderType0)
     let messageHeader = header.messageHeader as! MessageHeaderType0
     XCTAssertEqual(header.basicHeader.streamId, UInt16(RTMPStreamId.audio.rawValue))
@@ -28,7 +28,7 @@ final class ChunkEncoderTests: XCTestCase {
     XCTAssertEqual(messageHeader.timestamp, 1234)
     XCTAssertEqual(messageHeader.messageLength, 4)
     XCTAssertEqual(messageHeader.type, .audio)
-    XCTAssertEqual(header.chunkPayload, Data([0x01, 0x02, 0x03, 0x04]))
+    XCTAssertEqual(firstChunk.chunkData, Data([0x01, 0x02, 0x03, 0x04]))
   }
   
   func testSingleChunkNotFirst() throws {
@@ -36,19 +36,19 @@ final class ChunkEncoderTests: XCTestCase {
     let encoder = ChunkEncoder()
     
     // When
-    let headers = encoder.chunk(message: message, isFirstType0: false)
+    let chunks = encoder.chunk(message: message, isFirstType0: false)
     
     // Then
-    XCTAssertEqual(headers.count, 1)
-    let header = headers[0]
-    
+    XCTAssertEqual(chunks.count, 1)
+    let firstChunk = chunks[0]
+    let header = firstChunk.chunkHeader
     XCTAssertTrue(header.messageHeader is MessageHeaderType1)
     let messageHeader = header.messageHeader as! MessageHeaderType1
     XCTAssertEqual(header.basicHeader.streamId, UInt16(RTMPStreamId.audio.rawValue))
     XCTAssertEqual(messageHeader.timestampDelta, 1234)
     XCTAssertEqual(messageHeader.messageLength, 4)
     XCTAssertEqual(messageHeader.type, .audio)
-    XCTAssertEqual(header.chunkPayload, Data([0x01, 0x02, 0x03, 0x04]))
+    XCTAssertEqual(firstChunk.chunkData, Data([0x01, 0x02, 0x03, 0x04]))
   }
   
   func testChunk_multipleChunks() throws {
@@ -57,12 +57,13 @@ final class ChunkEncoderTests: XCTestCase {
     encoder.chunkSize = 4
     
     // When
-    let headers = encoder.chunk(message: message)
+    let chunks = encoder.chunk(message: message)
     
     // Then
-    XCTAssertEqual(headers.count, 2)
+    XCTAssertEqual(chunks.count, 2)
     
-    let header0 = headers[0]
+    let chunk0 = chunks[0]
+    let header0 = chunk0.chunkHeader
     XCTAssertTrue(header0.messageHeader is MessageHeaderType0)
     let messageHeader0 = header0.messageHeader as! MessageHeaderType0
     XCTAssertEqual(messageHeader0.messageStreamId, 10)
@@ -70,12 +71,13 @@ final class ChunkEncoderTests: XCTestCase {
     XCTAssertEqual(messageHeader0.messageLength, 8)
     XCTAssertEqual(messageHeader0.type, .audio)
     XCTAssertEqual(messageHeader0.messageStreamId, 10)
-    XCTAssertEqual(header0.chunkPayload, Data([0x01, 0x02, 0x03, 0x04]))
+    XCTAssertEqual(chunk0.chunkData, Data([0x01, 0x02, 0x03, 0x04]))
     
-    let header1 = headers[1]
+    let chunk1 = chunks[1]
+    let header1 = chunk1.chunkHeader
     XCTAssertTrue(header1.messageHeader is MessageHeaderType3)
     let messageHeader1 = header1.messageHeader as! MessageHeaderType3
     XCTAssertEqual(messageHeader1.encode().count, 0)
-    XCTAssertEqual(header1.chunkPayload, Data([0x05, 0x06, 0x07, 0x08]))
+    XCTAssertEqual(chunk1.chunkData, Data([0x05, 0x06, 0x07, 0x08]))
   }
 }

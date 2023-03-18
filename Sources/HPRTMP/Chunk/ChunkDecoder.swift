@@ -20,8 +20,8 @@ class ChunkDecoder {
   private static let maxChunkSize: UInt8 = 128
   var chunkSize: UInt32 = UInt32(ChunkDecoder.maxChunkSize)
   var preLength: UInt32 = 0
-  var map = [Int: ChunkHeader]()
-  var chunkBlock:((ChunkHeader)->Void)?
+  var map = [Int: Chunk]()
+  var chunkBlock:((Chunk)->Void)?
   
   private var isStart = false
   private var decodeData = Data() {
@@ -40,7 +40,7 @@ class ChunkDecoder {
     }
   }
   
-  func decode(data: Data, chunk:((_ data: ChunkHeader)->Void)?) {
+  func decode(data: Data, chunk:((_ data: Chunk)->Void)?) {
     queue.async { [weak self] in
         self?.chunkBlock = chunk
         self?.decodeData.append(data)
@@ -131,13 +131,14 @@ class ChunkDecoder {
       
       let header =  ChunkHeader(streamId: Int(streamId),
                                 messageHeader:
-                                  header0,
-                                chunkPayload: Data(data))
+                                  header0)
+      
+      let chunk = Chunk(chunkHeader: header, chunkData: Data(data))
       
       if isChunk {
-        self.map[Int(streamId)] = header
+        self.map[Int(streamId)] = chunk
       } else {
-        chunkBlock?(header)
+        chunkBlock?(chunk)
       }
       self.decodeData.removeSubrange(0..<headerSize+basicHeaderSize+data.count)
       return .payload(data: data, isChunk: isChunk)
@@ -161,12 +162,13 @@ class ChunkDecoder {
     case .payload(let data, let isChunk):
       let type = MessageType(rawValue: Data([self.decodeData[6+basicHeaderSize]]).uint8)
       let message1 = MessageHeaderType1(timestampDelta: TimeInterval(timeDelta), messageLength: Int(preLength), type: type)
-      let header = ChunkHeader(streamId: Int(streamId), messageHeader: message1, chunkPayload: Data(data))
+      let header = ChunkHeader(streamId: Int(streamId), messageHeader: message1)
+      let chunk = Chunk(chunkHeader: header, chunkData: Data(data))
       if isChunk {
-        self.map[Int(streamId)] = header
+        self.map[Int(streamId)] = chunk
       } else {
         self.map[Int(streamId)] = nil
-        chunkBlock?(header)
+        chunkBlock?(chunk)
       }
       self.decodeData.removeSubrange(0..<data.count+7+basicHeaderSize)
       return .payload(data: data, isChunk: isChunk)
@@ -181,9 +183,9 @@ class ChunkDecoder {
     return .notEnoughData
   }
   func decodeType3(streamId: Int, basicHeaderSize: Int) -> RTMPMessageDecodeStatus {
-    if let header = self.map[Int(streamId)] {
+    if let chunk = self.map[Int(streamId)] {
       var total = 0
-      switch header.messageHeader {
+      switch chunk.chunkHeader.messageHeader {
       case let c as MessageHeaderType0:
         total = c.messageLength
       case let c as MessageHeaderType1:
@@ -191,7 +193,7 @@ class ChunkDecoder {
       default: break
       }
       
-      let needAppend = total - header.chunkPayload.count
+      let needAppend = total - chunk.chunkData.count
       var payloadRange = 0..<0
       let isChunk = needAppend > self.chunkSize
       if isChunk {
@@ -204,11 +206,11 @@ class ChunkDecoder {
         return .notEnoughData
       }
       
-      self.map[Int(streamId)]?.chunkPayload.append(contentsOf: payload)
+      self.map[Int(streamId)]?.chunkData.append(contentsOf: payload)
       self.decodeData.removeSubrange(0..<basicHeaderSize)
       self.decodeData.removeSubrange(payloadRange)
       if let h = self.map[Int(streamId)],
-         total == self.map[Int(streamId)]?.chunkPayload.count {
+         total == self.map[Int(streamId)]?.chunkData.count {
         self.map[Int(streamId)] = nil
         chunkBlock?(h)
       }

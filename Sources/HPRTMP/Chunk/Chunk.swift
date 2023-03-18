@@ -11,24 +11,26 @@ protocol Encodable {
   func encode() -> Data
 }
 
-struct Chunk: Encodable {
+struct Chunk: Encodable, Equatable {
   let chunkHeader: ChunkHeader
-  let chunkData: Data
+  var chunkData: Data
   
   func encode() -> Data {
     return chunkHeader.encode() + chunkData
+  }
+  
+  static func == (lhs: Chunk, rhs: Chunk) -> Bool {
+    return lhs.chunkHeader == rhs.chunkHeader && lhs.chunkData == rhs.chunkData
   }
 }
 
 struct ChunkHeader: Encodable {
   let basicHeader: BasicHeader
   let messageHeader: MessageHeader
-  var chunkPayload: Data = Data()
   
   // Initialize the ChunkHeader struct with a stream ID, message header, and chunk payload
-  init(streamId: Int,messageHeader: MessageHeader, chunkPayload: Data) {
+  init(streamId: Int,messageHeader: MessageHeader) {
     self.messageHeader = messageHeader
-    self.chunkPayload = chunkPayload
     
     // Determine the basic header type based on the type of the message header
     let basicHeaderType: MessageHeaderType
@@ -53,13 +55,13 @@ struct ChunkHeader: Encodable {
   // Encode the chunk header into a data object
   func encode() -> Data {
     // Concatenate the encoded basic header, message header, and chunk payload
-    return basicHeader.encode() + messageHeader.encode() + chunkPayload
+    return basicHeader.encode() + messageHeader.encode()
   }
 }
 
 extension ChunkHeader: Equatable {
   static func == (lhs: ChunkHeader, rhs: ChunkHeader) -> Bool {
-    return lhs.basicHeader == rhs.basicHeader && lhs.messageHeader.encode() == rhs.messageHeader.encode() && lhs.chunkPayload == rhs.chunkPayload
+    return lhs.basicHeader == rhs.basicHeader && lhs.messageHeader.encode() == rhs.messageHeader.encode()
   }
 }
 

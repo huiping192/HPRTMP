@@ -15,15 +15,16 @@ class ChunkDecoderTests: XCTestCase {
     
     let decoder = ChunkDecoder()
     let payload = Data([0x00,0x00,0x01])
-    let expectedHeader = ChunkHeader(streamId: 2, messageHeader: MessageHeaderType0(timestamp: 5, messageLength: 3, type: .audio, messageStreamId: 0), chunkPayload: payload)
-    var decodedHeader: ChunkHeader?
-    decoder.decode(data: expectedHeader.encode()) { header in
-      decodedHeader = header
+    let expectedHeader = ChunkHeader(streamId: 2, messageHeader: MessageHeaderType0(timestamp: 5, messageLength: 3, type: .audio, messageStreamId: 0))
+    let expectedChunk = Chunk(chunkHeader: expectedHeader, chunkData: payload)
+    var decodedChunk: Chunk?
+    decoder.decode(data: expectedHeader.encode()) { chunk in
+      decodedChunk = chunk
       expectation.fulfill()
     }
     wait(for: [expectation], timeout: 2.0)
     
-    XCTAssertEqual(decodedHeader, expectedHeader)
+    XCTAssertEqual(decodedChunk, expectedChunk)
   }
 //
 //  func testDecodeType1() {
