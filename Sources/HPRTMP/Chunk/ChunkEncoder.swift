@@ -13,41 +13,34 @@ class ChunkEncoder {
   
   var chunkSize = UInt32(ChunkEncoder.maxChunkSize)
   
-  func chunk(message: RTMPBaseMessageProtocol & Encodable, isFirstType0: Bool = true) -> [Data] {
+  func chunk(message: RTMPBaseMessageProtocol & Encodable, isFirstType0: Bool = true) -> [ChunkHeader] {
     let payload = message.encode()
     
     return payload.split(size: Int(chunkSize))
       .enumerated()
       .map({
-        var data = Data()
         // basic Header
         // Type 0 == first chunk , other use type 3
-        
         if $0.offset == 0 {
-          var messageHeader: MessageHeader!
+          let messageHeader: MessageHeader
           if isFirstType0 {
             messageHeader = MessageHeaderType0(timestamp: message.timestamp,
                                                messageLength: payload.count,
                                                type: message.messageType ,
                                                messageStreamId: message.msgStreamId)
-            
           } else {
             messageHeader = MessageHeaderType1(timestampDelta: message.timestamp,
                                                messageLength: payload.count,
                                                type: message.messageType)
           }
           
-          let basic = ChunkHeader(streamId: message.streamId,
-                                  messageHeader: messageHeader,
-                                  chunkPayload : Data($0.element))
-          data.append(basic.encode())
-        } else {
-          let basic = ChunkHeader(streamId: message.streamId,
-                                  messageHeader: MessageHeaderType3(),
-                                  chunkPayload: Data($0.element))
-          data.append(basic.encode())
+          return ChunkHeader(streamId: message.streamId,
+                             messageHeader: messageHeader,
+                             chunkPayload : Data($0.element))
         }
-        return data
+        return ChunkHeader(streamId: message.streamId,
+                           messageHeader: MessageHeaderType3(),
+                           chunkPayload: Data($0.element))
       })
   }
   

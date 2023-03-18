@@ -38,10 +38,10 @@ public enum RTMPError: Error {
 protocol RTMPSocketDelegate: AnyObject {
   func socketHandShakeDone(_ socket: RTMPSocket)
   func socketPinRequest(_ socket: RTMPSocket, data: Data)
-  //  func socketConnectDone(_ socket: RTMPSocket, obj: ConnectResponse)
-  //  func socketCreateStreamDone(_ socket: RTMPSocket, obj: StreamResponse)
+//  func socketConnectDone(_ socket: RTMPSocket, obj: ConnectResponse)
+//  func socketCreateStreamDone(_ socket: RTMPSocket, obj: StreamResponse)
   func socketError(_ socket: RTMPSocket, err: RTMPError)
-  //  func socketGetMeta(_ socket: RTMPSocket, meta: MetaDataResponse)
+//  func socketGetMeta(_ socket: RTMPSocket, meta: MetaDataResponse)
   func socketPeerBandWidth(_ socket: RTMPSocket, size: UInt32)
   func socketDisconnected(_ socket: RTMPSocket)
 }
@@ -181,7 +181,8 @@ extension RTMPSocket {
     if let message = message as? ChunkSizeMessage {
       encoder.chunkSize = message.size
     }
-    try await self.sendChunk(encoder.chunk(message: message, isFirstType0: firstType))
+    let datas = encoder.chunk(message: message, isFirstType0: firstType).map({ $0.encode() })
+    try await self.sendChunk(datas)
   }
   
   private func sendChunk(_ data: [Data]) async throws {
@@ -200,16 +201,97 @@ extension RTMPSocket {
   }
   
   private func decode(data: Data) {
-      self.decoder.decode(data: data) { [unowned self] (header) in
-//          switch header.messageHeader {
-//          case let c as MessageHeaderType0:
-//              self.chunk(header0: c, chunk: header)
-//          case let c as MessageHeaderType1:
-//              self.chunk(header1: c, chunk: header)
+//      self.decoder.decode(data: data) { [unowned self] (header) in
+//        switch header.messageHeader {
+//        case let c as MessageHeaderType0:
+//          self.chunk(header0: c, chunk: header)
+//        case let c as MessageHeaderType1:
+//          self.chunk(header1: c, chunk: header)
+//        default:
+//          break
+//        }
+//      }
+  }
+//
+//  fileprivate func chunk(header0: MessageHeaderType0, chunk: ChunkHeader) {
+//      switch header0.type {
+//      case .control:
+//          let response: ControlResponse = ControlResponse(decode: chunk.chunkPayload)
+//          switch response.eventType {
+//          case .pingRequest:
+//              self.delegate?.socketPinRequest(self, data: response.data)
+//          case .streamIsRecorded:
+//              self.delegate?.socketStreamRecord?(self)
 //          default:
 //              break
 //          }
-      }
-  }
+//      case .chunkSize:
+//          let chunkSize = Data(chunk.chunkPayload.reversed()).uint32
+//          decoder.chunkSize = chunkSize
+//      case .peerBandwidth:
+//          guard let windowAckSize = chunk.chunkPayload[safe: 0..<4]?.reversed() else {
+//              return
+//          }
+//          let peer = Data(windowAckSize).uint32
+//          self.delegate?.socketPeerBandWidth(self, size: peer)
+//      case .command(let type) , .data(let type), .share(let type):
+//          let data = type == .amf0 ? chunk.chunkPayload.decodeAMF0() : chunk.chunkPayload.decodeAMF3()
+//          self.convert(pay: data)
+//      case .video:
+//          self.delegate?.socketStreamOutputVideo?(self, data: chunk.chunkPayload, timeStamp: Int64(header0.timestamp), isFirst: true)
+//      case .audio:
+//          self.delegate?.socketStreamOutputAudio?(self, data: chunk.chunkPayload, timeStamp: Int64(header0.timestamp), isFirst: true)
+//      default:
+//          break
+//      }
+//  }
+//
+//
+//  fileprivate func convert(pay: [Any]?) {
+//      if let first = pay?.first as? String, first == "onMetaData",
+//          let second = pay?[safe: 1] as? [String: Any],
+//          let meta: MetaDataResponse = second.decodeObject() {
+//          self.delegate?.socketGetMeta(self, meta: meta)
+//      } else if let p = pay, let id = p[safe: 1] as? NSNumber,
+//          let message = info.removeMessage(id: Int(truncating: id)) {
+//          switch message {
+//          case _ as ConnectMessage:
+//              let obj = ConnectResponse(decode: pay)
+//              switch obj.info?.code {
+//              case .success?:
+//                  self.delegate?.socketConnectDone(self, obj: obj)
+//              default:
+//                  self.delegate?.socketError(self, err: .command(desc: obj.info?.code.rawValue ?? "Connect error"))
+//              }
+//          case _ as CreateStreamMessage:
+//              let response: StreamResponse = StreamResponse(decode: p)
+//              info.set(status: .connectd(id: response.streamId))
+//              self.delegate?.socketCreateStreamDone(self, obj: response)
+//          default: break
+//          }
+//      } else if let first = pay?.first as? String, first == "onStatus" {
+//          guard let p = pay?.last as? [String: Any] else {
+//              return
+//          }
+//          if let response: StatusResponse = p.decodeObject() {
+//              if response.level == .error {
+//                  self.delegate?.socketError(self, err: .command(desc: response.description))
+//                  return
+//              }
+//              switch response.code {
+//              case .publishStart:
+//                  self.delegate?.socketStreamPublishStart?(self)
+//              case .playStart:
+//                  self.delegate?.socketStreamPlayStart?(self)
+//              case .pauseNotify:
+//                  self.delegate?.socketStreamPause?(self, pause: true)
+//              case .unpauseNotify:
+//                  self.delegate?.socketStreamPause?(self, pause: false)
+//              default:
+//                  break
+//              }
+//          }
+//      }
+//  }
   
 }

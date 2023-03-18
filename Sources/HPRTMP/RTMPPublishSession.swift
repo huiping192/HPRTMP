@@ -72,6 +72,9 @@ extension RTMPPublishSession: RTMPSocketDelegate {
       // fixme: dont know why should cache message!!!
       await self.socket.messageHolder.register(message: connect)
       try await self.socket.send(message: connect, firstType: true)
+      
+      
+      
     }
   }
   
