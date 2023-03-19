@@ -236,3 +236,74 @@ class ChunkDecoder {
     }
   }
 }
+
+
+class MessageDecoder {
+  func append(_ data: Data) {
+    
+  }
+  
+  func decode() -> RTMPBaseMessageProtocol? {
+    return nil
+  }
+}
+
+
+class ChunkEncoderTest {
+  
+  
+  var data = Data()
+  
+  func append(_ data: Data) {
+    
+  }
+  
+  func decode() -> RTMPBaseMessageProtocol? {
+    return nil
+  }
+  
+//  func decode() -> [Chunk] {
+//    // basic
+//
+//    let chunkHeader = ChunkHeader(streamId: <#T##Int#>, messageHeader: <#T##MessageHeader#>)
+//
+//    let chunk = Chunk(chunkHeader: <#T##ChunkHeader#>, chunkData: <#T##Data#>)
+//
+//    return []
+//  }
+  
+  
+  func basicHeader(data: Data) -> (BasicHeader?,Int) {
+    guard let byte = data.first else {
+      return (nil,0)
+    }
+    // first 2 bit is type
+    let fmt = byte >> 6
+    
+    guard let headerType = MessageHeaderType(rawValue: Int(fmt)) else {
+      return (nil,0)
+    }
+    
+    let compare: UInt8 = 0b00111111
+    let streamId: UInt16
+    let basicHeaderLength: Int
+    switch compare & byte {
+    case 0:
+      guard data.count >= 2 else { return (nil,0) }
+      // 2bytes. fmt| 0 |csid-64
+      basicHeaderLength = 2
+      streamId = UInt16(data[1] + 64)
+    case 1:
+      guard data.count >= 3 else { return (nil,0) }
+      // 3bytes. fmt|1| csid-64
+      basicHeaderLength = 3
+      streamId = UInt16(Data(data[1...2].reversed()).uint16) + 64
+    default:
+      // 1bytes, fmt| csid
+      basicHeaderLength = 1
+      streamId = UInt16(compare & byte)
+    }
+    
+    return (BasicHeader(streamId: streamId, type: headerType), basicHeaderLength)
+  }
+}
