@@ -108,7 +108,7 @@ class ChunkDecoder {
     
     var time = Data(dataTime.reversed() + [0x00]).uint32
     
-    let isExtendTime = (Double(time) == maxTimestamp)
+    let isExtendTime = time == maxTimestamp
     let headerSize = isExtendTime ? 15 : 11
     if isExtendTime {
       guard let dataExtend = self.decodeData[safe: (11...14).shift(index: basicHeaderSize)] else {
@@ -124,7 +124,7 @@ class ChunkDecoder {
       let type = MessageType(rawValue: Data([self.decodeData[6+basicHeaderSize]]).uint8)
       let msgStreamId = Data(self.decodeData[(7...10).shift(index: basicHeaderSize)].reversed()).uint32
       
-      let header0 = MessageHeaderType0(timestamp: TimeInterval(time),
+      let header0 = MessageHeaderType0(timestamp: time,
                                        messageLength: Int(preLength),
                                        type: type,
                                        messageStreamId: Int(msgStreamId))
@@ -154,14 +154,14 @@ class ChunkDecoder {
           let dataLength = self.decodeData[safe:(3...5).shift(index: basicHeaderSize)] else {
       return .notEnoughData
     }
-    let time = Double(Data(dataTime.reversed()).uint32)
+    let time = Data(dataTime.reversed()).uint32
     let timeDelta = time >= maxTimestamp ? maxTimestamp : time
     preLength = Data(dataLength.reversed()).uint32
     
     switch self.decodePayload(length: preLength, headerSize: 7+basicHeaderSize) {
     case .payload(let data, let isChunk):
       let type = MessageType(rawValue: Data([self.decodeData[6+basicHeaderSize]]).uint8)
-      let message1 = MessageHeaderType1(timestampDelta: TimeInterval(timeDelta), messageLength: Int(preLength), type: type)
+      let message1 = MessageHeaderType1(timestampDelta: timeDelta, messageLength: Int(preLength), type: type)
       let header = ChunkHeader(streamId: Int(streamId), messageHeader: message1)
       let chunk = Chunk(chunkHeader: header, chunkData: Data(data))
       if isChunk {
@@ -305,5 +305,37 @@ class ChunkEncoderTest {
     }
     
     return (BasicHeader(streamId: streamId, type: headerType), basicHeaderLength)
+  }
+  
+  func messageHeader(data: Data, type: MessageHeaderType) -> ((any MessageHeader)?, Int) {
+    switch type {
+    case .type0:
+      // 11bytes
+      guard data.count >= 11 else { return (nil,0) }
+      // timestamp 3bytes
+      let timestamp = Data(data[0...2].reversed()).uint32
+     // message lenght 3 byte
+      let messageLength = Data(data[3...5].reversed()).uint32
+      // message type id 1byte
+      let messageType = MessageType(rawValue: Data([data[6]]).uint8)
+      // msg stream id 4bytes
+      let messageStreamId = Data(data[7...10].reversed()).uint32
+      
+      return (MessageHeaderType0(timestamp: timestamp, messageLength: Int(messageLength), type: messageType, messageStreamId: Int(messageStreamId)), 11)
+    case .type1:
+      // 7bytes
+      guard data.count >= 7 else { return (nil,0) }
+
+      break
+    case .type2:
+      // 3bytes
+      guard data.count >= 3 else { return (nil,0) }
+
+      break
+    case .type3:
+      return (MessageHeaderType3(),0)
+    }
+    
+    return (MessageHeaderType3(), 0)
   }
 }

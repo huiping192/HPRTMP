@@ -9,7 +9,7 @@
 import Foundation
 
 // max timestamp 0xFFFFFF
-let maxTimestamp: TimeInterval = 16777215
+let maxTimestamp: UInt32 = 16777215
 
 
 enum RTMPStreamId: Int {
@@ -20,7 +20,7 @@ enum RTMPStreamId: Int {
 }
 
 protocol RTMPBaseMessageProtocol {
-    var timestamp: TimeInterval { set get }
+    var timestamp: UInt32 { set get }
     var messageType: MessageType { get }
     var msgStreamId: Int  { get set }
     var streamId: Int  { get }
@@ -37,8 +37,8 @@ public class RTMPBaseMessage: RTMPBaseMessageProtocol {
         self.streamId = streamId
     }
 
-    private var _timeInterval: TimeInterval = 0
-    public var timestamp:TimeInterval  {
+    private var _timeInterval: UInt32 = 0
+    public var timestamp:UInt32  {
         set {
             _timeInterval = newValue >= maxTimestamp ? maxTimestamp : newValue
         } get {
@@ -77,7 +77,7 @@ class MetaMessage: DataMessage, Encodable {
 
 class VideoMessage: RTMPBaseMessage, Encodable {
     let data: Data
-    init(msgStreamId: Int, data: Data, timestamp: TimeInterval) {
+    init(msgStreamId: Int, data: Data, timestamp: UInt32) {
         self.data = data
         super.init(type: .video,
                    msgStreamId: msgStreamId,
@@ -93,7 +93,7 @@ class VideoMessage: RTMPBaseMessage, Encodable {
 class AudioMessage: RTMPBaseMessage, Encodable {
     let data: Data
 
-    init(msgStreamId: Int, data: Data, timestamp: TimeInterval) {
+    init(msgStreamId: Int, data: Data, timestamp: UInt32) {
         self.data = data
         super.init(type: .audio,
                    msgStreamId: msgStreamId,

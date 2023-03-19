@@ -38,22 +38,22 @@ public class RTMPPublishSession {
     socket.connect(url: url)
   }
   
-  public func publishVideo(data: Data, delta: TimeInterval) async throws {
+  public func publishVideo(data: Data, delta: UInt32) async throws {
     let message = VideoMessage(msgStreamId: socket.connectId, data: data, timestamp: delta)
     try await socket.send(message: message, firstType: false)
   }
   
-  public func publishVideoHeader(data: Data, time: TimeInterval) async throws {
+  public func publishVideoHeader(data: Data, time: UInt32) async throws {
     let message = VideoMessage(msgStreamId: socket.connectId, data: data, timestamp: time)
     try await socket.send(message: message, firstType: true)
   }
   
-  public func publishAudio(data: Data, delta: TimeInterval) async throws {
+  public func publishAudio(data: Data, delta: UInt32) async throws {
     let message = AudioMessage(msgStreamId: socket.connectId, data: data, timestamp: delta)
     try await socket.send(message: message, firstType: false)
   }
   
-  public func publishAudioHeader(data: Data, time: TimeInterval) async throws {
+  public func publishAudioHeader(data: Data, time: UInt32) async throws {
     let message = AudioMessage(msgStreamId: socket.connectId, data: data, timestamp: 0)
     try await socket.send(message: message, firstType: true)
   }
