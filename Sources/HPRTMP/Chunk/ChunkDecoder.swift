@@ -325,17 +325,18 @@ class ChunkEncoderTest {
     case .type1:
       // 7bytes
       guard data.count >= 7 else { return (nil,0) }
+      let timestamp = Data(data[0...2].reversed()).uint32
+      let messageLength = Data(data[3...5].reversed()).uint32
+      let messageType = MessageType(rawValue: Data([data[6]]).uint8)
 
-      break
+      return (MessageHeaderType1(timestampDelta: timestamp, messageLength: Int(messageLength), type: messageType),7)
     case .type2:
       // 3bytes
       guard data.count >= 3 else { return (nil,0) }
-
-      break
+      let timestamp = Data(data[0...2].reversed()).uint32
+      return (MessageHeaderType2(timestampDelta: timestamp), 3)
     case .type3:
       return (MessageHeaderType3(),0)
     }
-    
-    return (MessageHeaderType3(), 0)
   }
 }
