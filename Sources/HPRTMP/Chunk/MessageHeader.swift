@@ -32,10 +32,10 @@ struct MessageHeaderType0: MessageHeader {
     data.writeU24(Int(time), bigEndian: true)
     data.writeU24(messageLength, bigEndian: true)
     data.append(type.rawValue)
-    data.append(UInt32(messageStreamId).data)
+    data.append(UInt32(messageStreamId).bigEndian.data)
 
     if isExtendTime {
-      data.append(UInt32(Int(timestamp)).bigEndian.data)
+      data.append(timestamp.bigEndian.data)
     }
     return data
   }

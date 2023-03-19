@@ -193,4 +193,143 @@ class ChunkDecoderTests: XCTestCase {
     XCTAssertEqual(header?.type, .type1)
   }
   
+  
+  func testMessageHeaderType0() {
+    let data: [UInt8] = [0x00, 0x01, 0x02, 0x00, 0x00, 0x04, 0x12, 0x34, 0x56, 0x78, 0x00]
+    
+    let decoder = ChunkEncoderTest()
+    
+    let (header, length) = decoder.messageHeader(data: Data(data), type: .type0)
+    XCTAssertEqual(length, 11)
+    XCTAssertTrue(header is MessageHeaderType0)
+    let headerType0 = header as! MessageHeaderType0
+    XCTAssertEqual(headerType0.timestamp, Data([0x02, 0x01, 0x00, 0x00]).uint32)
+    XCTAssertEqual(headerType0.messageLength, 0x000004)
+    XCTAssertEqual(headerType0.type, MessageType.data(type: .amf0))
+    let streamId = Data([0x00, 0x78, 0x56, 0x34]).uint32
+    XCTAssertEqual(headerType0.messageStreamId, Int(streamId))
+  }
+  
+  func testMessageHeaderType0WithEncode() {
+    let messageHeaderType0 = MessageHeaderType0(timestamp: 32, messageLength: 100, type: .audio, messageStreamId: 5)
+    let data = messageHeaderType0.encode()
+    
+    let decoder = ChunkEncoderTest()
+    
+    let (header, length) = decoder.messageHeader(data: data, type: .type0)
+    XCTAssertEqual(length, 11)
+    XCTAssertTrue(header is MessageHeaderType0)
+    let headerType0 = header as! MessageHeaderType0
+    XCTAssertEqual(headerType0.timestamp, 32)
+    XCTAssertEqual(headerType0.messageLength, 100)
+    XCTAssertEqual(headerType0.type, .audio)
+    XCTAssertEqual(headerType0.messageStreamId, 5)
+  }
+  
+  func testMessageHeaderType1() {
+    let data: [UInt8] = [0x00, 0x01, 0x02, 0x00, 0x00, 0x04, 0x02]
+    
+    let decoder = ChunkEncoderTest()
+    
+    let (header, length) = decoder.messageHeader(data: Data(data), type: .type1)
+    XCTAssertEqual(length, 7)
+    XCTAssertTrue(header is MessageHeaderType1)
+    let headerType1 = header as! MessageHeaderType1
+    XCTAssertEqual(headerType1.timestampDelta, Data([0x02, 0x01, 0x00, 0x00]).uint32)
+    XCTAssertEqual(headerType1.messageLength, 0x000004)
+    XCTAssertEqual(headerType1.type, .abort)
+  }
+  
+  func testMessageHeaderType1WithEncode() {
+    let messageHeaderType1 = MessageHeaderType1(timestampDelta: 1234, messageLength: 456, type: .video)
+    let data = messageHeaderType1.encode()
+    
+    let decoder = ChunkEncoderTest()
+    
+    let (header, length) = decoder.messageHeader(data: data, type: .type1)
+    XCTAssertEqual(length, 7)
+    XCTAssertTrue(header is MessageHeaderType1)
+    let headerType1 = header as! MessageHeaderType1
+    XCTAssertEqual(headerType1.timestampDelta, 1234)
+    XCTAssertEqual(headerType1.messageLength, 456)
+    XCTAssertEqual(headerType1.type, .video)
+  }
+  
+  func testMessageHeaderType2() {
+    let data: [UInt8] = [0x00, 0x01, 0x02]
+    
+    let decoder = ChunkEncoderTest()
+    
+    let (header, length) = decoder.messageHeader(data: Data(data), type: .type2)
+    XCTAssertEqual(length, 3)
+    XCTAssertTrue(header is MessageHeaderType2)
+    let headerType2 = header as! MessageHeaderType2
+    XCTAssertEqual(headerType2.timestampDelta, Data([0x02, 0x01, 0x00, 0x00]).uint32)
+  }
+  
+  func testMessageHeaderType2WithEncode() {
+    let messageHeaderType2 = MessageHeaderType2(timestampDelta: 1234)
+    let data = messageHeaderType2.encode()
+    
+    let decoder = ChunkEncoderTest()
+    
+    let (header, length) = decoder.messageHeader(data: data, type: .type2)
+    XCTAssertEqual(length, 3)
+    XCTAssertTrue(header is MessageHeaderType2)
+    let headerType2 = header as! MessageHeaderType2
+    XCTAssertEqual(headerType2.timestampDelta, 1234)
+  }
+  
+  
+  func testMessageHeaderType3() {
+    let data: [UInt8] = []
+    
+    let decoder = ChunkEncoderTest()
+    
+    let (header, length) = decoder.messageHeader(data: Data(data), type: .type3)
+    XCTAssertEqual(length, 0)
+    XCTAssertTrue(header is MessageHeaderType3)
+  }
+  
+  func testMessageHeaderType3WithEncode() {
+    let messageHeaderType3 = MessageHeaderType3()
+    let data = messageHeaderType3.encode()
+    
+    let decoder = ChunkEncoderTest()
+    
+    let (header, length) = decoder.messageHeader(data: data, type: .type3)
+    XCTAssertEqual(length, 0)
+    XCTAssertTrue(header is MessageHeaderType3)
+  }
+  
+  func testMessageHeaderType0InvalidData() {
+    let data: [UInt8] = [0x00, 0x01, 0x02, 0x00, 0x00, 0x04, 0x12, 0x34, 0x56]
+    
+    let decoder = ChunkEncoderTest()
+    
+    let (header, length) = decoder.messageHeader(data: Data(data), type: .type0)
+    XCTAssertNil(header)
+    XCTAssertEqual(length, 0)
+  }
+  
+  func testMessageHeaderType1InvalidData() {
+    let data: [UInt8] = [0x00, 0x01, 0x02, 0x00, 0x00, 0x04]
+    
+    let decoder = ChunkEncoderTest()
+    
+    let (header, length) = decoder.messageHeader(data: Data(data), type: .type1)
+    XCTAssertNil(header)
+    XCTAssertEqual(length, 0)
+  }
+  
+  func testMessageHeaderType2InvalidData() {
+    let data: [UInt8] = [0x00, 0x01]
+    
+    let decoder = ChunkEncoderTest()
+    
+    let (header, length) = decoder.messageHeader(data: Data(data), type: .type2)
+    XCTAssertNil(header)
+    XCTAssertEqual(length, 0)
+  }
+  
 }

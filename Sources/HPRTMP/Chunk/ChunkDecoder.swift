@@ -313,30 +313,34 @@ class ChunkEncoderTest {
       // 11bytes
       guard data.count >= 11 else { return (nil,0) }
       // timestamp 3bytes
-      let timestamp = Data(data[0...2].reversed()).uint32
-     // message lenght 3 byte
-      let messageLength = Data(data[3...5].reversed()).uint32
+      let timestamp = Data(data[0...2].reversed() + [0x00]).uint32
+      // message length 3 byte
+      let messageLength = Data(data[3...5].reversed() + [0x00]).uint32
       // message type id 1byte
-      let messageType = MessageType(rawValue: Data([data[6]]).uint8)
+      let messageType = MessageType(rawValue: data[6])
       // msg stream id 4bytes
       let messageStreamId = Data(data[7...10].reversed()).uint32
       
       return (MessageHeaderType0(timestamp: timestamp, messageLength: Int(messageLength), type: messageType, messageStreamId: Int(messageStreamId)), 11)
+      
     case .type1:
       // 7bytes
       guard data.count >= 7 else { return (nil,0) }
-      let timestamp = Data(data[0...2].reversed()).uint32
-      let messageLength = Data(data[3...5].reversed()).uint32
-      let messageType = MessageType(rawValue: Data([data[6]]).uint8)
-
-      return (MessageHeaderType1(timestampDelta: timestamp, messageLength: Int(messageLength), type: messageType),7)
+      let timestampDelta = Data(data[0...2].reversed() + [0x00]).uint32
+      let messageLength = Data(data[3...5].reversed() + [0x00]).uint32
+      let messageType = MessageType(rawValue: data[6])
+      
+      return (MessageHeaderType1(timestampDelta: timestampDelta, messageLength: Int(messageLength), type: messageType),7)
+      
     case .type2:
       // 3bytes
       guard data.count >= 3 else { return (nil,0) }
-      let timestamp = Data(data[0...2].reversed()).uint32
-      return (MessageHeaderType2(timestampDelta: timestamp), 3)
+      let timestampDelta = Data(data[0...2].reversed() + [0x00]).uint32
+      return (MessageHeaderType2(timestampDelta: timestampDelta), 3)
+      
     case .type3:
       return (MessageHeaderType3(),0)
     }
   }
+
 }
