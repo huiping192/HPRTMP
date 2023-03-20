@@ -265,15 +265,25 @@ class ChunkEncoderTest {
 //  func decode() -> [Chunk] {
 //    // basic
 //
-//    let chunkHeader = ChunkHeader(streamId: <#T##Int#>, messageHeader: <#T##MessageHeader#>)
-//
-//    let chunk = Chunk(chunkHeader: <#T##ChunkHeader#>, chunkData: <#T##Data#>)
-//
 //    return []
 //  }
   
+  func decode() -> Chunk? {
+    let (basicHeader, basicHeaderSize) = decodeBasicHeader(data: data)
+    guard let basicHeader else { return nil }
+    
+    let (messageHeader, messageHeaderSize) = decodeMessageHeader(data: data.advanced(by: basicHeaderSize), type: basicHeader.type)
+    guard let messageHeader else { return nil }
+
+//    let chunData = decodeChunkData(data: data.advanced(by: messageHeaderSize), messageLength: messageHeader.)
+    
+//    let chunk = Chunk(chunkHeader: , chunkData: )
+
+    return nil
+  }
   
-  func basicHeader(data: Data) -> (BasicHeader?,Int) {
+  
+  func decodeBasicHeader(data: Data) -> (BasicHeader?,Int) {
     guard let byte = data.first else {
       return (nil,0)
     }
@@ -307,7 +317,7 @@ class ChunkEncoderTest {
     return (BasicHeader(streamId: streamId, type: headerType), basicHeaderLength)
   }
   
-  func messageHeader(data: Data, type: MessageHeaderType) -> ((any MessageHeader)?, Int) {
+  func decodeMessageHeader(data: Data, type: MessageHeaderType) -> ((any MessageHeader)?, Int) {
     switch type {
     case .type0:
       // 11bytes
@@ -320,6 +330,11 @@ class ChunkEncoderTest {
       let messageType = MessageType(rawValue: data[6])
       // msg stream id 4bytes
       let messageStreamId = Data(data[7...10].reversed()).uint32
+      
+      if timestamp == maxTimestamp {
+        let extendTimestamp = Data(data[11...14].reversed()).uint32
+        return (MessageHeaderType0(timestamp: extendTimestamp, messageLength: Int(messageLength), type: messageType, messageStreamId: Int(messageStreamId)), 15)
+      }
       
       return (MessageHeaderType0(timestamp: timestamp, messageLength: Int(messageLength), type: messageType, messageStreamId: Int(messageStreamId)), 11)
       
@@ -341,6 +356,13 @@ class ChunkEncoderTest {
     case .type3:
       return (MessageHeaderType3(),0)
     }
+  }
+  
+  func decodeChunkData(data: Data, messageLength: UInt32) -> (Data?, UInt32) {
+    guard data.count >= messageLength else { return (nil,0) }
+    
+    let chunkData = data[0..<messageLength]
+    return (chunkData, messageLength)
   }
 
 }

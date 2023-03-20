@@ -114,7 +114,7 @@ class ChunkDecoderTests: XCTestCase {
     let decoder = ChunkEncoderTest()
     
     // When
-    let (header, length) = decoder.basicHeader(data: data)
+    let (header, length) = decoder.decodeBasicHeader(data: data)
     
     // Then
     XCTAssertNil(header)
@@ -127,7 +127,7 @@ class ChunkDecoderTests: XCTestCase {
     let decoder = ChunkEncoderTest()
     
     // When
-    let (header, length) = decoder.basicHeader(data: data)
+    let (header, length) = decoder.decodeBasicHeader(data: data)
     
     // Then
     XCTAssertNil(header)
@@ -139,7 +139,7 @@ class ChunkDecoderTests: XCTestCase {
     let data = basicHeader.encode()
     let decoder = ChunkEncoderTest()
     
-    let (header, length) = decoder.basicHeader(data: data)
+    let (header, length) = decoder.decodeBasicHeader(data: data)
     
     XCTAssertNotNil(header)
     XCTAssertEqual(length, 1)
@@ -153,7 +153,7 @@ class ChunkDecoderTests: XCTestCase {
     let decoder = ChunkEncoderTest()
     
     // When
-    let (header, length) = decoder.basicHeader(data: data)
+    let (header, length) = decoder.decodeBasicHeader(data: data)
     
     // Then
     XCTAssertNotNil(header)
@@ -169,7 +169,7 @@ class ChunkDecoderTests: XCTestCase {
     let decoder = ChunkEncoderTest()
     
     // When
-    let (header, length) = decoder.basicHeader(data: data)
+    let (header, length) = decoder.decodeBasicHeader(data: data)
     
     // Then
     XCTAssertNotNil(header)
@@ -184,7 +184,7 @@ class ChunkDecoderTests: XCTestCase {
     let decoder = ChunkEncoderTest()
     
     // When
-    let (header, length) = decoder.basicHeader(data: data)
+    let (header, length) = decoder.decodeBasicHeader(data: data)
     
     // Then
     XCTAssertNotNil(header)
@@ -199,7 +199,7 @@ class ChunkDecoderTests: XCTestCase {
     
     let decoder = ChunkEncoderTest()
     
-    let (header, length) = decoder.messageHeader(data: Data(data), type: .type0)
+    let (header, length) = decoder.decodeMessageHeader(data: Data(data), type: .type0)
     XCTAssertEqual(length, 11)
     XCTAssertTrue(header is MessageHeaderType0)
     let headerType0 = header as! MessageHeaderType0
@@ -216,11 +216,40 @@ class ChunkDecoderTests: XCTestCase {
     
     let decoder = ChunkEncoderTest()
     
-    let (header, length) = decoder.messageHeader(data: data, type: .type0)
+    let (header, length) = decoder.decodeMessageHeader(data: data, type: .type0)
     XCTAssertEqual(length, 11)
     XCTAssertTrue(header is MessageHeaderType0)
     let headerType0 = header as! MessageHeaderType0
     XCTAssertEqual(headerType0.timestamp, 32)
+    XCTAssertEqual(headerType0.messageLength, 100)
+    XCTAssertEqual(headerType0.type, .audio)
+    XCTAssertEqual(headerType0.messageStreamId, 5)
+  }
+  
+  func testMessageHeaderType0ExtendTimestamp() {
+    let data: [UInt8] = [0xff, 0xff, 0xff, 0xff, 0x01, 0x00, 0x04, 0x12, 0x34, 0x56, 0x78, 0xff, 0xff, 0xff, 0xff]
+
+    let decoder = ChunkEncoderTest()
+    
+    let (header, length) = decoder.decodeMessageHeader(data: Data(data), type: .type0)
+    XCTAssertEqual(length, 15)
+    XCTAssertTrue(header is MessageHeaderType0)
+    
+    let headerType0 = header as! MessageHeaderType0
+    XCTAssertEqual(headerType0.timestamp, 4294967295)
+  }
+  
+  func testMessageHeaderType0ExtendTimestampWithEncode() {
+    let messageHeaderType0 = MessageHeaderType0(timestamp: 32 + maxTimestamp, messageLength: 100, type: .audio, messageStreamId: 5)
+    let data = messageHeaderType0.encode()
+    
+    let decoder = ChunkEncoderTest()
+    
+    let (header, length) = decoder.decodeMessageHeader(data: data, type: .type0)
+    XCTAssertEqual(length, 15)
+    XCTAssertTrue(header is MessageHeaderType0)
+    let headerType0 = header as! MessageHeaderType0
+    XCTAssertEqual(headerType0.timestamp, 32 + maxTimestamp)
     XCTAssertEqual(headerType0.messageLength, 100)
     XCTAssertEqual(headerType0.type, .audio)
     XCTAssertEqual(headerType0.messageStreamId, 5)
@@ -231,7 +260,7 @@ class ChunkDecoderTests: XCTestCase {
     
     let decoder = ChunkEncoderTest()
     
-    let (header, length) = decoder.messageHeader(data: Data(data), type: .type1)
+    let (header, length) = decoder.decodeMessageHeader(data: Data(data), type: .type1)
     XCTAssertEqual(length, 7)
     XCTAssertTrue(header is MessageHeaderType1)
     let headerType1 = header as! MessageHeaderType1
@@ -246,7 +275,7 @@ class ChunkDecoderTests: XCTestCase {
     
     let decoder = ChunkEncoderTest()
     
-    let (header, length) = decoder.messageHeader(data: data, type: .type1)
+    let (header, length) = decoder.decodeMessageHeader(data: data, type: .type1)
     XCTAssertEqual(length, 7)
     XCTAssertTrue(header is MessageHeaderType1)
     let headerType1 = header as! MessageHeaderType1
@@ -260,7 +289,7 @@ class ChunkDecoderTests: XCTestCase {
     
     let decoder = ChunkEncoderTest()
     
-    let (header, length) = decoder.messageHeader(data: Data(data), type: .type2)
+    let (header, length) = decoder.decodeMessageHeader(data: Data(data), type: .type2)
     XCTAssertEqual(length, 3)
     XCTAssertTrue(header is MessageHeaderType2)
     let headerType2 = header as! MessageHeaderType2
@@ -273,7 +302,7 @@ class ChunkDecoderTests: XCTestCase {
     
     let decoder = ChunkEncoderTest()
     
-    let (header, length) = decoder.messageHeader(data: data, type: .type2)
+    let (header, length) = decoder.decodeMessageHeader(data: data, type: .type2)
     XCTAssertEqual(length, 3)
     XCTAssertTrue(header is MessageHeaderType2)
     let headerType2 = header as! MessageHeaderType2
@@ -286,7 +315,7 @@ class ChunkDecoderTests: XCTestCase {
     
     let decoder = ChunkEncoderTest()
     
-    let (header, length) = decoder.messageHeader(data: Data(data), type: .type3)
+    let (header, length) = decoder.decodeMessageHeader(data: Data(data), type: .type3)
     XCTAssertEqual(length, 0)
     XCTAssertTrue(header is MessageHeaderType3)
   }
@@ -297,7 +326,7 @@ class ChunkDecoderTests: XCTestCase {
     
     let decoder = ChunkEncoderTest()
     
-    let (header, length) = decoder.messageHeader(data: data, type: .type3)
+    let (header, length) = decoder.decodeMessageHeader(data: data, type: .type3)
     XCTAssertEqual(length, 0)
     XCTAssertTrue(header is MessageHeaderType3)
   }
@@ -307,7 +336,7 @@ class ChunkDecoderTests: XCTestCase {
     
     let decoder = ChunkEncoderTest()
     
-    let (header, length) = decoder.messageHeader(data: Data(data), type: .type0)
+    let (header, length) = decoder.decodeMessageHeader(data: Data(data), type: .type0)
     XCTAssertNil(header)
     XCTAssertEqual(length, 0)
   }
@@ -317,7 +346,7 @@ class ChunkDecoderTests: XCTestCase {
     
     let decoder = ChunkEncoderTest()
     
-    let (header, length) = decoder.messageHeader(data: Data(data), type: .type1)
+    let (header, length) = decoder.decodeMessageHeader(data: Data(data), type: .type1)
     XCTAssertNil(header)
     XCTAssertEqual(length, 0)
   }
@@ -327,7 +356,7 @@ class ChunkDecoderTests: XCTestCase {
     
     let decoder = ChunkEncoderTest()
     
-    let (header, length) = decoder.messageHeader(data: Data(data), type: .type2)
+    let (header, length) = decoder.decodeMessageHeader(data: Data(data), type: .type2)
     XCTAssertNil(header)
     XCTAssertEqual(length, 0)
   }
