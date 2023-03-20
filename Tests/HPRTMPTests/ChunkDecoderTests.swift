@@ -361,6 +361,18 @@ class ChunkDecoderTests: XCTestCase {
     XCTAssertEqual(length, 0)
   }
   
+  func testDecodeChunkDataNoEnoughData() {
+    let messageLength: UInt32 = 32
+    let data = Data(repeating: 0xff, count: 25)
+    
+    let decoder = ChunkEncoderTest()
+    
+    let (chunkData, chunkSize) = decoder.decodeChunkData(data: data, messageLength: messageLength)
+    
+    XCTAssertNil(chunkData)
+    XCTAssertEqual(chunkSize, 0)
+  }
+  
   func testDecodeChunkDataLessThan256() {
     let messageLength: UInt32 = 32
     let data = Data(repeating: 0xff, count: 256)
