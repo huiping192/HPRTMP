@@ -2,6 +2,10 @@
 
 **Note: This library is still a work in progress and not yet finished.**
 
+[![CI](https://github.com/huiping192/HPRTMP/actions/workflows/swift.yml/badge.svg?branch=main)](https://github.com/huiping192/HPRTMP/actions/workflows/swift.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)]([https://opensource.org/licenses/MIT](https://github.com/huiping192/LICENSE))
+[![Twitter](https://img.shields.io/twitter/follow/huiping192?style=social)](https://twitter.com/huiping192)
+
 ## Goals
 
 The main goals of this library are:
