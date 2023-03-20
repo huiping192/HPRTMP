@@ -1,4 +1,4 @@
-name: HPRTMP Swift
+name: CI
 
 on:
   push:
