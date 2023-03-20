@@ -228,7 +228,7 @@ class ChunkDecoderTests: XCTestCase {
   
   func testMessageHeaderType0ExtendTimestamp() {
     let data: [UInt8] = [0xff, 0xff, 0xff, 0xff, 0x01, 0x00, 0x04, 0x12, 0x34, 0x56, 0x78, 0xff, 0xff, 0xff, 0xff]
-
+    
     let decoder = ChunkEncoderTest()
     
     let (header, length) = decoder.decodeMessageHeader(data: Data(data), type: .type0)
@@ -359,6 +359,30 @@ class ChunkDecoderTests: XCTestCase {
     let (header, length) = decoder.decodeMessageHeader(data: Data(data), type: .type2)
     XCTAssertNil(header)
     XCTAssertEqual(length, 0)
+  }
+  
+  func testDecodeChunkDataLessThan256() {
+    let messageLength: UInt32 = 32
+    let data = Data(repeating: 0xff, count: 256)
+    
+    let decoder = ChunkEncoderTest()
+    
+    let (chunkData, chunkSize) = decoder.decodeChunkData(data: data, messageLength: messageLength)
+    
+    XCTAssertEqual(chunkData?.count, 32)
+    XCTAssertEqual(chunkSize, 32)
+  }
+  
+  func testDecodeChunkDataGreateThan128() {
+    let messageLength: UInt32 = 256
+    let data = Data(repeating: 0xff, count: 256)
+    
+    let decoder = ChunkEncoderTest()
+    
+    let (chunkData, chunkSize) = decoder.decodeChunkData(data: data, messageLength: messageLength)
+    
+    XCTAssertEqual(chunkData?.count, 128)
+    XCTAssertEqual(chunkSize, 128)
   }
   
 }

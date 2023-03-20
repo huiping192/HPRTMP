@@ -358,11 +358,18 @@ class ChunkEncoderTest {
     }
   }
   
-  func decodeChunkData(data: Data, messageLength: UInt32) -> (Data?, UInt32) {
+  func decodeChunkData(data: Data, messageLength: UInt32) -> (Data?, Int) {
+    if messageLength > 128 {
+      let chunkDataSize = 128
+      guard data.count >= chunkDataSize else { return (nil,0) }
+      let chunkData = data[0..<chunkDataSize]
+      return (chunkData, chunkDataSize)
+    }
+    
     guard data.count >= messageLength else { return (nil,0) }
     
     let chunkData = data[0..<messageLength]
-    return (chunkData, messageLength)
+    return (chunkData, Int(messageLength))
   }
 
 }
