@@ -28,6 +28,11 @@ struct ChunkHeader: Encodable {
   let basicHeader: BasicHeader
   let messageHeader: MessageHeader
   
+  init(basicHeader: BasicHeader, messageHeader: MessageHeader) {
+    self.basicHeader = basicHeader
+    self.messageHeader = messageHeader
+  }
+  
   // Initialize the ChunkHeader struct with a stream ID, message header, and chunk payload
   init(streamId: Int,messageHeader: MessageHeader) {
     self.messageHeader = messageHeader

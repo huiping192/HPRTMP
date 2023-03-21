@@ -362,7 +362,7 @@ class ChunkDecoderTests: XCTestCase {
   }
   
   func testDecodeChunkDataNoEnoughData() {
-    let messageLength: UInt32 = 32
+    let messageLength = 32
     let data = Data(repeating: 0xff, count: 25)
     
     let decoder = ChunkEncoderTest()
@@ -374,7 +374,7 @@ class ChunkDecoderTests: XCTestCase {
   }
   
   func testDecodeChunkDataLessThan256() {
-    let messageLength: UInt32 = 32
+    let messageLength = 32
     let data = Data(repeating: 0xff, count: 256)
     
     let decoder = ChunkEncoderTest()
@@ -386,7 +386,7 @@ class ChunkDecoderTests: XCTestCase {
   }
   
   func testDecodeChunkDataGreateThan128() {
-    let messageLength: UInt32 = 256
+    let messageLength = 256
     let data = Data(repeating: 0xff, count: 256)
     
     let decoder = ChunkEncoderTest()

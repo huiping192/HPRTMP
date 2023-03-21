@@ -268,18 +268,30 @@ class ChunkEncoderTest {
 //    return []
 //  }
   
-  func decode() -> Chunk? {
+  func decode() -> (Chunk?, Int) {
     let (basicHeader, basicHeaderSize) = decodeBasicHeader(data: data)
-    guard let basicHeader else { return nil }
+    guard let basicHeader else { return (nil,0) }
     
     let (messageHeader, messageHeaderSize) = decodeMessageHeader(data: data.advanced(by: basicHeaderSize), type: basicHeader.type)
-    guard let messageHeader else { return nil }
+    guard let messageHeader else { return (nil,0) }
 
+    let messageLength: Int
+    if let messageHeaderType0 = messageHeader as? MessageHeaderType0 {
+      messageLength = messageHeaderType0.messageLength
+      let (chunkData, chunkDataSize) = decodeChunkData(data: data.advanced(by: messageHeaderSize), messageLength: messageLength)
+      guard let chunkData else {
+        return (nil,0)
+      }
+      
+      let chunkSize = basicHeaderSize + messageHeaderSize + chunkDataSize
+      return (Chunk(chunkHeader: ChunkHeader(basicHeader: basicHeader, messageHeader: messageHeader), chunkData: chunkData), chunkSize)
+    }
+    
 //    let chunData = decodeChunkData(data: data.advanced(by: messageHeaderSize), messageLength: messageHeader.)
     
 //    let chunk = Chunk(chunkHeader: , chunkData: )
 
-    return nil
+    return (nil,0)
   }
   
   
@@ -358,7 +370,7 @@ class ChunkEncoderTest {
     }
   }
   
-  func decodeChunkData(data: Data, messageLength: UInt32) -> (Data?, Int) {
+  func decodeChunkData(data: Data, messageLength: Int) -> (Data?, Int) {
     if messageLength > 128 {
       let chunkDataSize = 128
       guard data.count >= chunkDataSize else { return (nil,0) }
