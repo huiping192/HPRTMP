@@ -140,10 +140,11 @@ extension RTMPSocket {
     guard state != .closed && state != .none else { return }
     Task {
       await handshake?.reset()
+      await decoder.reset()
+      encoder.reset()
+      //    info.reset(clearInfo)
     }
-    decoder.reset()
-    encoder.reset()
-//    info.reset(clearInfo)
+
   }
   
   private func startReceiveData() async throws {
