@@ -36,13 +36,13 @@ actor ChunkDecoder {
 //    return []
 //  }
   
-  private static let maxChunkSize: UInt8 = 128
-  var chunkSize: Int = Int(ChunkDecoder.maxChunkSize)
+//  private static let maxChunkSize: UInt8 = 128
+  var maxChunkSize: Int = Int(128)
   
   private var chunks: [Chunk] = []
   
-  private var messageDataLengthMap: [UInt16: Int] = [:]
-  private var remainDataLengthMap: [UInt16: Int] = [:]
+  private(set) var messageDataLengthMap: [UInt16: Int] = [:]
+  private(set) var remainDataLengthMap: [UInt16: Int] = [:]
   
   
   func reset() {
@@ -59,15 +59,63 @@ actor ChunkDecoder {
 
     // big data size
     guard let remainDataLength = remainDataLengthMap[streamId] else { return nil }
-    if remainDataLength > chunkSize {
-      remainDataLengthMap[streamId] = remainDataLength - chunkSize
-      return chunkSize
+    if remainDataLength > maxChunkSize {
+      remainDataLengthMap[streamId] = remainDataLength - maxChunkSize
+      return maxChunkSize
     }
     remainDataLengthMap.removeValue(forKey: streamId)
     return remainDataLength
   }
   
-  func decode() -> (Chunk?, Int) {
+//  private func createMessage(messageType: MessageType, chunkPayload: Data) -> RTMPBaseMessageProtocol? {
+//    switch messageType {
+//    case .chunkSize:
+//      let size = Data(chunkPayload.reversed()).uint32
+//      return ChunkSizeMessage(size: size)
+//    case .control:
+//      return ControlMessage(type: <#T##MessageType#>)
+//    case .peerBandwidth:
+//      guard let windowAckSize = chunkPayload[safe: 0..<4]?.reversed() else {
+//          return
+//      }
+//      let peer = Data(windowAckSize).uint32
+//      self.delegate?.socketPeerBandWidth(self, size: peer)
+//      return PeerBandwidthMessage(windowSize: <#T##UInt32#>, limit: <#T##PeerBandwidthMessage.LimitType#>)
+//    case .command(type: let type):
+//      return CommandMessage(encodeType: <#T##ObjectEncodingType#>, commandName: <#T##String#>, transactionId: <#T##Int#>)
+//    case .data(type: let type):
+//      return DataMessage(encodeType: <#T##ObjectEncodingType#>, msgStreamId: <#T##Int#>)
+//    case .share(type: let type):
+//      return nil
+//    case .audio:
+//      return AudioMessage(msgStreamId: <#T##Int#>, data: <#T##Data#>, timestamp: <#T##UInt32#>)
+//    case .video:
+//      return VideoMessage(msgStreamId: <#T##Int#>, data: <#T##Data#>, timestamp: <#T##UInt32#>)
+//    case .aggreate:
+//      return nil
+//    case .none:
+//      return nil
+//    }
+//    return nil
+//  }
+  
+//  func decodeMessage(data: Data) -> (RTMPBaseMessageProtocol?,Int) {
+//    let (firstChunk, chunkSize) = decodeChunk(data: data)
+//    guard let firstChunk = firstChunk else { return (nil,0) }
+//
+//    if let messageHeaderType0 = firstChunk.chunkHeader.messageHeader as? MessageHeaderType0 {
+//      let messageLength = messageHeaderType0.messageLength
+//      // one chunk = one message
+//      if messageLength <= maxChunkSize {
+//        return (createMessage(),chunkSize)
+//      }
+//    }
+//
+//
+//    return (nil,0)
+//  }
+  
+  func decodeChunk(data: Data) -> (Chunk?, Int) {
     let (basicHeader, basicHeaderSize) = decodeBasicHeader(data: data)
     guard let basicHeader else { return (nil,0) }
     
@@ -76,15 +124,15 @@ actor ChunkDecoder {
 
     if let messageHeaderType0 = messageHeader as? MessageHeaderType0 {
       let messageLength = messageHeaderType0.messageLength
-      let (chunkData, chunkDataSize) = decodeChunkData(data: data.advanced(by: messageHeaderSize), messageLength: messageLength)
+      let (chunkData, chunkDataSize) = decodeChunkData(data: data.advanced(by: basicHeaderSize + messageHeaderSize), messageLength: messageLength)
       guard let chunkData else {
         return (nil,0)
       }
       
-      if messageLength <= chunkSize {
+      if messageLength <= maxChunkSize {
         messageDataLengthMap[basicHeader.streamId] = messageLength
       } else {
-        remainDataLengthMap[basicHeader.streamId] = messageLength - chunkSize
+        remainDataLengthMap[basicHeader.streamId] = messageLength - maxChunkSize
       }
       
       let chunkSize = basicHeaderSize + messageHeaderSize + chunkDataSize
@@ -93,15 +141,15 @@ actor ChunkDecoder {
     
     if let messageHeaderType1 = messageHeader as? MessageHeaderType1 {
       let messageLength = messageHeaderType1.messageLength
-      let (chunkData, chunkDataSize) = decodeChunkData(data: data.advanced(by: messageHeaderSize), messageLength: messageLength)
+      let (chunkData, chunkDataSize) = decodeChunkData(data: data.advanced(by: basicHeaderSize + messageHeaderSize), messageLength: messageLength)
       guard let chunkData else {
         return (nil,0)
       }
       
-      if messageLength <= chunkSize {
+      if messageLength <= maxChunkSize {
         messageDataLengthMap[basicHeader.streamId] = messageLength
       } else {
-        remainDataLengthMap[basicHeader.streamId] = messageLength - chunkSize
+        remainDataLengthMap[basicHeader.streamId] = messageLength - maxChunkSize
       }
       let chunkSize = basicHeaderSize + messageHeaderSize + chunkDataSize
       return (Chunk(chunkHeader: ChunkHeader(basicHeader: basicHeader, messageHeader: messageHeader), chunkData: chunkData), chunkSize)
@@ -109,7 +157,7 @@ actor ChunkDecoder {
     
     if let _ = messageHeader as? MessageHeaderType2 {
       guard let payloadLength = getChunkDataLength(streamId: basicHeader.streamId) else { return (nil,0) }
-      let (chunkData, chunkDataSize) = decodeChunkData(data: data.advanced(by: messageHeaderSize), messageLength: payloadLength)
+      let (chunkData, chunkDataSize) = decodeChunkData(data: data.advanced(by: basicHeaderSize + messageHeaderSize), messageLength: payloadLength)
       guard let chunkData else {
         return (nil,0)
       }
@@ -120,7 +168,7 @@ actor ChunkDecoder {
     
     if let _ = messageHeader as? MessageHeaderType3 {
       guard let payloadLength = getChunkDataLength(streamId: basicHeader.streamId) else { return (nil,0) }
-      let (chunkData, chunkDataSize) = decodeChunkData(data: data.advanced(by: messageHeaderSize), messageLength: payloadLength)
+      let (chunkData, chunkDataSize) = decodeChunkData(data: data.advanced(by: basicHeaderSize + messageHeaderSize), messageLength: payloadLength)
       guard let chunkData else {
         return (nil,0)
       }
