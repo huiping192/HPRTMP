@@ -12,7 +12,7 @@ class MessageDecoder {
     
   }
   
-  func decode() -> RTMPBaseMessageProtocol? {
+  func decode() -> RTMPMessage? {
     return nil
   }
 }
@@ -26,7 +26,7 @@ actor ChunkDecoder {
     
   }
   
-  func decode() -> RTMPBaseMessageProtocol? {
+  func decode() -> RTMPMessage? {
     return nil
   }
   
@@ -67,7 +67,7 @@ actor ChunkDecoder {
     return remainDataLength
   }
   
-//  private func createMessage(messageType: MessageType, chunkPayload: Data) -> RTMPBaseMessageProtocol? {
+//  private func createMessage(streamId: Int, messageType: MessageType, timestamp: UInt32, chunkPayload: Data) -> RTMPBaseMessageProtocol? {
 //    switch messageType {
 //    case .chunkSize:
 //      let size = Data(chunkPayload.reversed()).uint32
@@ -76,22 +76,27 @@ actor ChunkDecoder {
 //      return ControlMessage(type: <#T##MessageType#>)
 //    case .peerBandwidth:
 //      guard let windowAckSize = chunkPayload[safe: 0..<4]?.reversed() else {
-//          return
+//          return nil
 //      }
 //      let peer = Data(windowAckSize).uint32
-//      self.delegate?.socketPeerBandWidth(self, size: peer)
-//      return PeerBandwidthMessage(windowSize: <#T##UInt32#>, limit: <#T##PeerBandwidthMessage.LimitType#>)
+//      return PeerBandwidthMessage(windowSize: peer, limit: .dynamic)
 //    case .command(type: let type):
 //      return CommandMessage(encodeType: <#T##ObjectEncodingType#>, commandName: <#T##String#>, transactionId: <#T##Int#>)
 //    case .data(type: let type):
-//      return DataMessage(encodeType: <#T##ObjectEncodingType#>, msgStreamId: <#T##Int#>)
+//      return DataMessage(encodeType: <#T##ObjectEncodingType#>, msgStreamId: streamId)
 //    case .share(type: let type):
 //      return nil
 //    case .audio:
-//      return AudioMessage(msgStreamId: <#T##Int#>, data: <#T##Data#>, timestamp: <#T##UInt32#>)
+//      return AudioMessage(msgStreamId: streamId, data: chunkPayload, timestamp: timestamp)
 //    case .video:
-//      return VideoMessage(msgStreamId: <#T##Int#>, data: <#T##Data#>, timestamp: <#T##UInt32#>)
+//      return VideoMessage(msgStreamId: streamId, data: chunkPayload, timestamp: timestamp)
 //    case .aggreate:
+//      return nil
+//    case .abort:
+//      return nil
+//    case .acknowledgement:
+//      return nil
+//    case .windowAcknowledgement:
 //      return nil
 //    case .none:
 //      return nil
