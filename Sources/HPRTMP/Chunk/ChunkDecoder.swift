@@ -116,72 +116,65 @@ actor ChunkDecoder {
 //  }
   
   func decodeChunk(data: Data) -> (Chunk?, Int) {
+    // Decode basic header
     let (basicHeader, basicHeaderSize) = decodeBasicHeader(data: data)
-    guard let basicHeader else { return (nil,0) }
+    guard let basicHeader = basicHeader else { return (nil, 0) }
     
+    // Decode message header
     let (messageHeader, messageHeaderSize) = decodeMessageHeader(data: data.advanced(by: basicHeaderSize), type: basicHeader.type)
-    guard let messageHeader else { return (nil,0) }
-
+    guard let messageHeader = messageHeader else { return (nil, 0) }
+    
+    // Check if message header is of type 0 or type 1, then process it
     if let messageHeaderType0 = messageHeader as? MessageHeaderType0 {
-      let messageLength = messageHeaderType0.messageLength
-      let currentMessageLength = messageLength <= maxChunkSize ? messageLength : maxChunkSize
-      let (chunkData, chunkDataSize) = decodeChunkData(data: data.advanced(by: basicHeaderSize + messageHeaderSize), messageLength: currentMessageLength)
-      guard let chunkData else {
-        return (nil,0)
-      }
-      
-      if messageLength <= maxChunkSize {
-        messageDataLengthMap[basicHeader.streamId] = messageLength
-      } else {
-        remainDataLengthMap[basicHeader.streamId] = messageLength - maxChunkSize
-      }
-      
-      let chunkSize = basicHeaderSize + messageHeaderSize + chunkDataSize
-      return (Chunk(chunkHeader: ChunkHeader(basicHeader: basicHeader, messageHeader: messageHeader), chunkData: chunkData), chunkSize)
+      return processMessageHeader(data: data, basicHeader: basicHeader, messageHeader: messageHeaderType0, basicHeaderSize: basicHeaderSize, messageHeaderSize: messageHeaderSize)
     }
     
     if let messageHeaderType1 = messageHeader as? MessageHeaderType1 {
-      let messageLength = messageHeaderType1.messageLength
-      let currentMessageLength = messageLength <= maxChunkSize ? messageLength : maxChunkSize
-      let (chunkData, chunkDataSize) = decodeChunkData(data: data.advanced(by: basicHeaderSize + messageHeaderSize), messageLength: currentMessageLength)
-      guard let chunkData else {
-        return (nil,0)
-      }
-      
-      if messageLength <= maxChunkSize {
-        messageDataLengthMap[basicHeader.streamId] = messageLength
-      } else {
-        remainDataLengthMap[basicHeader.streamId] = messageLength - maxChunkSize
+      return processMessageHeader(data: data, basicHeader: basicHeader, messageHeader: messageHeaderType1, basicHeaderSize: basicHeaderSize, messageHeaderSize: messageHeaderSize)
+    }
+    
+    // If message header is of type 2 or type 3, process it
+    if messageHeader is MessageHeaderType2 || messageHeader is MessageHeaderType3 {
+      guard let payloadLength = getChunkDataLength(streamId: basicHeader.streamId) else { return (nil, 0) }
+      let (chunkData, chunkDataSize) = decodeChunkData(data: data.advanced(by: basicHeaderSize + messageHeaderSize), messageLength: payloadLength)
+      guard let chunkData = chunkData else {
+        return (nil, 0)
       }
       let chunkSize = basicHeaderSize + messageHeaderSize + chunkDataSize
       return (Chunk(chunkHeader: ChunkHeader(basicHeader: basicHeader, messageHeader: messageHeader), chunkData: chunkData), chunkSize)
     }
     
-    if let _ = messageHeader as? MessageHeaderType2 {
-      guard let payloadLength = getChunkDataLength(streamId: basicHeader.streamId) else { return (nil,0) }
-      let (chunkData, chunkDataSize) = decodeChunkData(data: data.advanced(by: basicHeaderSize + messageHeaderSize), messageLength: payloadLength)
-      guard let chunkData else {
-        return (nil,0)
-      }
-      
-      let chunkSize = basicHeaderSize + messageHeaderSize + chunkDataSize
-      return (Chunk(chunkHeader: ChunkHeader(basicHeader: basicHeader, messageHeader: messageHeader), chunkData: chunkData), chunkSize)
-    }
-    
-    if let _ = messageHeader as? MessageHeaderType3 {
-      guard let payloadLength = getChunkDataLength(streamId: basicHeader.streamId) else { return (nil,0) }
-      let (chunkData, chunkDataSize) = decodeChunkData(data: data.advanced(by: basicHeaderSize + messageHeaderSize), messageLength: payloadLength)
-      guard let chunkData else {
-        return (nil,0)
-      }
-      
-      let chunkSize = basicHeaderSize + messageHeaderSize + chunkDataSize
-      return (Chunk(chunkHeader: ChunkHeader(basicHeader: basicHeader, messageHeader: messageHeader), chunkData: chunkData), chunkSize)
-    }
-
-    return (nil,0)
+    return (nil, 0)
   }
   
+  func processMessageHeader(data: Data, basicHeader: BasicHeader, messageHeader: MessageHeader, basicHeaderSize: Int, messageHeaderSize: Int) -> (Chunk?, Int) {
+    let messageLength: Int
+    if let headerType0 = messageHeader as? MessageHeaderType0 {
+      messageLength = headerType0.messageLength
+    } else if let headerType1 = messageHeader as? MessageHeaderType1 {
+      messageLength = headerType1.messageLength
+    } else {
+      return (nil, 0)
+    }
+    
+    let currentMessageLength = messageLength <= maxChunkSize ? messageLength : maxChunkSize
+    
+    // Decode chunk data
+    let (chunkData, chunkDataSize) = decodeChunkData(data: data.advanced(by: basicHeaderSize + messageHeaderSize), messageLength: currentMessageLength)
+    guard let chunkData = chunkData else {
+      return (nil, 0)
+    }
+    
+    // Update message data length and remaining data length maps
+    if messageLength <= maxChunkSize {
+      messageDataLengthMap[basicHeader.streamId] = messageLength
+    } else {
+      remainDataLengthMap[basicHeader.streamId] = messageLength - maxChunkSize
+    }
+    
+    let chunkSize = basicHeaderSize + messageHeaderSize + chunkDataSize
+    return (Chunk(chunkHeader: ChunkHeader(basicHeader: basicHeader, messageHeader: messageHeader), chunkData: chunkData), chunkSize)
+  }
   
   func decodeBasicHeader(data: Data) -> (BasicHeader?,Int) {
     guard let byte = data.first else {
