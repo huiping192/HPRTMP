@@ -184,6 +184,161 @@ class ChunkDecoderTests: XCTestCase {
     // Test other properties and conditions depending on your specific scenario
     XCTAssertEqual(chunk?.chunkData, payload)
   }
+  
+  func testDecodeChunkWithValidMessageHeaderType3WithLongPayload() async {
+    let decoder = ChunkDecoder()
+
+    let basicHeader0 = BasicHeader(streamId: 10, type: .type0)
+    let targetMessageHeader0 = MessageHeaderType0(timestamp: 100, messageLength: 300, type: .audio, messageStreamId: 15)
+    
+    var payload0 = Data()
+    (0..<128).forEach { _ in
+      payload0.write(UInt8(1))
+    }
+    
+    let chunk0 = Chunk(chunkHeader: ChunkHeader(basicHeader: basicHeader0, messageHeader: targetMessageHeader0), chunkData: payload0)
+    let chunkData0 = chunk0.encode()
+    
+    let _ = await decoder.decodeChunk(data: chunkData0)
+    
+    var remainMessageLength = await decoder.remainDataLengthMap[10]
+    XCTAssertEqual(remainMessageLength, 300 - 128)
+    
+    // Prepare Data object with valid MessageHeaderType3
+    let basicHeader = BasicHeader(streamId: 10, type: .type3)
+    var payload = Data()
+    (0..<128).forEach { _ in
+      payload.write(UInt8(1))
+    }
+
+    let targetMessageHeader = MessageHeaderType3()
+    let targetChunk = Chunk(chunkHeader: ChunkHeader(basicHeader: basicHeader, messageHeader: targetMessageHeader), chunkData: payload)
+    let data = targetChunk.encode()
+
+    let (chunk, size) = await decoder.decodeChunk(data: data)
+    
+    remainMessageLength = await decoder.remainDataLengthMap[10]
+    XCTAssertEqual(remainMessageLength, 300 - 128 - 128)
+    
+    XCTAssertNotNil(chunk)
+    XCTAssertEqual(size, data.count)
+
+    // Test specific properties of the chunk and headers
+    XCTAssertEqual(chunk?.chunkHeader.basicHeader.type, MessageHeaderType.type3)
+    XCTAssertEqual(chunk?.chunkHeader.basicHeader.streamId, 10)
+
+    XCTAssertTrue(chunk?.chunkHeader.messageHeader is MessageHeaderType3)
+
+    // Test other properties and conditions depending on your specific scenario
+    XCTAssertEqual(chunk?.chunkData, payload)
+    
+    
+    
+    let basicHeader2 = BasicHeader(streamId: 10, type: .type3)
+    var payload2 = Data()
+    (0..<44).forEach { _ in
+      payload2.write(UInt8(1))
+    }
+
+    let targetMessageHeader2 = MessageHeaderType3()
+    let targetChunk2 = Chunk(chunkHeader: ChunkHeader(basicHeader: basicHeader2, messageHeader: targetMessageHeader2), chunkData: payload2)
+    let data2 = targetChunk2.encode()
+
+    let (chunk2, size2) = await decoder.decodeChunk(data: data2)
+    
+    remainMessageLength = await decoder.remainDataLengthMap[10]
+    XCTAssertEqual(remainMessageLength, nil)
+    
+    XCTAssertNotNil(chunk2)
+    XCTAssertEqual(size2, data2.count)
+
+    // Test specific properties of the chunk and headers
+    XCTAssertEqual(chunk2?.chunkHeader.basicHeader.type, MessageHeaderType.type3)
+    XCTAssertEqual(chunk2?.chunkHeader.basicHeader.streamId, 10)
+
+    XCTAssertTrue(chunk2?.chunkHeader.messageHeader is MessageHeaderType3)
+
+    // Test other properties and conditions depending on your specific scenario
+    XCTAssertEqual(chunk2?.chunkData, payload2)
+  }
+  
+  func testDecodeChunkWithValidMessageHeaderType2WithLongPayload() async {
+    let decoder = ChunkDecoder()
+
+    let basicHeader1 = BasicHeader(streamId: 10, type: .type0)
+    let targetMessageHeader1 = MessageHeaderType0(timestamp: 100, messageLength: 300, type: .audio, messageStreamId: 15)
+    
+    var payload1 = Data()
+    (0..<128).forEach { _ in
+      payload1.write(UInt8(1))
+    }
+    
+    let chunk1 = Chunk(chunkHeader: ChunkHeader(basicHeader: basicHeader1, messageHeader: targetMessageHeader1), chunkData: payload1)
+    let chunkData1 = chunk1.encode()
+    
+    let _ = await decoder.decodeChunk(data: chunkData1)
+    
+    var remainMessageLength = await decoder.remainDataLengthMap[10]
+    XCTAssertEqual(remainMessageLength, 300 - 128)
+    
+    // Prepare Data object with valid MessageHeaderType3
+    let basicHeader = BasicHeader(streamId: 10, type: .type2)
+    var payload = Data()
+    (0..<128).forEach { _ in
+      payload.write(UInt8(1))
+    }
+
+    let targetMessageHeader = MessageHeaderType2(timestampDelta: 100)
+    let targetChunk = Chunk(chunkHeader: ChunkHeader(basicHeader: basicHeader, messageHeader: targetMessageHeader), chunkData: payload)
+    let data = targetChunk.encode()
+
+    let (chunk, size) = await decoder.decodeChunk(data: data)
+    
+    remainMessageLength = await decoder.remainDataLengthMap[10]
+    XCTAssertEqual(remainMessageLength, 300 - 128 - 128)
+    
+    XCTAssertNotNil(chunk)
+    XCTAssertEqual(size, data.count)
+
+    // Test specific properties of the chunk and headers
+    XCTAssertEqual(chunk?.chunkHeader.basicHeader.type, .type2)
+    XCTAssertEqual(chunk?.chunkHeader.basicHeader.streamId, 10)
+    
+    XCTAssertTrue(chunk?.chunkHeader.messageHeader is MessageHeaderType2)
+    
+    let messageHeader = chunk?.chunkHeader.messageHeader as? MessageHeaderType2
+    XCTAssertEqual(messageHeader?.timestampDelta, 100)
+    XCTAssertEqual(chunk?.chunkData, payload)
+    
+    
+    let basicHeader2 = BasicHeader(streamId: 10, type: .type2)
+    var payload2 = Data()
+    (0..<44).forEach { _ in
+      payload2.write(UInt8(1))
+    }
+
+    let targetMessageHeader2 = MessageHeaderType2(timestampDelta: 100)
+    let targetChunk2 = Chunk(chunkHeader: ChunkHeader(basicHeader: basicHeader2, messageHeader: targetMessageHeader2), chunkData: payload2)
+    let data2 = targetChunk2.encode()
+
+    let (chunk2, size2) = await decoder.decodeChunk(data: data)
+    
+    remainMessageLength = await decoder.remainDataLengthMap[10]
+    XCTAssertEqual(remainMessageLength, nil)
+    
+    XCTAssertNotNil(chunk2)
+    XCTAssertEqual(size2, data2.count)
+
+    // Test specific properties of the chunk and headers
+    XCTAssertEqual(chunk2?.chunkHeader.basicHeader.type, .type2)
+    XCTAssertEqual(chunk2?.chunkHeader.basicHeader.streamId, 10)
+    
+    XCTAssertTrue(chunk2?.chunkHeader.messageHeader is MessageHeaderType2)
+    
+    let messageHeader2 = chunk?.chunkHeader.messageHeader as? MessageHeaderType2
+    XCTAssertEqual(messageHeader2?.timestampDelta, 100)
+    XCTAssertEqual(chunk2?.chunkData, payload2)
+  }
 
   
   func testBasicHeaderEmptyData() async throws {

@@ -124,7 +124,8 @@ actor ChunkDecoder {
 
     if let messageHeaderType0 = messageHeader as? MessageHeaderType0 {
       let messageLength = messageHeaderType0.messageLength
-      let (chunkData, chunkDataSize) = decodeChunkData(data: data.advanced(by: basicHeaderSize + messageHeaderSize), messageLength: messageLength)
+      let currentMessageLength = messageLength <= maxChunkSize ? messageLength : maxChunkSize
+      let (chunkData, chunkDataSize) = decodeChunkData(data: data.advanced(by: basicHeaderSize + messageHeaderSize), messageLength: currentMessageLength)
       guard let chunkData else {
         return (nil,0)
       }
@@ -141,7 +142,8 @@ actor ChunkDecoder {
     
     if let messageHeaderType1 = messageHeader as? MessageHeaderType1 {
       let messageLength = messageHeaderType1.messageLength
-      let (chunkData, chunkDataSize) = decodeChunkData(data: data.advanced(by: basicHeaderSize + messageHeaderSize), messageLength: messageLength)
+      let currentMessageLength = messageLength <= maxChunkSize ? messageLength : maxChunkSize
+      let (chunkData, chunkDataSize) = decodeChunkData(data: data.advanced(by: basicHeaderSize + messageHeaderSize), messageLength: currentMessageLength)
       guard let chunkData else {
         return (nil,0)
       }
