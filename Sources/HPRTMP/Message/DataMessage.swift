@@ -19,14 +19,14 @@ enum RTMPStreamId: Int {
     case video = 5
 }
 
-protocol RTMPBaseMessageProtocol {
-    var timestamp: UInt32 { set get }
-    var messageType: MessageType { get }
-    var msgStreamId: Int  { get set }
-    var streamId: Int  { get }
+protocol RTMPMessage {
+  var timestamp: UInt32 { set get }
+  var messageType: MessageType { get }
+  var msgStreamId: Int  { get set }
+  var streamId: Int  { get }
 }
 
-public class RTMPBaseMessage: RTMPBaseMessageProtocol {
+public class RTMPBaseMessage: RTMPMessage {
     let messageType: MessageType
     var msgStreamId: Int
     let streamId: Int
