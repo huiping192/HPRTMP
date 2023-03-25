@@ -9,10 +9,103 @@ import XCTest
 @testable import HPRTMP
 
 class ChunkDecoderTests: XCTestCase {
-
+  func testDecodeMessage_SingleChunk() async {
+    let decoder = ChunkDecoder()
+    
+    // Prepare your test data here, which should be a Data object containing a single RTMP chunk.
+    let basicHeader = BasicHeader(streamId: 10, type: .type0)
+    let targetMessageHeader = MessageHeaderType0(timestamp: 100, messageLength: 9, type: .audio, messageStreamId: 15)
+    
+    var payload = Data()
+    payload.writeU24(1, bigEndian: true)
+    payload.writeU24(1, bigEndian: true)
+    payload.writeU24(1, bigEndian: true)
+    
+    let targetChunk = Chunk(chunkHeader: ChunkHeader(basicHeader: basicHeader, messageHeader: targetMessageHeader), chunkData: payload)
+    let data = targetChunk.encode()
+    
+    let (message, chunkSize) = await decoder.decodeMessage(data: data)
+    
+    XCTAssertNotNil(message)
+    XCTAssertTrue(message is AudioMessage)
+    let audioMessage = message as? AudioMessage
+    XCTAssertEqual(audioMessage?.data, payload)
+    XCTAssertEqual(audioMessage?.timestamp, 100)
+    XCTAssertEqual(audioMessage?.msgStreamId, 15)
+    
+    XCTAssertEqual(chunkSize, data.count)
+  }
+  func testDecodeMessage_MultipleChunks() async {
+    let decoder = ChunkDecoder()
+    
+    // Prepare your test data here, which should be a Data object containing multiple RTMP chunks.
+    let basicHeader = BasicHeader(streamId: 10, type: .type0)
+    let targetMessageHeader = MessageHeaderType0(timestamp: 100, messageLength: 307, type: .audio, messageStreamId: 15)
+    
+    var payload = Data()
+    (0..<128).forEach { _ in
+      payload.write(UInt8(1))
+    }
+    
+    let targetChunk = Chunk(chunkHeader: ChunkHeader(basicHeader: basicHeader, messageHeader: targetMessageHeader), chunkData: payload)
+    
+    let basicHeader2 = BasicHeader(streamId: 10, type: .type3)
+    let messageHeader2 = MessageHeaderType3()
+    var payload2 = Data()
+    (0..<128).forEach { _ in
+      payload2.write(UInt8(1))
+    }
+    let secondChunk = Chunk(chunkHeader: ChunkHeader(basicHeader: basicHeader2, messageHeader: messageHeader2), chunkData: payload2)
+    
+    let basicHeader3 = BasicHeader(streamId: 10, type: .type3)
+    let messageHeader3 = MessageHeaderType3()
+    var payload3 = Data()
+    (0..<51).forEach { _ in
+      payload3.write(UInt8(1))
+    }
+    let chunk3 = Chunk(chunkHeader: ChunkHeader(basicHeader: basicHeader3, messageHeader: messageHeader3), chunkData: payload3)
+    
+    
+    // Encode the target chunk multiple times to simulate multiple chunks in the data.
+    let data = targetChunk.encode() + secondChunk.encode() + chunk3.encode()
+    
+    let (message, chunkSize) = await decoder.decodeMessage(data: data)
+    
+    XCTAssertNotNil(message)
+    XCTAssertTrue(message is AudioMessage)
+    let audioMessage = message as? AudioMessage
+    XCTAssertEqual(audioMessage?.data.count, 307)
+    XCTAssertEqual(audioMessage?.timestamp, 100)
+    XCTAssertEqual(audioMessage?.msgStreamId, 15)
+    
+    // Adjust the expected chunk size based on the number of chunks in the test data.
+    XCTAssertEqual(chunkSize, data.count)
+  }
+  
+  func testDecodeMessage_InvalidData() async {
+    let decoder = ChunkDecoder()
+    let basicHeader = BasicHeader(streamId: 10, type: .type0)
+    let targetMessageHeader = MessageHeaderType0(timestamp: 100, messageLength: 307, type: .audio, messageStreamId: 15)
+    
+    var payload = Data()
+    (0..<128).forEach { _ in
+      payload.write(UInt8(1))
+    }
+    
+    let targetChunk = Chunk(chunkHeader: ChunkHeader(basicHeader: basicHeader, messageHeader: targetMessageHeader), chunkData: payload)
+    
+    let data = targetChunk.chunkData
+    
+    let (message, chunkSize) = await decoder.decodeMessage(data: data)
+    
+    XCTAssertNil(message)
+    XCTAssertEqual(chunkSize, 0)
+  }
+  
+  
   func testCreateMessage() async {
     let decoder = ChunkDecoder()
-
+    
     let chunkStreamId: UInt16 = 1
     let msgStreamId = 1
     let timestamp: UInt32 = 100
@@ -50,7 +143,7 @@ class ChunkDecoderTests: XCTestCase {
   }
   
   
-  // test decode chunk data   
+  // test decode chunk data
   
   func testDecodeChunkWithEmptyData() async {
     let data = Data()
@@ -79,7 +172,7 @@ class ChunkDecoderTests: XCTestCase {
     let data = targetChunk.encode()
     
     let decoder = ChunkDecoder()
-
+    
     let (chunk, size) = await decoder.decodeChunk(data: data)
     XCTAssertNotNil(chunk)
     XCTAssertEqual(size, data.count)
@@ -88,7 +181,7 @@ class ChunkDecoderTests: XCTestCase {
     // Test specific properties of the chunk and headers
     XCTAssertEqual(chunk?.chunkHeader.basicHeader.type, .type0)
     XCTAssertEqual(chunk?.chunkHeader.basicHeader.streamId, 10)
-
+    
     XCTAssertTrue(chunk?.chunkHeader.messageHeader is MessageHeaderType0)
     
     let messageHeader = chunk?.chunkHeader.messageHeader as? MessageHeaderType0
@@ -96,7 +189,7 @@ class ChunkDecoderTests: XCTestCase {
     XCTAssertEqual(messageHeader?.messageLength, 9)
     XCTAssertEqual(messageHeader?.messageStreamId, 15)
     XCTAssertEqual(messageHeader?.type, .audio)
-
+    
     // Test other properties and conditions depending on your specific scenario
     XCTAssertEqual(chunk?.chunkData, payload)
   }
@@ -135,7 +228,7 @@ class ChunkDecoderTests: XCTestCase {
   
   func testDecodeChunkWithValidMessageHeaderType2() async {
     let decoder = ChunkDecoder()
-
+    
     let basicHeader0 = BasicHeader(streamId: 10, type: .type0)
     let targetMessageHeader0 = MessageHeaderType0(timestamp: 100, messageLength: 9, type: .audio, messageStreamId: 15)
     
@@ -164,7 +257,7 @@ class ChunkDecoderTests: XCTestCase {
     // Assume a previous chunk with same streamId and messageLength exists
     let messageLength = await decoder.messageDataLengthMap[10]
     XCTAssertEqual(messageLength, 9)
-
+    
     let (chunk, size) = await decoder.decodeChunk(data: data)
     XCTAssertNotNil(chunk)
     XCTAssertEqual(size, data.count)
@@ -182,7 +275,7 @@ class ChunkDecoderTests: XCTestCase {
   
   func testDecodeChunkWithValidMessageHeaderType3() async {
     let decoder = ChunkDecoder()
-
+    
     let basicHeader0 = BasicHeader(streamId: 10, type: .type0)
     let targetMessageHeader0 = MessageHeaderType0(timestamp: 100, messageLength: 9, type: .audio, messageStreamId: 15)
     
@@ -202,32 +295,32 @@ class ChunkDecoderTests: XCTestCase {
     payload.writeU24(1, bigEndian: true)
     payload.writeU24(1, bigEndian: true)
     payload.writeU24(1, bigEndian: true)
-
+    
     let targetMessageHeader = MessageHeaderType3()
     let targetChunk = Chunk(chunkHeader: ChunkHeader(basicHeader: basicHeader, messageHeader: targetMessageHeader), chunkData: payload)
     let data = targetChunk.encode()
-
+    
     // Assume a previous chunk with same streamId and messageLength exists
     let messageLength = await decoder.messageDataLengthMap[10]
     XCTAssertEqual(messageLength, 9)
-
+    
     let (chunk, size) = await decoder.decodeChunk(data: data)
     XCTAssertNotNil(chunk)
     XCTAssertEqual(size, data.count)
-
+    
     // Test specific properties of the chunk and headers
     XCTAssertEqual(chunk?.chunkHeader.basicHeader.type, MessageHeaderType.type3)
     XCTAssertEqual(chunk?.chunkHeader.basicHeader.streamId, 10)
-
+    
     XCTAssertTrue(chunk?.chunkHeader.messageHeader is MessageHeaderType3)
-
+    
     // Test other properties and conditions depending on your specific scenario
     XCTAssertEqual(chunk?.chunkData, payload)
   }
   
   func testDecodeChunkWithValidMessageHeaderType3WithLongPayload() async {
     let decoder = ChunkDecoder()
-
+    
     let basicHeader0 = BasicHeader(streamId: 10, type: .type0)
     let targetMessageHeader0 = MessageHeaderType0(timestamp: 100, messageLength: 300, type: .audio, messageStreamId: 15)
     
@@ -250,11 +343,11 @@ class ChunkDecoderTests: XCTestCase {
     (0..<128).forEach { _ in
       payload.write(UInt8(1))
     }
-
+    
     let targetMessageHeader = MessageHeaderType3()
     let targetChunk = Chunk(chunkHeader: ChunkHeader(basicHeader: basicHeader, messageHeader: targetMessageHeader), chunkData: payload)
     let data = targetChunk.encode()
-
+    
     let (chunk, size) = await decoder.decodeChunk(data: data)
     
     remainMessageLength = await decoder.remainDataLengthMap[10]
@@ -262,13 +355,13 @@ class ChunkDecoderTests: XCTestCase {
     
     XCTAssertNotNil(chunk)
     XCTAssertEqual(size, data.count)
-
+    
     // Test specific properties of the chunk and headers
     XCTAssertEqual(chunk?.chunkHeader.basicHeader.type, MessageHeaderType.type3)
     XCTAssertEqual(chunk?.chunkHeader.basicHeader.streamId, 10)
-
+    
     XCTAssertTrue(chunk?.chunkHeader.messageHeader is MessageHeaderType3)
-
+    
     // Test other properties and conditions depending on your specific scenario
     XCTAssertEqual(chunk?.chunkData, payload)
     
@@ -279,11 +372,11 @@ class ChunkDecoderTests: XCTestCase {
     (0..<44).forEach { _ in
       payload2.write(UInt8(1))
     }
-
+    
     let targetMessageHeader2 = MessageHeaderType3()
     let targetChunk2 = Chunk(chunkHeader: ChunkHeader(basicHeader: basicHeader2, messageHeader: targetMessageHeader2), chunkData: payload2)
     let data2 = targetChunk2.encode()
-
+    
     let (chunk2, size2) = await decoder.decodeChunk(data: data2)
     
     remainMessageLength = await decoder.remainDataLengthMap[10]
@@ -291,20 +384,20 @@ class ChunkDecoderTests: XCTestCase {
     
     XCTAssertNotNil(chunk2)
     XCTAssertEqual(size2, data2.count)
-
+    
     // Test specific properties of the chunk and headers
     XCTAssertEqual(chunk2?.chunkHeader.basicHeader.type, MessageHeaderType.type3)
     XCTAssertEqual(chunk2?.chunkHeader.basicHeader.streamId, 10)
-
+    
     XCTAssertTrue(chunk2?.chunkHeader.messageHeader is MessageHeaderType3)
-
+    
     // Test other properties and conditions depending on your specific scenario
     XCTAssertEqual(chunk2?.chunkData, payload2)
   }
   
   func testDecodeChunkWithValidMessageHeaderType2WithLongPayload() async {
     let decoder = ChunkDecoder()
-
+    
     let basicHeader1 = BasicHeader(streamId: 10, type: .type0)
     let targetMessageHeader1 = MessageHeaderType0(timestamp: 100, messageLength: 300, type: .audio, messageStreamId: 15)
     
@@ -327,11 +420,11 @@ class ChunkDecoderTests: XCTestCase {
     (0..<128).forEach { _ in
       payload.write(UInt8(1))
     }
-
+    
     let targetMessageHeader = MessageHeaderType2(timestampDelta: 100)
     let targetChunk = Chunk(chunkHeader: ChunkHeader(basicHeader: basicHeader, messageHeader: targetMessageHeader), chunkData: payload)
     let data = targetChunk.encode()
-
+    
     let (chunk, size) = await decoder.decodeChunk(data: data)
     
     remainMessageLength = await decoder.remainDataLengthMap[10]
@@ -339,7 +432,7 @@ class ChunkDecoderTests: XCTestCase {
     
     XCTAssertNotNil(chunk)
     XCTAssertEqual(size, data.count)
-
+    
     // Test specific properties of the chunk and headers
     XCTAssertEqual(chunk?.chunkHeader.basicHeader.type, .type2)
     XCTAssertEqual(chunk?.chunkHeader.basicHeader.streamId, 10)
@@ -356,11 +449,11 @@ class ChunkDecoderTests: XCTestCase {
     (0..<44).forEach { _ in
       payload2.write(UInt8(1))
     }
-
+    
     let targetMessageHeader2 = MessageHeaderType2(timestampDelta: 100)
     let targetChunk2 = Chunk(chunkHeader: ChunkHeader(basicHeader: basicHeader2, messageHeader: targetMessageHeader2), chunkData: payload2)
     let data2 = targetChunk2.encode()
-
+    
     let (chunk2, size2) = await decoder.decodeChunk(data: data)
     
     remainMessageLength = await decoder.remainDataLengthMap[10]
@@ -368,7 +461,7 @@ class ChunkDecoderTests: XCTestCase {
     
     XCTAssertNotNil(chunk2)
     XCTAssertEqual(size2, data2.count)
-
+    
     // Test specific properties of the chunk and headers
     XCTAssertEqual(chunk2?.chunkHeader.basicHeader.type, .type2)
     XCTAssertEqual(chunk2?.chunkHeader.basicHeader.streamId, 10)
@@ -379,7 +472,7 @@ class ChunkDecoderTests: XCTestCase {
     XCTAssertEqual(messageHeader2?.timestampDelta, 100)
     XCTAssertEqual(chunk2?.chunkData, payload2)
   }
-
+  
   
   func testBasicHeaderEmptyData() async throws {
     // Given
