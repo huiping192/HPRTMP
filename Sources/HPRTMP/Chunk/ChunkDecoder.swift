@@ -67,7 +67,7 @@ actor ChunkDecoder {
     return remainDataLength
   }
   
-  private func createMessage(chunkStreamId: UInt16, msgStreamId: Int, messageType: MessageType, timestamp: UInt32, chunkPayload: Data) -> RTMPMessage? {
+  func createMessage(chunkStreamId: UInt16, msgStreamId: Int, messageType: MessageType, timestamp: UInt32, chunkPayload: Data) -> RTMPMessage? {
       switch messageType {
       case .chunkSize:
           let size = Data(chunkPayload.reversed()).uint32
