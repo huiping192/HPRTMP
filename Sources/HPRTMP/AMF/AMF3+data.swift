@@ -204,3 +204,13 @@ extension Array: AMF3VectorEncode {
     return data
   }
 }
+
+extension Data: AMF3ByteArrayEncode {
+  var byteEncode: Data {
+    let encodeLength = (self.count << 1 | 0x01).amf3LengthConvert
+    var data = Data()
+    data.write(RTMPAMF3Type.byteArray.rawValue)
+    data += (encodeLength+self)
+    return data
+  }
+}

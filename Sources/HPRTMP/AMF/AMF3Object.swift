@@ -135,23 +135,12 @@ struct AMF3Object: AMF3Protocol {
   }
   
   public func decode() -> [Any]? {
-//    return self.data.decodeAMF3()
-    return nil
+    data.decodeAMF3()
   }
   
   public static func decode(_ data: Data) -> [Any]? {
-//    return data.decodeAMF3()
-    return nil
+    data.decodeAMF3()
   }
 }
 
-extension Data: AMF3ByteArrayEncode {
-    var byteEncode: Data {
-//        let encodeLength = (self.count << 1 | 0x01).amf3LengthConvert
-//        var data = Data()
-//        data.extendWrite.write(RTMPAMF3Type.byteArray.rawValue)
-//        data += (encodeLength+self)
-//        return data
-      return Data()
-    }
-}
+
