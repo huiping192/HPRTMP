@@ -7,6 +7,26 @@
 
 import Foundation
 
+enum AMF3EncodeType {
+    enum U29: UInt8 {
+        case value = 0x01
+        case reference = 0x00
+
+        init?(rawValue: UInt8) {
+            switch rawValue {
+            case 0x00: self = .reference
+            case 0x01: self = .value
+            default: return nil
+            }
+        }
+    }
+
+    enum Vector: UInt8 {
+        case fix = 0x01
+        case dynamic = 0x00
+    }
+}
+
 enum RTMPAMF3Type: UInt8 {
     case undefined  = 0x00
     case null       = 0x01
