@@ -12,13 +12,11 @@ protocol AMF0Encode {
   var amf0Value: Data { get }
 }
 
-
 struct AMF0Object: AMF0Protocol {
   var data = Data()
-
   
   mutating  func appendEcma(_ value: [String : Any?]) {
-    
+    data.append(value.amf0EcmaArray)
   }
   
   mutating func append(_ value: Double) {
@@ -34,11 +32,12 @@ struct AMF0Object: AMF0Protocol {
   }
   
   mutating func append(_ value: [String : Any?]?) {
-    
+    guard let value else { return }
+    data.append(value.amf0Encode)
   }
   
   mutating func append(_ value: Date) {
-    
+    data.append(value.amf0Value)
   }
   
   mutating func appendNil() {
@@ -46,21 +45,19 @@ struct AMF0Object: AMF0Protocol {
   }
   
   mutating func append(_ value: [Any]) {
-    
+    data.append(value.amf0Value)
   }
   
   mutating func appendXML(_ value: String) {
-    
+    // todo
   }
   
-    
-    mutating func decode() -> [Any]? {
-      return nil
-//        return self.data.decodeAMF0()
-    }
-    
-    static func decode(_ data: Data) -> [Any]? {
-      return nil
-//        return data.decodeAMF0()
-    }
+  mutating func decode() -> [Any]? {
+    try? data.decodeAMF0()
+  }
+  
+  static func decode(_ data: Data) -> [Any]? {
+    var newData = data
+    return try? newData.decodeAMF0()
+  }
 }

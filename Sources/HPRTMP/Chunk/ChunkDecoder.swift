@@ -8,42 +8,122 @@
 import Foundation
 
 class MessageDecoder {
-  func append(_ data: Data) {
-    
+  private var data = Data()
+  
+  private let chunkDecoder = ChunkDecoder()
+  
+  var maxChunkSize: Int = Int(128) {
+    didSet {
+      Task {
+        await chunkDecoder.setMaxChunkSize(maxChunkSize: maxChunkSize)
+      }
+    }
   }
   
-  func decode() -> RTMPMessage? {
-    return nil
+  func append(_ newData: Data) {
+    self.data.append(newData)
+  }
+  
+  func decode() async -> RTMPMessage? {
+    let (message,size) = await decodeMessage(data: data)
+    guard let message else { return nil }
+    data.removeFirst(size)
+    return message
+  }
+  
+  func createMessage(chunkStreamId: UInt16, msgStreamId: Int, messageType: MessageType, timestamp: UInt32, chunkPayload: Data) -> RTMPMessage? {
+    switch messageType {
+    case .chunkSize:
+      let size = Data(chunkPayload.reversed()).uint32
+      return ChunkSizeMessage(size: size)
+    case .control:
+      return ControlMessage(type: messageType)
+    case .peerBandwidth:
+      guard let windowAckSize = chunkPayload[safe: 0..<4]?.reversed() else {
+        return nil
+      }
+      let peer = Data(windowAckSize).uint32
+      return PeerBandwidthMessage(windowSize: peer, limit: .dynamic)
+    case .command(type: let type):
+//      let data = type == .amf0 ? chunkPayload.decodeAMF0() : chunkPayload.decodeAMF3()
+      return CommandMessage(encodeType: type, commandName: "CommandName",msgStreamId: msgStreamId, transactionId: 1, commandObject: nil)
+    case .data(type: let type):
+      return DataMessage(encodeType: type, msgStreamId: msgStreamId)
+    case .share(type: _):
+      return nil
+    case .audio:
+      return AudioMessage(msgStreamId: msgStreamId, data: chunkPayload, timestamp: timestamp)
+    case .video:
+      return VideoMessage(msgStreamId: msgStreamId, data: chunkPayload, timestamp: timestamp)
+    case .aggreate:
+      return nil
+    case .abort:
+      return AbortMessage(chunkStreamId: chunkStreamId)
+    case .acknowledgement:
+      return AcknowledgementMessage(sequence: timestamp)
+    case .windowAcknowledgement:
+      return WindowAckMessage(size: timestamp)
+    case .none:
+      return nil
+    }
+  }
+  
+  func decodeMessage(data: Data) async -> (RTMPMessage?,Int) {
+    let (firstChunk, chunkSize) = await chunkDecoder.decodeChunk(data: data)
+    guard let firstChunk = firstChunk else { return (nil,0) }
+    
+    if let messageHeaderType0 = firstChunk.chunkHeader.messageHeader as? MessageHeaderType0 {
+      let messageLength = messageHeaderType0.messageLength
+      // one chunk = one message
+      if messageLength <= maxChunkSize {
+        let message = createMessage(chunkStreamId: firstChunk.chunkHeader.basicHeader.streamId,
+                                    msgStreamId: messageHeaderType0.messageStreamId,
+                                    messageType: messageHeaderType0.type,
+                                    timestamp: messageHeaderType0.timestamp,
+                                    chunkPayload: firstChunk.chunkData)
+        return (message,chunkSize)
+      } else {
+        var remainPayloadSize = messageLength - maxChunkSize
+        var totalPayload = firstChunk.chunkData
+        var allChunkSize = chunkSize
+        while remainPayloadSize > 0 {
+          let (chunk, chunkSize) = await chunkDecoder.decodeChunk(data: data.advanced(by: chunkSize))
+          guard let chunk else { return (nil,0) }
+          
+          // same stream id chunk
+          guard chunk.chunkHeader.basicHeader.streamId == firstChunk.chunkHeader.basicHeader.streamId else {
+            continue
+          }
+          totalPayload.append(chunk.chunkData)
+          allChunkSize += chunkSize
+          remainPayloadSize -= chunk.chunkData.count
+        }
+        let message = createMessage(chunkStreamId: firstChunk.chunkHeader.basicHeader.streamId,
+                                    msgStreamId: messageHeaderType0.messageStreamId,
+                                    messageType: messageHeaderType0.type,
+                                    timestamp: messageHeaderType0.timestamp,
+                                    chunkPayload: totalPayload)
+        return (message, allChunkSize)
+      }
+    }
+    
+    return (nil,0)
   }
 }
 
 
 actor ChunkDecoder {
   
-  var data = Data()
-  
-  func append(_ data: Data) {
-    
-  }
-  
-  func decode() -> RTMPMessage? {
-    return nil
-  }
-  
-//  func decode() -> [Chunk] {
-//    // basic
-//
-//    return []
-//  }
-  
-//  private static let maxChunkSize: UInt8 = 128
-  var maxChunkSize: Int = Int(128)
-  
   private var chunks: [Chunk] = []
   
   private(set) var messageDataLengthMap: [UInt16: Int] = [:]
   private(set) var remainDataLengthMap: [UInt16: Int] = [:]
   
+  var maxChunkSize: Int = Int(128)
+  
+  func setMaxChunkSize(maxChunkSize: Int) {
+    self.maxChunkSize = maxChunkSize
+  }
   
   func reset() {
     chunks = []
@@ -56,7 +136,7 @@ actor ChunkDecoder {
     if let messageDataLength = messageDataLengthMap[streamId]  {
       return messageDataLength
     }
-
+    
     // big data size
     guard let remainDataLength = remainDataLengthMap[streamId] else { return nil }
     if remainDataLength > maxChunkSize {
@@ -67,58 +147,7 @@ actor ChunkDecoder {
     return remainDataLength
   }
   
-//  private func createMessage(streamId: Int, messageType: MessageType, timestamp: UInt32, chunkPayload: Data) -> RTMPBaseMessageProtocol? {
-//    switch messageType {
-//    case .chunkSize:
-//      let size = Data(chunkPayload.reversed()).uint32
-//      return ChunkSizeMessage(size: size)
-//    case .control:
-//      return ControlMessage(type: <#T##MessageType#>)
-//    case .peerBandwidth:
-//      guard let windowAckSize = chunkPayload[safe: 0..<4]?.reversed() else {
-//          return nil
-//      }
-//      let peer = Data(windowAckSize).uint32
-//      return PeerBandwidthMessage(windowSize: peer, limit: .dynamic)
-//    case .command(type: let type):
-//      return CommandMessage(encodeType: <#T##ObjectEncodingType#>, commandName: <#T##String#>, transactionId: <#T##Int#>)
-//    case .data(type: let type):
-//      return DataMessage(encodeType: <#T##ObjectEncodingType#>, msgStreamId: streamId)
-//    case .share(type: let type):
-//      return nil
-//    case .audio:
-//      return AudioMessage(msgStreamId: streamId, data: chunkPayload, timestamp: timestamp)
-//    case .video:
-//      return VideoMessage(msgStreamId: streamId, data: chunkPayload, timestamp: timestamp)
-//    case .aggreate:
-//      return nil
-//    case .abort:
-//      return nil
-//    case .acknowledgement:
-//      return nil
-//    case .windowAcknowledgement:
-//      return nil
-//    case .none:
-//      return nil
-//    }
-//    return nil
-//  }
   
-//  func decodeMessage(data: Data) -> (RTMPBaseMessageProtocol?,Int) {
-//    let (firstChunk, chunkSize) = decodeChunk(data: data)
-//    guard let firstChunk = firstChunk else { return (nil,0) }
-//
-//    if let messageHeaderType0 = firstChunk.chunkHeader.messageHeader as? MessageHeaderType0 {
-//      let messageLength = messageHeaderType0.messageLength
-//      // one chunk = one message
-//      if messageLength <= maxChunkSize {
-//        return (createMessage(),chunkSize)
-//      }
-//    }
-//
-//
-//    return (nil,0)
-//  }
   
   func decodeChunk(data: Data) -> (Chunk?, Int) {
     // Decode basic header
@@ -261,5 +290,5 @@ actor ChunkDecoder {
     let chunkData = data[0..<messageLength]
     return (chunkData, messageLength)
   }
-
+  
 }

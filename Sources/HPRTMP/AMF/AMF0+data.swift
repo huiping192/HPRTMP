@@ -83,7 +83,7 @@ extension Double: AMF0Encode {
     var data = Data()
     data.write(RTMPAMF0Type.number.rawValue)
     // bigEndian
-    data.append(Data(self.data.reversed()))
+    data.append(Data(self.bitPattern.data))
     return data
   }
 }
@@ -132,10 +132,10 @@ extension String: AMF0Encode {
 // Date - 0x0b (Encoded as IEEE 64-bit double-precision floating point number with 16-bit integer time zone offset)
 extension Date: AMF0Encode {
   var amf0Value: Data {
-    let mileSecondSince1970 = Double(self.timeIntervalSince1970 * 1000)
+    let mileSecondSince1970 = Double(UInt64(self.timeIntervalSince1970 * 1000))
     var data = Data()
     data.write(RTMPAMF0Type.date.rawValue)
-    data.append(Data(mileSecondSince1970.data.reversed()))
+    data.append(Data(mileSecondSince1970.bitPattern.data))
     data.write([UInt8]([0x0,0x0]))
     return data
   }
@@ -207,3 +207,5 @@ extension Array {
     return group
   }
 }
+
+
