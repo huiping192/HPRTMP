@@ -53,11 +53,11 @@ struct AMF0Object: AMF0Protocol {
   }
   
   mutating func decode() -> [Any]? {
-    try? data.decodeAMF0()
+    data.decodeAMF0()
   }
   
   static func decode(_ data: Data) -> [Any]? {
     var newData = data
-    return try? newData.decodeAMF0()
+    return newData.decodeAMF0()
   }
 }
