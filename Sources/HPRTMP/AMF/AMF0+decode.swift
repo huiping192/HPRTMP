@@ -73,7 +73,7 @@ extension Data {
 
 
 extension Data {
-  mutating func decode() throws -> [Any]? {
+  mutating func decodeAMF0() throws -> [Any]? {
     var decodeData = [Any]()
     while let first = self.first {
       guard let realType = RTMPAMF0Type(rawValue: first) else {
