@@ -45,8 +45,22 @@ class MessageDecoder {
       let peer = Data(windowAckSize).uint32
       return PeerBandwidthMessage(windowSize: peer, limit: .dynamic)
     case .command(type: let type):
-//      let data = type == .amf0 ? chunkPayload.decodeAMF0() : chunkPayload.decodeAMF3()
-      return CommandMessage(encodeType: type, commandName: "CommandName",msgStreamId: msgStreamId, transactionId: 1, commandObject: nil)
+      var playload: Data = chunkPayload
+      let data = type == .amf0 ? playload.decodeAMF0() : playload.decodeAMF3()
+      
+      // first is command name
+      guard let commandName = data?.first as? String else { return nil }
+      
+      // second is Transaction ID, number
+      let transactionId = data?[1] as? Int
+      
+      // third is command object
+      let objcet = data?[2] as? [String: Any]
+      
+      // fourth is info
+      let info = data?[3] as? [String: Any]
+      
+      return CommandMessage(encodeType: type, commandName: commandName, msgStreamId: msgStreamId, transactionId: transactionId ?? 0, commandObject: objcet, info: info)
     case .data(type: let type):
       return DataMessage(encodeType: type, msgStreamId: msgStreamId)
     case .share(type: _):

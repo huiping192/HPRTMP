@@ -15,14 +15,18 @@ class CommandMessage: RTMPBaseMessage {
   let transactionId: Int
   let commandObject: [String: Any?]?
   
+  let info: [String: Any?]?
+
   init(encodeType: ObjectEncodingType,
        commandName: String,
        msgStreamId: Int = 0,
        transactionId: Int,
-       commandObject: [String: Any?]? = nil) {
+       commandObject: [String: Any?]? = nil,
+       info: [String: Any?]? = nil) {
     self.commandName = commandName
     self.transactionId = transactionId
     self.commandObject = commandObject
+    self.info = info
     self.encodeType = encodeType
     super.init(type: .command(type: encodeType),msgStreamId: msgStreamId, streamId: RTMPStreamId.command.rawValue)
   }
