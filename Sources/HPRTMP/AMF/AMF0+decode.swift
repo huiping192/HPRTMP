@@ -144,7 +144,7 @@ class AMF0Decoder {
     guard let result = data.first else {
       throw AMF0DecodeError.rangeError
     }
-    data.removeFirst()
+    data.removeSubrange(0..<1)
     return result == 0x01
   }
   func decodeString() throws -> String {
@@ -230,7 +230,7 @@ class AMF0Decoder {
         key = ""
       }
     }
-    data.removeFirst()
+    data.removeSubrange(0..<1)
     
     return map
   }
@@ -261,7 +261,7 @@ class AMF0Decoder {
       guard let type = RTMPAMF0Type(rawValue: first) else {
         throw AMF0DecodeError.rangeError
       }
-      data.removeFirst()
+      data.removeSubrange(0..<1)
       try decodeData.append(self.parseValue(type: type))
       count -= 1
     }

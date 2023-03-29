@@ -33,11 +33,11 @@ class AMF0DecoderTests: XCTestCase {
   }
   
   func testEncodeDecodeLongString() {
-      let longString = "This is a long string that exceeds the maximum size of a regular string in AMF0, which is 65535 bytes."
-      let data = longString.amf0Value
-      let decoder = AMF0Decoder()
-      let result = decoder.decodeAMF0(data)
-      XCTAssertEqual(result?.first as? String, longString)
+    let longString = "This is a long string that exceeds the maximum size of a regular string in AMF0, which is 65535 bytes."
+    let data = longString.amf0Value
+    let decoder = AMF0Decoder()
+    let result = decoder.decodeAMF0(data)
+    XCTAssertEqual(result?.first as? String, longString)
   }
   
   func testEncodeDecodeBoolean() {
@@ -54,8 +54,8 @@ class AMF0DecoderTests: XCTestCase {
     let result = decoder.decodeAMF0(data)
     XCTAssertEqual(result?.first as? String, "null")
   }
-
-
+  
+  
   func testEncodeDecodeObject() {
     let object: [String : Any] = ["foo": "bar", "baz": 123]
     let data = object.amf0Encode
@@ -64,16 +64,19 @@ class AMF0DecoderTests: XCTestCase {
     
     let dic = result?.first as? [String: Any]
     XCTAssertEqual(dic?["foo"] as! String, "bar")
-    XCTAssertEqual(dic?["baz"] as! Int, 123)
+    XCTAssertEqual(dic?["baz"] as! Double, 123)
   }
-//
-//  func testEncodeDecodeArray() {
-//    let array = ["foo", "bar", 123] as [Any]
-//    let data = array.amf0Value
-//    let decoder = AMF0Decoder()
-//    let result = decoder.decodeAMF0(data)
-//    XCTAssertEqual(result?.first as? [Any], array)
-//  }
+  
+  func testEncodeDecodeArray() {
+    let array = ["foo", "bar", 123] as [Any]
+    let data = array.amf0Value
+    let decoder = AMF0Decoder()
+    let result = decoder.decodeAMF0(data)
+    let resultArray = result?.first as? [Any]
+    XCTAssertEqual(resultArray?.first as? String, "foo")
+    XCTAssertEqual(resultArray?[1] as? String, "bar")
+    XCTAssertEqual(resultArray?[2] as? Double, 123)
+  }
   
   func testEncodeDecodeDate() {
     let date = Date(timeIntervalSince1970: 1234567890)
