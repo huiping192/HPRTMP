@@ -57,7 +57,6 @@ struct AMF0Object: AMF0Protocol {
   }
   
   static func decode(_ data: Data) -> [Any]? {
-    var newData = data
-    return newData.decodeAMF0()
+    data.decodeAMF0()
   }
 }

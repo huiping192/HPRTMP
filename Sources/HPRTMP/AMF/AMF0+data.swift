@@ -54,27 +54,27 @@ extension UInt: AMF0Encode {
 }
 
 extension UInt8: AMF0Encode {
-    var amf0Value: Data {
-        return Double(self).amf0Value
-    }
+  var amf0Value: Data {
+    return Double(self).amf0Value
+  }
 }
 
 extension UInt16: AMF0Encode {
-    var amf0Value: Data {
-        return Double(self).amf0Value
-    }
+  var amf0Value: Data {
+    return Double(self).amf0Value
+  }
 }
 
 extension UInt32: AMF0Encode {
-    var amf0Value: Data {
-        return Double(self).amf0Value
-    }
+  var amf0Value: Data {
+    return Double(self).amf0Value
+  }
 }
 
 extension Float: AMF0Encode {
-    var amf0Value: Data {
-        return Double(self).amf0Value
-    }
+  var amf0Value: Data {
+    return Double(self).amf0Value
+  }
 }
 
 // Number - 0x00 (Encoded as IEEE 64-bit double-precision floating point number)
@@ -114,7 +114,7 @@ extension String: AMF0Encode {
     data.write(RTMPAMF0Type.string.rawValue)
     data.append(UInt16(Data(self.utf8).count).bigEndian.data)
     data.append(Data(self.utf8))
-
+    
     return data
   }
   
@@ -124,7 +124,21 @@ extension String: AMF0Encode {
     data.write(RTMPAMF0Type.longString.rawValue)
     data.append(UInt32(Data(self.utf8).count).bigEndian.data)
     data.append(Data(self.utf8))
-
+    
+    return data
+  }
+  
+  var amf0KeyEncode: Data {
+    let isLong = UInt32(UInt16.max) < UInt32(self.count)
+    
+    var data = Data()
+    let convert = Data(self.utf8)
+    if isLong {
+      data.append(UInt32(convert.count).bigEndian.data)
+    } else {
+      data.append(UInt16(convert.count).bigEndian.data)
+    }
+    data.append(Data(self.utf8))
     return data
   }
 }
@@ -165,7 +179,7 @@ extension Dictionary where Key == String {
   fileprivate func keyValueEncode() -> Data {
     var data = Data()
     self.forEach { (key, value) in
-      let keyEncode = key.amf0Value
+      let keyEncode = key.amf0KeyEncode
       data.append(keyEncode)
       if let valueEncode = (value as? AMF0Encode)?.amf0Value {
         data.append(valueEncode)

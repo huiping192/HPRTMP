@@ -71,16 +71,24 @@ extension Data {
   }
 }
 
-
 extension Data {
-  mutating func decodeAMF0() -> [Any]? {
+  func decodeAMF0() -> [Any]? {
+    let decoder = AMF0Decoder()
+    return decoder.decodeAMF0(self)
+  }
+}
+
+class AMF0Decoder {
+  private var data: Data = Data()
+  func decodeAMF0(_ data: Data) -> [Any]? {
+    self.data = data
     var decodeData = [Any]()
-    while let first = self.first {
+    while let first = self.data.first {
       guard let realType = RTMPAMF0Type(rawValue: first) else {
         return decodeData
       }
       
-      self.removeFirst()
+      self.data.removeSubrange(0..<1)
       do {
         try decodeData.append(self.parseValue(type: realType))
       } catch {
@@ -92,7 +100,7 @@ extension Data {
   }
   
   
-  mutating func parseValue(type: RTMPAMF0Type) throws -> Any {
+  func parseValue(type: RTMPAMF0Type) throws -> Any {
     switch type {
     case .number:
       return try decodeNumber()
@@ -107,7 +115,7 @@ extension Data {
     case .xml:
       return try decodeXML()
     case .date:
-      return try decodeXML()
+      return try decodeDate()
     case .object:
       return try decodeObj()
     case .typedObject:
@@ -123,91 +131,80 @@ extension Data {
     }
   }
   
-  mutating func decodeNumber() throws -> Double {
+  func decodeNumber() throws -> Double {
     let range = 0..<8
-    guard let result = subdata(safe: range) else {
+    guard let result = data.subdata(safe: range) else {
       throw AMF0DecodeError.rangeError
     }
-    removeSubrange(range)
-    return Data(result.reversed()).double
+    data.removeSubrange(range)
+    return Data(result).double
   }
   
-  mutating func decodeBool() throws -> Bool {
-    guard let result = first else {
+  func decodeBool() throws -> Bool {
+    guard let result = data.first else {
       throw AMF0DecodeError.rangeError
     }
-    removeFirst()
+    data.removeSubrange(0..<1)
     return result == 0x01
   }
-  mutating func decodeString(type: RTMPAMF0Type) throws -> String {
+  func decodeString() throws -> String {
     let range = 0..<2
-    guard let rangeBytes = subdata(safe: range) else {
+    guard let rangeBytes = data.subdata(safe: range) else {
       throw AMF0DecodeError.rangeError
     }
-    let length = Data(rangeBytes.reversed()).uint32
-    removeSubrange(range)
-    let value = self[0..<Int(length)].string
-    removeSubrange(0..<Int(length))
+    let length = Data(rangeBytes.reversed()).uint16
+    data.removeSubrange(range)
+    let value = data[0..<Int(length)].string
+    data.removeSubrange(0..<Int(length))
     return value
   }
   
-  mutating func decodeString() throws -> String {
-    let range = 0..<2
-    guard let rangeBytes = subdata(safe: range) else {
+  func decodeLongString() throws -> String {
+    let range = 0..<4
+    guard let rangeBytes = data.subdata(safe: range) else {
       throw AMF0DecodeError.rangeError
     }
     let length = Data(rangeBytes.reversed()).uint32
-    removeSubrange(range)
-    let value = self[0..<Int(length)].string
-    removeSubrange(0..<Int(length))
+    data.removeSubrange(range)
+    let value = data[0..<Int(length)].string
+    data.removeSubrange(0..<Int(length))
     return value
   }
   
-  mutating func decodeLongString() throws -> String {
+  func decodeXML() throws -> String {
     let range = 0..<4
-    guard let rangeBytes = subdata(safe: range) else {
+    guard let rangeBytes = data.subdata(safe: range) else {
       throw AMF0DecodeError.rangeError
     }
     let length = Data(rangeBytes.reversed()).uint32
-    removeSubrange(range)
-    let value = self[0..<Int(length)].string
-    removeSubrange(0..<Int(length))
-    return value
-  }
-  mutating func decodeXML() throws -> String {
-    let range = 0..<4
-    guard let rangeBytes = subdata(safe: range) else {
-      throw AMF0DecodeError.rangeError
-    }
-    let length = Data(rangeBytes.reversed()).uint32
-    removeSubrange(range)
+    data.removeSubrange(range)
     
-    guard let stringBytes = subdata(safe: 0..<Int(length)) else {
+    guard let stringBytes = data.subdata(safe: 0..<Int(length)) else {
       throw AMF0DecodeError.rangeError
     }
     let value = stringBytes.string
-    removeSubrange(0..<Int(length))
+    data.removeSubrange(0..<Int(length))
     return value
   }
   
-  mutating func decodeDate() throws -> Date {
-    guard let value = subdata(safe: 0..<8) else {
+  func decodeDate() throws -> Date {
+    guard let value = data.subdata(safe: 0..<8) else {
       throw AMF0DecodeError.rangeError
     }
-    let convert = Data(value.reversed()).double
+    let convert = Data(value).double
     let result = Date(timeIntervalSince1970: convert / 1000)
-    removeSubrange(0..<10)
+    data.removeSubrange(0..<10)
     return result
   }
   
-  mutating func decodeObj() throws -> [String: Any] {
+  func decodeObj() throws -> [String: Any] {
     var map = [String: Any]()
     var key = ""
-    while let first = self.first, first != RTMPAMF0Type.objectEnd.rawValue {
+    while let first = data.first, first != RTMPAMF0Type.objectEnd.rawValue {
       var type: RTMPAMF0Type? = RTMPAMF0Type(rawValue: first)
       if key.isEmpty {
         type = .string
-        let value = try decodeString(type: .string)
+        let value = try decodeString()
         key = value
         continue
       }
@@ -215,11 +212,15 @@ extension Data {
       guard let t = type else {
         throw AMF0DecodeError.rangeError
       }
-      remove(at: 0)
+      data.removeSubrange(0..<1)
       
       switch t {
-      case .string, .longString:
-        let value = try decodeString(type: t)
+      case .string:
+        let value = try decodeString()
+        map[key] = value
+        key = ""
+      case .longString:
+        let value = try decodeLongString()
         map[key] = value
         key = ""
       default:
@@ -229,42 +230,42 @@ extension Data {
         key = ""
       }
     }
-    remove(at: 0)
+    data.removeSubrange(0..<1)
     
     return map
   }
   
-  mutating func decodeTypeObject() throws -> [String: Any] {
+  func decodeTypeObject() throws -> [String: Any] {
     let range = 0..<4
-    removeSubrange(range)
+    data.removeSubrange(range)
     return try self.decodeObj()
   }
   
-  mutating func deocdeArray() throws -> [String: Any] {
+  func deocdeArray() throws -> [String: Any] {
     let entryPoint = 0..<4
-    self.removeSubrange(entryPoint)
+    data.removeSubrange(entryPoint)
     let value = try self.decodeObj()
     return value
   }
   
-  mutating func decodeStrictArray() throws -> [Any] {
+  func decodeStrictArray() throws -> [Any] {
     let entryPoint = 0..<4
-    guard let rangeBytes = subdata(safe: entryPoint) else {
+    guard let rangeBytes = data.subdata(safe: entryPoint) else {
       throw AMF0DecodeError.rangeError
     }
     var decodeData = [Any]()
     
     var count = Int(Data(rangeBytes.reversed()).uint32)
-    removeSubrange(entryPoint)
-    while let first = self.first, count != 0 {
+    data.removeSubrange(entryPoint)
+    while let first = data.first, count != 0 {
       guard let type = RTMPAMF0Type(rawValue: first) else {
         throw AMF0DecodeError.rangeError
       }
-      remove(at: 0)
+      data.removeSubrange(0..<1)
       try decodeData.append(self.parseValue(type: type))
       count -= 1
     }
     return decodeData
   }
-  
 }
+
