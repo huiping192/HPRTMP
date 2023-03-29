@@ -127,6 +127,20 @@ extension String: AMF0Encode {
 
     return data
   }
+  
+  var amf0KeyEncode: Data {
+      let isLong = UInt32(UInt16.max) < UInt32(self.count)
+      
+      var data = Data()
+      let convert = Data(self.utf8)
+      if isLong {
+          data.append(UInt32(convert.count).bigEndian.data)
+      } else {
+        data.append(UInt16(convert.count).bigEndian.data)
+      }
+      data.append(Data(self.utf8))
+      return data
+  }
 }
 
 // Date - 0x0b (Encoded as IEEE 64-bit double-precision floating point number with 16-bit integer time zone offset)
@@ -165,7 +179,7 @@ extension Dictionary where Key == String {
   fileprivate func keyValueEncode() -> Data {
     var data = Data()
     self.forEach { (key, value) in
-      let keyEncode = key.amf0Value
+      let keyEncode = key.amf0KeyEncode
       data.append(keyEncode)
       if let valueEncode = (value as? AMF0Encode)?.amf0Value {
         data.append(valueEncode)
