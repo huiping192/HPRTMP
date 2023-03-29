@@ -120,7 +120,7 @@ class MessageDecoderTests: XCTestCase {
     let peerBandwidthMessage = decoder.createMessage(chunkStreamId: chunkStreamId, msgStreamId: msgStreamId, messageType: .peerBandwidth, timestamp: timestamp, chunkPayload: chunkPayload)
     XCTAssertTrue(peerBandwidthMessage is PeerBandwidthMessage)
     
-    let commandMessagePayload = "connect".amf0Value
+    let commandMessagePayload: Data = "connect".amf0Value + 5.amf0Value + ["object":"haha"].amf0Encode + ["info": "test"].amf0Encode
     let commandMessage = decoder.createMessage(chunkStreamId: chunkStreamId, msgStreamId: msgStreamId, messageType: .command(type: .amf0), timestamp: timestamp, chunkPayload: commandMessagePayload)
     XCTAssertTrue(commandMessage is CommandMessage)
     
