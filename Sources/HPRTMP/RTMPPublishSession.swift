@@ -96,8 +96,10 @@ extension RTMPPublishSession: RTMPSocketDelegate {
   }
   
   func socketPeerBandWidth(_ socket: RTMPSocket, size: UInt32) {
-//    self.socket.send(message: WindowAckMessage(size: size), firstType: true)
   // send window ack message  to server
+    Task {
+      try await socket.send(message: WindowAckMessage(size: size), firstType: true)
+    }
   }
   
   func socketDisconnected(_ socket: RTMPSocket) {

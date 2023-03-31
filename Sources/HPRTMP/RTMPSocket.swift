@@ -214,14 +214,48 @@ extension RTMPSocket {
         print("[HPRTMP] decode message need more data.")
         return
       }
+      
+      if let windowAckMessage  = message as? WindowAckMessage {
+        print("[HTRTMP] WindowAckMessage, size \(windowAckMessage.size)")
+        return
+      }
+      
+      if let peerBandwidthMessage = message as? PeerBandwidthMessage {
+        print("[HTRTMP] PeerBandwidthMessage, size \(peerBandwidthMessage.windowSize)")
+        delegate?.socketPeerBandWidth(self, size: peerBandwidthMessage.windowSize)
+        return
+      }
+      
+      if let chunkSizeMessage = message as? ChunkSizeMessage {
+        print("[HTRTMP] chunkSizeMessage, size \(chunkSizeMessage.size)")
+        await decoder.setMaxChunkSize(maxChunkSize: Int(chunkSizeMessage.size))
+        return
+      }
+      if let commandMessage = message as? CommandMessage {
+        print("[HTRTMP] CommandMessage, \(commandMessage.description)")
+        let commandName = commandMessage.commandName
+        if commandName == "_result" {
+          let info = commandMessage.info
+          if info?["code"] as? String == "NetConnection.Connect.Success" {
+            print("[HTRTMP] Connect Success")
+          } else {
+            print("[HTRTMP] Connect failed")
+
+            // connect failed
+          }
+        }
+        return
+      }
+      
       if let connectMessage = message as? ConnectMessage {
-        let info = connectMessage.info
+        print("[HTRTMP] ConnectMessage, size \(connectMessage.description)")
         self.delegate?.socketConnectDone(self)
         return
       }
       
       if let controlMessage = message as? ControlMessage {
-        
+        print("[HTRTMP] ControlMessage, message Type:  \(controlMessage.messageType)")
+
         return
       }
       

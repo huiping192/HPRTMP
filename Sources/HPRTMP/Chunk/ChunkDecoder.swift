@@ -20,6 +20,10 @@ actor MessageDecoder {
     }
   }
   
+  func setMaxChunkSize(maxChunkSize: Int) {
+    self.maxChunkSize = maxChunkSize
+  }
+  
   func append(_ newData: Data) {
     self.data.append(newData)
   }
@@ -31,6 +35,7 @@ actor MessageDecoder {
     data.removeFirst(size)
     
     print("[HPRTMP] decode message success: \(message)")
+    print("[HPRTMP] MessageDecoder remain data count: \(data.count)")
     return message
   }
   

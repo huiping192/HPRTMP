@@ -9,7 +9,7 @@ import Foundation
 
 let commonTransactionId = (connect: 1, stream: 0)
 
-class CommandMessage: RTMPBaseMessage {
+class CommandMessage: RTMPBaseMessage, CustomStringConvertible {
   let encodeType: ObjectEncodingType
   let commandName: String
   let transactionId: Int
@@ -30,6 +30,19 @@ class CommandMessage: RTMPBaseMessage {
     self.encodeType = encodeType
     super.init(type: .command(type: encodeType),msgStreamId: msgStreamId, streamId: RTMPStreamId.command.rawValue)
   }
+  
+  var description: String {
+      var result = ""
+      result += "Command Name: \(commandName)\n"
+      result += "Transaction ID: \(transactionId)\n"
+      if let object = commandObject {
+        result += "Command Object: \(object)\n"
+      }
+      if let info = info {
+        result += "Info: \(info)\n"
+      }
+      return result
+    }
 }
 
 
@@ -67,6 +80,16 @@ class ConnectMessage: CommandMessage, Encodable {
     amf.append(commandObject)
     return amf.data
   }
+  
+  override var description: String {
+      var desc = "ConnectMessage("
+      desc += "commandName: \(commandName), "
+      desc += "transactionId: \(transactionId), "
+      desc += "commandObject: \(String(describing: commandObject)), "
+      desc += "argument: \(String(describing: argument))"
+      desc += ")"
+      return desc
+    }
 }
 
 
