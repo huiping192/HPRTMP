@@ -38,39 +38,39 @@ protocol RTMPSocketDelegate: AnyObject {
   func socketHandShakeDone(_ socket: RTMPSocket)
   func socketPinRequest(_ socket: RTMPSocket, data: Data)
   func socketConnectDone(_ socket: RTMPSocket)
-//  func socketCreateStreamDone(_ socket: RTMPSocket, obj: StreamResponse)
+  //  func socketCreateStreamDone(_ socket: RTMPSocket, obj: StreamResponse)
   func socketError(_ socket: RTMPSocket, err: RTMPError)
-//  func socketGetMeta(_ socket: RTMPSocket, meta: MetaDataResponse)
+  //  func socketGetMeta(_ socket: RTMPSocket, meta: MetaDataResponse)
   func socketPeerBandWidth(_ socket: RTMPSocket, size: UInt32)
   func socketDisconnected(_ socket: RTMPSocket)
 }
 
 actor MessageHolder {
   private (set) var transactionId = 1
-
+  
   var raw = [Int: RTMPBaseMessage]()
-
+  
   func register(message: RTMPBaseMessage) {
-      raw[transactionId] = message
+    raw[transactionId] = message
   }
   
   func removeMessage(id: Int) -> RTMPBaseMessage? {
-      let value = raw[transactionId]
-      raw[transactionId] = nil
-      return value
+    let value = raw[transactionId]
+    raw[transactionId] = nil
+    return value
   }
   
   @discardableResult
   func shiftTransactionId () -> Int {
-      self.transactionId += 1
-      return self.transactionId
+    self.transactionId += 1
+    return self.transactionId
   }
 }
 
 public class RTMPSocket {
   
   private var connection: NWConnection?
-    
+  
   private var state: RTMPState = .none
   
   weak var delegate: RTMPSocketDelegate?
@@ -83,7 +83,7 @@ public class RTMPSocket {
   
   private let encoder = ChunkEncoder()
   private let decoder = MessageDecoder()
-
+  
   private var handshake: RTMPHandshake?
   
   public init() {}
@@ -144,7 +144,7 @@ extension RTMPSocket {
       encoder.reset()
       //    info.reset(clearInfo)
     }
-
+    
   }
   
   private func startReceiveData() async throws {
@@ -180,7 +180,7 @@ extension Stream.Event: CustomStringConvertible {
 extension RTMPSocket {
   func send(message: RTMPMessage & Encodable, firstType: Bool = false) async throws {
     print("[HPRTMP] send message start: \(message)")
-
+    
     if let message = message as? ChunkSizeMessage {
       encoder.chunkSize = message.size
     }
@@ -217,54 +217,54 @@ extension RTMPSocket {
   }
   
   private func decode(data: Data) async {
-     
-      guard let message = await decoder.decode() else {
-        print("[HPRTMP] decode message need more data.")
-        return
-      }
-      
-      if let windowAckMessage  = message as? WindowAckMessage {
-        print("[HTRTMP] WindowAckMessage, size \(windowAckMessage.size)")
-        return
-      }
-      
-      if let peerBandwidthMessage = message as? PeerBandwidthMessage {
-        print("[HTRTMP] PeerBandwidthMessage, size \(peerBandwidthMessage.windowSize)")
-        delegate?.socketPeerBandWidth(self, size: peerBandwidthMessage.windowSize)
-        return
-      }
-      
-      if let chunkSizeMessage = message as? ChunkSizeMessage {
-        print("[HTRTMP] chunkSizeMessage, size \(chunkSizeMessage.size)")
-        await decoder.setMaxChunkSize(maxChunkSize: Int(chunkSizeMessage.size))
-        return
-      }
-      if let commandMessage = message as? CommandMessage {
-        print("[HTRTMP] CommandMessage, \(commandMessage.description)")
-        let commandName = commandMessage.commandName
-        if commandName == "_result" {
-          let info = commandMessage.info
-          if info?["code"] as? String == "NetConnection.Connect.Success" {
-            print("[HTRTMP] Connect Success")
-          } else {
-            print("[HTRTMP] Connect failed")
-
-            // connect failed
-          }
+    
+    guard let message = await decoder.decode() else {
+      print("[HPRTMP] decode message need more data.")
+      return
+    }
+    
+    if let windowAckMessage  = message as? WindowAckMessage {
+      print("[HTRTMP] WindowAckMessage, size \(windowAckMessage.size)")
+      return
+    }
+    
+    if let peerBandwidthMessage = message as? PeerBandwidthMessage {
+      print("[HTRTMP] PeerBandwidthMessage, size \(peerBandwidthMessage.windowSize)")
+      delegate?.socketPeerBandWidth(self, size: peerBandwidthMessage.windowSize)
+      return
+    }
+    
+    if let chunkSizeMessage = message as? ChunkSizeMessage {
+      print("[HTRTMP] chunkSizeMessage, size \(chunkSizeMessage.size)")
+      await decoder.setMaxChunkSize(maxChunkSize: Int(chunkSizeMessage.size))
+      return
+    }
+    if let commandMessage = message as? CommandMessage {
+      print("[HTRTMP] CommandMessage, \(commandMessage.description)")
+      let commandName = commandMessage.commandName
+      if commandName == "_result" {
+        let info = commandMessage.info
+        if info?["code"] as? String == "NetConnection.Connect.Success" {
+          print("[HTRTMP] Connect Success")
+        } else {
+          print("[HTRTMP] Connect failed")
+          
+          // connect failed
         }
-        return
       }
+      return
+    }
+    
+    if let connectMessage = message as? ConnectMessage {
+      print("[HTRTMP] ConnectMessage, size \(connectMessage.description)")
+      self.delegate?.socketConnectDone(self)
+      return
+    }
+    
+    if let controlMessage = message as? ControlMessage {
+      print("[HTRTMP] ControlMessage, message Type:  \(controlMessage.messageType)")
       
-      if let connectMessage = message as? ConnectMessage {
-        print("[HTRTMP] ConnectMessage, size \(connectMessage.description)")
-        self.delegate?.socketConnectDone(self)
-        return
-      }
-      
-      if let controlMessage = message as? ControlMessage {
-        print("[HTRTMP] ControlMessage, message Type:  \(controlMessage.messageType)")
-
-        return
-      }
+      return
+    }
   }
 }
