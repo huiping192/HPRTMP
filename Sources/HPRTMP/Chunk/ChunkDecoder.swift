@@ -12,20 +12,19 @@ actor MessageDecoder {
   
   private let chunkDecoder = ChunkDecoder()
   
-  var maxChunkSize: Int = Int(128) {
-    didSet {
-      Task {
-        await chunkDecoder.setMaxChunkSize(maxChunkSize: maxChunkSize)
-      }
-    }
-  }
+  private var maxChunkSize: Int = Int(128)
   
-  func setMaxChunkSize(maxChunkSize: Int) {
+  func setMaxChunkSize(maxChunkSize: Int) async {
     self.maxChunkSize = maxChunkSize
+    await chunkDecoder.setMaxChunkSize(maxChunkSize: maxChunkSize)
   }
   
   func append(_ newData: Data) {
     self.data.append(newData)
+  }
+  
+  var remainDataCount: Int {
+    data.count
   }
   
   func decode() async -> RTMPMessage? {

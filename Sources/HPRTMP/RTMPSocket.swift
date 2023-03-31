@@ -204,12 +204,20 @@ extension RTMPSocket {
   private func handleOutputData(data: Data) {
     let length = data.count
     guard length > 0 else { return }
-    self.decode(data: data)
-  }
-  
-  private func decode(data: Data) {
+    
     Task {
       await decoder.append(data)
+      var dataRemainCount = 0
+      while await decoder.remainDataCount != dataRemainCount, await decoder.remainDataCount != 0 {
+        dataRemainCount = await decoder.remainDataCount
+        await decode(data: data)
+      }
+    }
+    
+  }
+  
+  private func decode(data: Data) async {
+     
       guard let message = await decoder.decode() else {
         print("[HPRTMP] decode message need more data.")
         return
@@ -258,7 +266,5 @@ extension RTMPSocket {
 
         return
       }
-      
-    }
   }
 }
