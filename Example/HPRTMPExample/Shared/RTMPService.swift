@@ -10,16 +10,16 @@ import HPRTMP
 
 class RTMPService {
   
-  private var socket: RTMPSocket = RTMPSocket()
+  private var session = RTMPPublishSession()
   
   init() {
-    let url = URL(string: "rtmp://192.168.11.23/live")!
-    let streamKey = "hello"
-    let port = 1935
-    socket.connect(streamURL: url, streamKey: streamKey, port: port)
+//    let url = URL(string: "rtmp://192.168.11.23/live")!
+//    let streamKey = "hello"
+//    let port = 1935
+//    socket.connect(streamURL: url, streamKey: streamKey, port: port)
   }
   
   func run() {
-    socket.resume()
+    session.publish(url: "rtmp://192.168.11.23/live/hello")
   }
 }

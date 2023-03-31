@@ -37,7 +37,7 @@ public enum RTMPError: Error {
 protocol RTMPSocketDelegate: AnyObject {
   func socketHandShakeDone(_ socket: RTMPSocket)
   func socketPinRequest(_ socket: RTMPSocket, data: Data)
-//  func socketConnectDone(_ socket: RTMPSocket, obj: ConnectResponse)
+  func socketConnectDone(_ socket: RTMPSocket)
 //  func socketCreateStreamDone(_ socket: RTMPSocket, obj: StreamResponse)
   func socketError(_ socket: RTMPSocket, err: RTMPError)
 //  func socketGetMeta(_ socket: RTMPSocket, meta: MetaDataResponse)
@@ -70,9 +70,7 @@ actor MessageHolder {
 public class RTMPSocket {
   
   private var connection: NWConnection?
-  
-  private var inputData = Data()
-  
+    
   private var state: RTMPState = .none
   
   weak var delegate: RTMPSocketDelegate?
@@ -84,7 +82,7 @@ public class RTMPSocket {
   var connectId: Int = 0
   
   private let encoder = ChunkEncoder()
-  private let decoder = ChunkDecoder()
+  private let decoder = MessageDecoder()
 
   private var handshake: RTMPHandshake?
   
@@ -95,6 +93,8 @@ public class RTMPSocket {
     let urlParser = RTMPURLParser()
     guard let urlInfo = try? urlParser.parse(url: url) else { return }
     self.urlInfo = urlInfo
+    
+    resume()
   }
   
   public func connect(streamURL: URL, streamKey: String, port: Int = 1935) {
@@ -151,6 +151,7 @@ extension RTMPSocket {
     guard let connection else { return }
     while true {
       let data = try await connection.receiveData()
+      print("[HPRTMP] receive data count: \(data.count)")
       self.handleOutputData(data: data)
     }
   }
@@ -178,11 +179,20 @@ extension Stream.Event: CustomStringConvertible {
 
 extension RTMPSocket {
   func send(message: RTMPMessage & Encodable, firstType: Bool = false) async throws {
+    print("[HPRTMP] send message start: \(message)")
+
     if let message = message as? ChunkSizeMessage {
       encoder.chunkSize = message.size
     }
     let datas = encoder.chunk(message: message, isFirstType0: firstType).map({ $0.encode() })
-    try await self.sendChunk(datas)
+    do {
+      try await self.sendChunk(datas)
+      print("[HPRTMP] send message successd: \(message)")
+    } catch {
+      print("[HPRTMP] send message failed: \(message), error: \(error)")
+      throw error
+    }
+    
   }
   
   private func sendChunk(_ data: [Data]) async throws {
@@ -194,13 +204,27 @@ extension RTMPSocket {
   private func handleOutputData(data: Data) {
     let length = data.count
     guard length > 0 else { return }
-    inputData.append(data)
-    let bytes: Data = self.inputData
-    self.inputData.removeAll()
-    self.decode(data: bytes)
+    self.decode(data: data)
   }
   
   private func decode(data: Data) {
-
+    Task {
+      await decoder.append(data)
+      guard let message = await decoder.decode() else {
+        print("[HPRTMP] decode message need more data.")
+        return
+      }
+      if let connectMessage = message as? ConnectMessage {
+        let info = connectMessage.info
+        self.delegate?.socketConnectDone(self)
+        return
+      }
+      
+      if let controlMessage = message as? ControlMessage {
+        
+        return
+      }
+      
+    }
   }
 }

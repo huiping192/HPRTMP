@@ -34,7 +34,10 @@ public class RTMPPublishSession {
 
   private let socket = RTMPSocket()
   
+  public init() {}
+  
   public func publish(url: String) {
+    socket.delegate = self
     socket.connect(url: url)
   }
   
@@ -61,6 +64,10 @@ public class RTMPPublishSession {
 }
 
 extension RTMPPublishSession: RTMPSocketDelegate {
+  func socketConnectDone(_ socket: RTMPSocket) {
+    
+  }
+  
   func socketHandShakeDone(_ socket: RTMPSocket) {
     Task {
       let connect = ConnectMessage(encodeType: encodeType,
@@ -71,10 +78,11 @@ extension RTMPPublishSession: RTMPSocketDelegate {
                                    video: .h264)
       // fixme: dont know why should cache message!!!
       await self.socket.messageHolder.register(message: connect)
-      try await self.socket.send(message: connect, firstType: true)
-      
-      
-      
+      do {
+        try await self.socket.send(message: connect, firstType: true)
+      } catch {
+        // todo
+      }
     }
   }
   

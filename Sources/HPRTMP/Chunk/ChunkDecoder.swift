@@ -7,7 +7,7 @@
 
 import Foundation
 
-class MessageDecoder {
+actor MessageDecoder {
   private var data = Data()
   
   private let chunkDecoder = ChunkDecoder()
@@ -25,10 +25,17 @@ class MessageDecoder {
   }
   
   func decode() async -> RTMPMessage? {
+    print("[HPRTMP] decode message start")
     let (message,size) = await decodeMessage(data: data)
     guard let message else { return nil }
     data.removeFirst(size)
+    
+    print("[HPRTMP] decode message success: \(message)")
     return message
+  }
+  
+  func reset() {
+    data = Data()
   }
   
   func createMessage(chunkStreamId: UInt16, msgStreamId: Int, messageType: MessageType, timestamp: UInt32, chunkPayload: Data) -> RTMPMessage? {

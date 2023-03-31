@@ -111,35 +111,35 @@ class MessageDecoderTests: XCTestCase {
     let timestamp: UInt32 = 100
     let chunkPayload = Data([0, 1, 2, 3])
     
-    let chunkSizeMessage = decoder.createMessage(chunkStreamId: chunkStreamId, msgStreamId: msgStreamId, messageType: .chunkSize, timestamp: timestamp, chunkPayload: chunkPayload)
+    let chunkSizeMessage = await decoder.createMessage(chunkStreamId: chunkStreamId, msgStreamId: msgStreamId, messageType: .chunkSize, timestamp: timestamp, chunkPayload: chunkPayload)
     XCTAssertTrue(chunkSizeMessage is ChunkSizeMessage)
     
-    let controlMessage = decoder.createMessage(chunkStreamId: chunkStreamId, msgStreamId: msgStreamId, messageType: .control, timestamp: timestamp, chunkPayload: chunkPayload)
+    let controlMessage = await decoder.createMessage(chunkStreamId: chunkStreamId, msgStreamId: msgStreamId, messageType: .control, timestamp: timestamp, chunkPayload: chunkPayload)
     XCTAssertTrue(controlMessage is ControlMessage)
     
-    let peerBandwidthMessage = decoder.createMessage(chunkStreamId: chunkStreamId, msgStreamId: msgStreamId, messageType: .peerBandwidth, timestamp: timestamp, chunkPayload: chunkPayload)
+    let peerBandwidthMessage = await decoder.createMessage(chunkStreamId: chunkStreamId, msgStreamId: msgStreamId, messageType: .peerBandwidth, timestamp: timestamp, chunkPayload: chunkPayload)
     XCTAssertTrue(peerBandwidthMessage is PeerBandwidthMessage)
     
     let commandMessagePayload: Data = "connect".amf0Value + 5.amf0Value + ["object":"haha"].amf0Encode + ["info": "test"].amf0Encode
-    let commandMessage = decoder.createMessage(chunkStreamId: chunkStreamId, msgStreamId: msgStreamId, messageType: .command(type: .amf0), timestamp: timestamp, chunkPayload: commandMessagePayload)
+    let commandMessage = await decoder.createMessage(chunkStreamId: chunkStreamId, msgStreamId: msgStreamId, messageType: .command(type: .amf0), timestamp: timestamp, chunkPayload: commandMessagePayload)
     XCTAssertTrue(commandMessage is CommandMessage)
     
-    let dataMessage = decoder.createMessage(chunkStreamId: chunkStreamId, msgStreamId: msgStreamId, messageType: .data(type: .amf0), timestamp: timestamp, chunkPayload: chunkPayload)
+    let dataMessage = await decoder.createMessage(chunkStreamId: chunkStreamId, msgStreamId: msgStreamId, messageType: .data(type: .amf0), timestamp: timestamp, chunkPayload: chunkPayload)
     XCTAssertTrue(dataMessage is DataMessage)
     
-    let audioMessage = decoder.createMessage(chunkStreamId: chunkStreamId, msgStreamId: msgStreamId, messageType: .audio, timestamp: timestamp, chunkPayload: chunkPayload)
+    let audioMessage = await decoder.createMessage(chunkStreamId: chunkStreamId, msgStreamId: msgStreamId, messageType: .audio, timestamp: timestamp, chunkPayload: chunkPayload)
     XCTAssertTrue(audioMessage is AudioMessage)
     
-    let videoMessage = decoder.createMessage(chunkStreamId: chunkStreamId, msgStreamId: msgStreamId, messageType: .video, timestamp: timestamp, chunkPayload: chunkPayload)
+    let videoMessage = await decoder.createMessage(chunkStreamId: chunkStreamId, msgStreamId: msgStreamId, messageType: .video, timestamp: timestamp, chunkPayload: chunkPayload)
     XCTAssertTrue(videoMessage is VideoMessage)
     
-    let abortMessage = decoder.createMessage(chunkStreamId: chunkStreamId, msgStreamId: msgStreamId, messageType: .abort, timestamp: timestamp, chunkPayload: chunkPayload)
+    let abortMessage = await decoder.createMessage(chunkStreamId: chunkStreamId, msgStreamId: msgStreamId, messageType: .abort, timestamp: timestamp, chunkPayload: chunkPayload)
     XCTAssertTrue(abortMessage is AbortMessage)
     
-    let acknowledgementMessage = decoder.createMessage(chunkStreamId: chunkStreamId, msgStreamId: msgStreamId, messageType: .acknowledgement, timestamp: timestamp, chunkPayload: chunkPayload)
+    let acknowledgementMessage = await decoder.createMessage(chunkStreamId: chunkStreamId, msgStreamId: msgStreamId, messageType: .acknowledgement, timestamp: timestamp, chunkPayload: chunkPayload)
     XCTAssertTrue(acknowledgementMessage is AcknowledgementMessage)
     
-    let windowAckMessage = decoder.createMessage(chunkStreamId: chunkStreamId, msgStreamId: msgStreamId, messageType: .windowAcknowledgement, timestamp: timestamp, chunkPayload: chunkPayload)
+    let windowAckMessage = await decoder.createMessage(chunkStreamId: chunkStreamId, msgStreamId: msgStreamId, messageType: .windowAcknowledgement, timestamp: timestamp, chunkPayload: chunkPayload)
     XCTAssertTrue(windowAckMessage is WindowAckMessage)
   }
   
