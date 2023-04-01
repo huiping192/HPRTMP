@@ -11,5 +11,5 @@ Pod::Spec.new do |s|
   
   s.source_files = 'Sources/**/*.swift'
   
-  s.dependency 'Network'
+  s.frameworks = "Foundation","Network"
 end
