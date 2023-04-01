@@ -40,9 +40,17 @@ protocol RTMPSocketDelegate: AnyObject {
   func socketConnectDone(_ socket: RTMPSocket)
   func socketCreateStreamDone(_ socket: RTMPSocket, msgStreamId: Int)
   func socketError(_ socket: RTMPSocket, err: RTMPError)
-  //  func socketGetMeta(_ socket: RTMPSocket, meta: MetaDataResponse)
+  func socketGetMeta(_ socket: RTMPSocket, meta: MetaDataResponse)
   func socketPeerBandWidth(_ socket: RTMPSocket, size: UInt32)
   func socketDisconnected(_ socket: RTMPSocket)
+  
+  
+  func socketStreamOutputAudio(_ socket: RTMPSocket, data: Data, timeStamp: Int64, isFirst: Bool)
+  func socketStreamOutputVideo(_ socket: RTMPSocket, data: Data, timeStamp: Int64, isFirst: Bool)
+  func socketStreamPublishStart(_ socket: RTMPSocket)
+  func socketStreamRecord(_ socket: RTMPSocket)
+  func socketStreamPlayStart(_ socket: RTMPSocket)
+  func socketStreamPause(_ socket: RTMPSocket, pause: Bool)
 }
 
 actor MessageHolder {
@@ -245,7 +253,7 @@ extension RTMPSocket {
       await handleCommandMessage(commandMessage)
       return
     }
-        
+    
     if let controlMessage = message as? ControlMessage {
       print("[HTRTMP] ControlMessage, message Type:  \(controlMessage.messageType)")
       
@@ -254,6 +262,33 @@ extension RTMPSocket {
   }
   
   private func handleCommandMessage(_ commandMessage: CommandMessage) async {
+    if commandMessage.commandNameType == .onStatus {
+      guard let statusResponse = StatusResponse(info: commandMessage.info) else { return }
+      if statusResponse.level == .error {
+        self.delegate?.socketError(self, err: .command(desc: statusResponse.description))
+        return
+      }
+      switch statusResponse.code {
+      case .publishStart:
+        self.delegate?.socketStreamPublishStart(self)
+      case .playStart:
+        self.delegate?.socketStreamPlayStart(self)
+      case .pauseNotify:
+        self.delegate?.socketStreamPause(self, pause: true)
+      case .unpauseNotify:
+        self.delegate?.socketStreamPause(self, pause: false)
+      default:
+        break
+      }
+      return
+    }
+    
+    if commandMessage.commandNameType == .onMetaData {
+      guard let meta = MetaDataResponse(commandObject: commandMessage.commandObject) else { return }
+      self.delegate?.socketGetMeta(self, meta: meta)
+      return
+    }
+    
     let message = await messageHolder.removeMessage(id: commandMessage.transactionId)
     switch message {
     case is ConnectMessage:

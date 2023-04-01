@@ -66,6 +66,33 @@ public class RTMPPublishSession {
 }
 
 extension RTMPPublishSession: RTMPSocketDelegate {
+  func socketGetMeta(_ socket: RTMPSocket, meta: MetaDataResponse) {
+    
+  }
+  
+  func socketStreamOutputAudio(_ socket: RTMPSocket, data: Data, timeStamp: Int64, isFirst: Bool) {
+    
+  }
+  
+  func socketStreamOutputVideo(_ socket: RTMPSocket, data: Data, timeStamp: Int64, isFirst: Bool) {
+    
+  }
+  
+  func socketStreamPublishStart(_ socket: RTMPSocket) {
+    
+  }
+  
+  func socketStreamRecord(_ socket: RTMPSocket) {
+    
+  }
+  
+  func socketStreamPlayStart(_ socket: RTMPSocket) {
+    
+  }
+  
+  func socketStreamPause(_ socket: RTMPSocket, pause: Bool) {
+    
+  }
 
   func socketConnectDone(_ socket: RTMPSocket) {
     Task {
