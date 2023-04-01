@@ -11,10 +11,5 @@ Pod::Spec.new do |s|
   
   s.source_files = 'Sources/**/*.swift'
   
-  s.test_spec 'Tests' do |test_spec|
-    test_spec.source_files = 'Tests/**/*.swift'
-    test_spec.dependency 'HPRTMP'
-  end
-  
   s.dependency 'Network'
 end
