@@ -97,8 +97,14 @@ extension RTMPPublishSession: RTMPSocketDelegate {
     }
   }
   
-  func socketCreateStreamDone(_ socket: RTMPSocket) {
-    
+  func socketCreateStreamDone(_ socket: RTMPSocket, msgStreamId: Int) {
+    Task {
+      let message = PublishMessage(encodeType: encodeType, streamName: "HPRTMP", type: .live)
+
+      message.msgStreamId = msgStreamId
+      try await socket.send(message: message)
+      publishStatus = .connect
+    }
   }
   
   func socketPinRequest(_ socket: RTMPSocket, data: Data) {

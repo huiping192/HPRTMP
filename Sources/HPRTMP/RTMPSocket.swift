@@ -38,7 +38,7 @@ protocol RTMPSocketDelegate: AnyObject {
   func socketHandShakeDone(_ socket: RTMPSocket)
   func socketPinRequest(_ socket: RTMPSocket, data: Data)
   func socketConnectDone(_ socket: RTMPSocket)
-  func socketCreateStreamDone(_ socket: RTMPSocket)
+  func socketCreateStreamDone(_ socket: RTMPSocket, msgStreamId: Int)
   func socketError(_ socket: RTMPSocket, err: RTMPError)
   //  func socketGetMeta(_ socket: RTMPSocket, meta: MetaDataResponse)
   func socketPeerBandWidth(_ socket: RTMPSocket, size: UInt32)
@@ -240,12 +240,6 @@ extension RTMPSocket {
       return
     }
     
-    if let createStreamMessage = message as? CreateStreamMessage {
-      print("[HTRTMP] CreateStreamMessage, \(createStreamMessage.description)")
-      self.delegate?.socketCreateStreamDone(self)
-      return
-    }
-    
     if let commandMessage = message as? CommandMessage {
       print("[HTRTMP] CommandMessage, \(commandMessage.description)")
 
@@ -268,7 +262,8 @@ extension RTMPSocket {
         if commandName == "_result" {
           print("[HTRTMP] Create Stream Success")
           self.status = .connected
-          self.delegate?.socketCreateStreamDone(self)
+          let msgStreamId = message?.msgStreamId
+          self.delegate?.socketCreateStreamDone(self, msgStreamId: msgStreamId!)
         } else {
           print("[HTRTMP] Create Stream failed")
         }
