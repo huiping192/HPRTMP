@@ -44,7 +44,6 @@ public struct PublishConfigure {
 
 
 public protocol RTMPPublishSessionDelegate: AnyObject {
-    func sessionMetaData(_ session: RTMPPublishSession) -> [String: Any]
     func sessionStatusChange(_ session: RTMPPublishSession,  status: RTMPPublishSession.Status)
 }
 
@@ -183,7 +182,7 @@ extension RTMPPublishSession: RTMPSocketDelegate {
   
   func socketPinRequest(_ socket: RTMPSocket, data: Data) {
 //    let message = UserControlMessage(type: .pingRequest, data: data)
-//    self.socket.send(message: message, firstType: true)
+//    socket.send(message: message, firstType: true)
   }
   
   func socketError(_ socket: RTMPSocket, err: RTMPError) {
@@ -198,7 +197,7 @@ extension RTMPPublishSession: RTMPSocketDelegate {
   }
   
   func socketDisconnected(_ socket: RTMPSocket) {
-    
+    publishStatus = .disconnected
   }
   
   
