@@ -9,10 +9,36 @@ import Foundation
 
 let commonTransactionId = (connect: 1, stream: 0)
 
+enum CodeType {
+  enum Call: String {
+    case badVersion = "NetConnection.Call.BadVersion"
+    case failed     = "NetConnection.Call.Failed"
+  }
+  
+  enum Connect: String, Decodable {
+    case failed         = "NetConnection.Connect.Failed"
+    case timeout        = "NetConnection.Connect.IdleTimeOut"
+    case invalidApp     = "NetConnection.Connect.InvalidApp"
+    case networkChange  = "NetConnection.Connect.NetworkChange"
+    case reject         = "NetConnection.Connect.Rejected"
+    case success        = "NetConnection.Connect.Success"
+  }
+}
+
+enum CommandNameType: String {
+  case onStatus     = "onStatus"
+  case onMetaData = "onMetaData"
+  case publish     = "publish"
+  case result     = "_result"
+  case error     = "_error"
+}
 
 class CommandMessage: RTMPBaseMessage, CustomStringConvertible {
   let encodeType: ObjectEncodingType
   let commandName: String
+  var commandNameType: CommandNameType? {
+    CommandNameType(rawValue: commandName)
+  }
   let transactionId: Int
   let commandObject: [String: Any?]?
   

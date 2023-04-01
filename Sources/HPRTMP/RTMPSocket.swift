@@ -242,35 +242,7 @@ extension RTMPSocket {
     
     if let commandMessage = message as? CommandMessage {
       print("[HTRTMP] CommandMessage, \(commandMessage.description)")
-
-      let message = await messageHolder.removeMessage(id: commandMessage.transactionId)
-      switch message {
-      case is ConnectMessage:
-        let commandName = commandMessage.commandName
-        if commandName == "_result" {
-          let info = commandMessage.info
-          if info?["code"] as? String == "NetConnection.Connect.Success" {
-            print("[HTRTMP] Connect Success")
-            self.delegate?.socketConnectDone(self)
-          } else {
-            print("[HTRTMP] Connect failed")
-            // connect failed
-          }
-        }
-      case is CreateStreamMessage:
-        let commandName = commandMessage.commandName
-        if commandName == "_result" {
-          print("[HTRTMP] Create Stream Success")
-          self.status = .connected
-          let msgStreamId = message?.msgStreamId
-          self.delegate?.socketCreateStreamDone(self, msgStreamId: msgStreamId!)
-        } else {
-          print("[HTRTMP] Create Stream failed")
-        }
-      default:
-        break
-      }
-
+      await handleCommandMessage(commandMessage)
       return
     }
         
@@ -278,6 +250,34 @@ extension RTMPSocket {
       print("[HTRTMP] ControlMessage, message Type:  \(controlMessage.messageType)")
       
       return
+    }
+  }
+  
+  private func handleCommandMessage(_ commandMessage: CommandMessage) async {
+    let message = await messageHolder.removeMessage(id: commandMessage.transactionId)
+    switch message {
+    case is ConnectMessage:
+      if commandMessage.commandNameType == .result {
+        let connectResponse = ConnectResponse(info: commandMessage.info)
+        if connectResponse?.code == .success {
+          print("[HTRTMP] Connect Success")
+          self.delegate?.socketConnectDone(self)
+        } else {
+          print("[HTRTMP] Connect failed")
+          // connect failed
+        }
+      }
+    case is CreateStreamMessage:
+      if commandMessage.commandNameType == .result {
+        print("[HTRTMP] Create Stream Success")
+        self.status = .connected
+        let msgStreamId = message?.msgStreamId
+        self.delegate?.socketCreateStreamDone(self, msgStreamId: msgStreamId!)
+      } else {
+        print("[HTRTMP] Create Stream failed")
+      }
+    default:
+      break
     }
   }
 }
