@@ -7,6 +7,42 @@
 
 import Foundation
 
+public struct PublishConfigure {
+  let width: Int
+  let height: Int
+  let displayWidth: Int
+  let displayHeight: Int
+  let videocodecid: Int
+  let audiocodecid: Int
+  let framerate: Int
+  let videoframerate: Int
+  
+  public init(width: Int, height: Int, displayWidth: Int, displayHeight: Int, videocodecid: Int, audiocodecid: Int, framerate: Int, videoframerate: Int) {
+    self.width = width
+    self.height = height
+    self.displayWidth = displayWidth
+    self.displayHeight = displayHeight
+    self.videocodecid = videocodecid
+    self.audiocodecid = audiocodecid
+    self.framerate = framerate
+    self.videoframerate = videoframerate
+  }
+  
+  var meta: [String: Any] {
+    return [
+      "width": Int32(width),
+      "height": Int32(height),
+      "displayWidth": Int32(displayWidth),
+      "displayHeight": Int32(displayHeight),
+      "videocodecid": videocodecid,
+      "audiocodecid": audiocodecid,
+      "framerate": framerate,
+      "videoframerate": videoframerate
+    ]
+  }
+}
+
+
 public protocol RTMPPublishSessionDelegate: AnyObject {
     func sessionMetaData(_ session: RTMPPublishSession) -> [String: Any]
     func sessionStatusChange(_ session: RTMPPublishSession,  status: RTMPPublishSession.Status)
@@ -36,13 +72,18 @@ public class RTMPPublishSession {
   
   private let transactionIdGenerator = TransactionIdGenerator()
   
+  private var configure: PublishConfigure?
+  
+  private var connectId: Int?
+  
   public init() {}
   
-  public func publish(url: String) {
+  public func publish(url: String, configure: PublishConfigure) {
+    self.configure = configure
     socket.delegate = self
     socket.connect(url: url)
   }
-  
+    
   public func publishVideo(data: Data, delta: UInt32) async throws {
     let message = VideoMessage(msgStreamId: socket.connectId, data: data, timestamp: delta)
     try await socket.send(message: message, firstType: false)
@@ -79,7 +120,12 @@ extension RTMPPublishSession: RTMPSocketDelegate {
   }
   
   func socketStreamPublishStart(_ socket: RTMPSocket) {
-    
+    print("[HPRTMP] socketStreamPublishStart")
+    Task {
+      guard let configure = configure, let connectId = connectId else { return }
+      let metaMessage = MetaMessage(encodeType: encodeType, msgStreamId: connectId, meta: configure.meta)
+      try await socket.send(message: metaMessage)
+    }
   }
   
   func socketStreamRecord(_ socket: RTMPSocket) {
@@ -129,6 +175,7 @@ extension RTMPPublishSession: RTMPSocketDelegate {
       let message = PublishMessage(encodeType: encodeType, streamName: "HPRTMP", type: .live)
 
       message.msgStreamId = msgStreamId
+      self.connectId = msgStreamId
       try await socket.send(message: message)
       publishStatus = .connect
     }

@@ -20,6 +20,17 @@ class RTMPService {
   }
   
   func run() {
-    session.publish(url: "rtmp://192.168.11.23/live/hello")
+    let publishConfig = PublishConfigure(
+      width: 640,
+      height: 480,
+      displayWidth: 640,
+      displayHeight: 480,
+      videocodecid: VideoData.CodecId.avc.rawValue,
+      audiocodecid: AudioData.SoundFormat.aac.rawValue,
+      framerate: 30,
+      videoframerate: 30
+    )
+    
+    session.publish(url: "rtmp://192.168.11.23/live/hello", configure: publishConfig)
   }
 }
