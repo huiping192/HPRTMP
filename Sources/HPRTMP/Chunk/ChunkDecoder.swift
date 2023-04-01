@@ -62,7 +62,7 @@ actor MessageDecoder {
       guard let commandName = data?.first as? String else { return nil }
       
       // second is Transaction ID, number
-      let transactionId = data?[safe: 1] as? Int
+      let transactionId = data?[safe: 1] as? Double
       
       // third is command object
       let objcet = data?[safe: 2] as? [String: Any]
@@ -70,7 +70,7 @@ actor MessageDecoder {
       // fourth is info
       let info = data?[safe: 3] as? [String: Any]
       
-      return CommandMessage(encodeType: type, commandName: commandName, msgStreamId: msgStreamId, transactionId: transactionId ?? 0, commandObject: objcet, info: info)
+      return CommandMessage(encodeType: type, commandName: commandName, msgStreamId: msgStreamId, transactionId: Int(transactionId ?? 0), commandObject: objcet, info: info)
     case .data(type: let type):
       return DataMessage(encodeType: type, msgStreamId: msgStreamId)
     case .share(type: _):

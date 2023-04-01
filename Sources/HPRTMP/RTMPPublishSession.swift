@@ -34,6 +34,8 @@ public class RTMPPublishSession {
 
   private let socket = RTMPSocket()
   
+  private let transactionIdGenerator = TransactionIdGenerator()
+  
   public init() {}
   
   public func publish(url: String) {
@@ -64,8 +66,18 @@ public class RTMPPublishSession {
 }
 
 extension RTMPPublishSession: RTMPSocketDelegate {
+
   func socketConnectDone(_ socket: RTMPSocket) {
-    
+    Task {
+      let message = CreateStreamMessage(encodeType: encodeType, transactionId: await transactionIdGenerator.nextId())
+      await self.socket.messageHolder.register(message: message)
+      try await socket.send(message: message)
+      
+      // make chunk size more bigger
+      let chunkSize: UInt32 = 1024*10
+      let size = ChunkSizeMessage(size: chunkSize)
+      try await socket.send(message: size)
+    }
   }
   
   func socketHandShakeDone(_ socket: RTMPSocket) {
@@ -76,7 +88,6 @@ extension RTMPPublishSession: RTMPSocketDelegate {
                                    fpad: false,
                                    audio: .aac,
                                    video: .h264)
-      // fixme: dont know why should cache message!!!
       await self.socket.messageHolder.register(message: connect)
       do {
         try await self.socket.send(message: connect, firstType: true)
@@ -84,6 +95,10 @@ extension RTMPPublishSession: RTMPSocketDelegate {
         // todo
       }
     }
+  }
+  
+  func socketCreateStreamDone(_ socket: RTMPSocket) {
+    
   }
   
   func socketPinRequest(_ socket: RTMPSocket, data: Data) {
@@ -107,4 +122,14 @@ extension RTMPPublishSession: RTMPSocketDelegate {
   }
   
   
+}
+
+
+private actor TransactionIdGenerator {
+  private var currentId: Int = 1
+  
+  func nextId() -> Int {
+    currentId += 1
+    return currentId
+  }
 }

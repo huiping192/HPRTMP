@@ -9,7 +9,7 @@ import Foundation
 import Network
 
 
-public enum RTMPState {
+public enum RTMPStatus {
   case none
   case open
   case connected
@@ -38,7 +38,7 @@ protocol RTMPSocketDelegate: AnyObject {
   func socketHandShakeDone(_ socket: RTMPSocket)
   func socketPinRequest(_ socket: RTMPSocket, data: Data)
   func socketConnectDone(_ socket: RTMPSocket)
-  //  func socketCreateStreamDone(_ socket: RTMPSocket, obj: StreamResponse)
+  func socketCreateStreamDone(_ socket: RTMPSocket)
   func socketError(_ socket: RTMPSocket, err: RTMPError)
   //  func socketGetMeta(_ socket: RTMPSocket, meta: MetaDataResponse)
   func socketPeerBandWidth(_ socket: RTMPSocket, size: UInt32)
@@ -71,7 +71,7 @@ public class RTMPSocket {
   
   private var connection: NWConnection?
   
-  private var state: RTMPState = .none
+  private var status: RTMPStatus = .none
   
   weak var delegate: RTMPSocketDelegate?
   
@@ -106,7 +106,7 @@ public class RTMPSocket {
 // public func
 extension RTMPSocket {
   public func resume() {
-    guard state != .connected else { return }
+    guard status != .connected else { return }
     guard let urlInfo else { return }
     let port = NWEndpoint.Port(rawValue: UInt16(urlInfo.port))
     let host = NWEndpoint.Host(urlInfo.host)
@@ -137,7 +137,7 @@ extension RTMPSocket {
   
   
   public func invalidate() {
-    guard state != .closed && state != .none else { return }
+    guard status != .closed && status != .none else { return }
     Task {
       await handshake?.reset()
       await decoder.reset()
@@ -239,28 +239,46 @@ extension RTMPSocket {
       await decoder.setMaxChunkSize(maxChunkSize: Int(chunkSizeMessage.size))
       return
     }
+    
+    if let createStreamMessage = message as? CreateStreamMessage {
+      print("[HTRTMP] CreateStreamMessage, \(createStreamMessage.description)")
+      self.delegate?.socketCreateStreamDone(self)
+      return
+    }
+    
     if let commandMessage = message as? CommandMessage {
       print("[HTRTMP] CommandMessage, \(commandMessage.description)")
-      let commandName = commandMessage.commandName
-      if commandName == "_result" {
-        let info = commandMessage.info
-        if info?["code"] as? String == "NetConnection.Connect.Success" {
-          print("[HTRTMP] Connect Success")
-        } else {
-          print("[HTRTMP] Connect failed")
-          
-          // connect failed
+
+      let message = await messageHolder.removeMessage(id: commandMessage.transactionId)
+      switch message {
+      case is ConnectMessage:
+        let commandName = commandMessage.commandName
+        if commandName == "_result" {
+          let info = commandMessage.info
+          if info?["code"] as? String == "NetConnection.Connect.Success" {
+            print("[HTRTMP] Connect Success")
+            self.delegate?.socketConnectDone(self)
+          } else {
+            print("[HTRTMP] Connect failed")
+            // connect failed
+          }
         }
+      case is CreateStreamMessage:
+        let commandName = commandMessage.commandName
+        if commandName == "_result" {
+          print("[HTRTMP] Create Stream Success")
+          self.status = .connected
+          self.delegate?.socketCreateStreamDone(self)
+        } else {
+          print("[HTRTMP] Create Stream failed")
+        }
+      default:
+        break
       }
+
       return
     }
-    
-    if let connectMessage = message as? ConnectMessage {
-      print("[HTRTMP] ConnectMessage, size \(connectMessage.description)")
-      self.delegate?.socketConnectDone(self)
-      return
-    }
-    
+        
     if let controlMessage = message as? ControlMessage {
       print("[HTRTMP] ControlMessage, message Type:  \(controlMessage.messageType)")
       

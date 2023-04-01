@@ -9,6 +9,7 @@ import Foundation
 
 let commonTransactionId = (connect: 1, stream: 0)
 
+
 class CommandMessage: RTMPBaseMessage, CustomStringConvertible {
   let encodeType: ObjectEncodingType
   let commandName: String
@@ -104,6 +105,12 @@ class CreateStreamMessage: CommandMessage, Encodable {
     amf.append(Double(transactionId))
     amf.append(commandObject)
     return amf.data
+  }
+  
+  override var description: String {
+    let objDesc = commandObject != nil ? "\(commandObject!)" : "nil"
+    let infoDesc = info != nil ? "\(info!)" : "nil"
+    return "CreateStreamMessage: { commandName: \(commandName), transactionId: \(transactionId), commandObject: \(objDesc), info: \(infoDesc) }"
   }
 }
 
