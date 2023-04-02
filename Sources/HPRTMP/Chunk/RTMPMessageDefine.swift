@@ -229,7 +229,7 @@ public enum AudioData {
     case sndStereo = 1
   }
   
-  enum AACPacketType: UInt8 {
+  public enum AACPacketType: UInt8 {
     case header = 0
     case raw = 1
   }
