@@ -8,8 +8,8 @@
 import Foundation
 
 class ChunkEncoder {
-  // chunk size 128
-  private static let maxChunkSize: UInt8 = 128
+  
+  static let maxChunkSize: UInt8 = 128
   
   var chunkSize = UInt32(ChunkEncoder.maxChunkSize)
   

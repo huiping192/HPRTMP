@@ -137,7 +137,7 @@ class AMF0Decoder {
       throw AMF0DecodeError.rangeError
     }
     data.removeSubrange(range)
-    return Data(result).double
+    return Data(result.reversed()).double
   }
   
   func decodeBool() throws -> Bool {

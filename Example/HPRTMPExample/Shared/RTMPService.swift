@@ -31,6 +31,6 @@ class RTMPService {
       videoframerate: 30
     )
     
-    session.publish(url: "rtmp://192.168.11.23/live/hello", configure: publishConfig)
+    session.publish(url: "rtmp://192.168.11.23/live/haha", configure: publishConfig)
   }
 }

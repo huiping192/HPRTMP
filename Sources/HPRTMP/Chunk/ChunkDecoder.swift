@@ -67,8 +67,8 @@ actor MessageDecoder {
       // third is command object
       let objcet = data?[safe: 2] as? [String: Any]
       
-      // fourth is info
-      let info = data?[safe: 3] as? [String: Any]
+      // fourth is info, maybe object([String: Any?]) or Number(connect messsage)
+      let info = data?[safe: 3]
       
       return CommandMessage(encodeType: type, commandName: commandName, msgStreamId: msgStreamId, transactionId: Int(transactionId ?? 0), commandObject: objcet, info: info)
     case .data(type: let type):

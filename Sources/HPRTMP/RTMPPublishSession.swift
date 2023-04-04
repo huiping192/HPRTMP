@@ -171,7 +171,7 @@ extension RTMPPublishSession: RTMPSocketDelegate {
   
   func socketCreateStreamDone(_ socket: RTMPSocket, msgStreamId: Int) {
     Task {
-      let message = PublishMessage(encodeType: encodeType, streamName: "HPRTMP", type: .live)
+      let message = PublishMessage(encodeType: encodeType, streamName: socket.urlInfo?.key ?? "", type: .live)
 
       message.msgStreamId = msgStreamId
       self.connectId = msgStreamId

@@ -83,7 +83,7 @@ extension Double: AMF0Encode {
     var data = Data()
     data.write(RTMPAMF0Type.number.rawValue)
     // bigEndian
-    data.append(Data(self.bitPattern.data))
+    data.append(Data(self.bitPattern.bigEndian.data))
     return data
   }
 }

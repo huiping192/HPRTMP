@@ -42,14 +42,14 @@ class CommandMessage: RTMPBaseMessage, CustomStringConvertible {
   let transactionId: Int
   let commandObject: [String: Any?]?
   
-  let info: [String: Any?]?
+  let info: Any?
 
   init(encodeType: ObjectEncodingType,
        commandName: String,
        msgStreamId: Int = 0,
        transactionId: Int,
        commandObject: [String: Any?]? = nil,
-       info: [String: Any?]? = nil) {
+       info: Any? = nil) {
     self.commandName = commandName
     self.transactionId = transactionId
     self.commandObject = commandObject

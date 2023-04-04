@@ -306,8 +306,9 @@ extension RTMPSocket {
       if commandMessage.commandNameType == .result {
         print("[HTRTMP] Create Stream Success")
         self.status = .connected
-        let msgStreamId = message?.msgStreamId
-        self.delegate?.socketCreateStreamDone(self, msgStreamId: msgStreamId!)
+                
+        let msgStreamId = commandMessage.info as? Double ?? 0
+        self.delegate?.socketCreateStreamDone(self, msgStreamId: Int(msgStreamId))
       } else {
         print("[HTRTMP] Create Stream failed")
       }

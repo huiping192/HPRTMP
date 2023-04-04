@@ -7,16 +7,17 @@ struct ConnectResponse {
   
   var objectEncoding: ObjectEncodingType
   
-  init?(info: [String: Any?]?) {
-    guard let code = info?["code"] as? String else { return nil }
+  init?(info: Any?) {
+    guard let info = info as? [String: Any?] else { return nil }
+    guard let code = info["code"] as? String else { return nil }
     self.code = CodeType.Connect(rawValue: code) ?? .failed
     
-    guard let level = info?["level"] as? String else { return nil }
+    guard let level = info["level"] as? String else { return nil }
     self.level = level
-    guard let description = info?["description"] as? String else { return nil }
+    guard let description = info["description"] as? String else { return nil }
     self.description = description
     
-    guard let objectEncoding = info?["objectEncoding"] as? Double else { return nil }
+    guard let objectEncoding = info["objectEncoding"] as? Double else { return nil }
     self.objectEncoding = ObjectEncodingType(rawValue: UInt8(objectEncoding)) ?? .amf0
   }
 }
@@ -78,13 +79,14 @@ struct StatusResponse: Decodable {
   let level: Level?
   let description: String
   
-  init?(info: [String: Any?]?) {
-    guard let code = info?["code"] as? String else { return nil }
+  init?(info: Any?) {
+    guard let info = info as? [String: Any?] else { return nil }
+    guard let code = info["code"] as? String else { return nil }
     self.code = StreamStatus(rawValue: code) ?? .failed
     
-    guard let level = info?["level"] as? String else { return nil }
+    guard let level = info["level"] as? String else { return nil }
     self.level = Level(rawValue: level)
-    guard let description = info?["description"] as? String else { return nil }
+    guard let description = info["description"] as? String else { return nil }
     self.description = description
     
   }
