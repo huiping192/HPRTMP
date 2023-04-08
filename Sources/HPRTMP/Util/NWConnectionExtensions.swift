@@ -8,7 +8,6 @@
 import Foundation
 import Network
 
-
 extension NWConnection {
   private static let maxReadSize = Int(UInt16.max)
   
@@ -31,14 +30,21 @@ extension NWConnection {
   }
   
   func receiveData() async throws -> Data {
-    try await withCheckedThrowingContinuation { continuation in
+    try await withCheckedThrowingContinuation { [weak self]continuation in
+      guard let self else {
+        continuation.resume(returning: Data())
+        return
+      }
       self.receive(minimumIncompleteLength: Int(1), maximumLength: NWConnection.maxReadSize) { data, context, isComplete, error in
         if let error {
           continuation.resume(throwing: error)
           return
         }
         
-        guard let data else { return }
+        guard let data else {
+          continuation.resume(returning: Data())
+          return
+        }
         continuation.resume(returning: data)
       }
     }

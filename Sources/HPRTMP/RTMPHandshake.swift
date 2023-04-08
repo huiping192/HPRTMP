@@ -117,16 +117,16 @@ actor RTMPHandshake {
     status = .ackSent
     
     while true {
-      // receive server data 1536bytes
-      let data = try await dataReceiver()
-
-      handshakeData.append(data)
-
       if handshakeData.count >= 1536 {
         // remove s2 packet
         handshakeData.removeSubrange(0..<1536)
         break
       }
+      
+      // receive server data 1536bytes
+      let data = try await dataReceiver()
+
+      handshakeData.append(data)
     }
     // handshak done status
     status = .handshakeDone

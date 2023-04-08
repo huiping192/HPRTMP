@@ -50,6 +50,8 @@ public protocol RTMPPublishSessionDelegate: AnyObject {
 public class RTMPPublishSession {
   public enum Status: Equatable {
     case unknown
+    case handShakeStart
+    case handShakeDone
     case connect
     case publishStart
     case failed(err: RTMPError)
@@ -95,6 +97,8 @@ public class RTMPPublishSession {
     self.configure = configure
     socket.delegate = self
     socket.connect(url: url)
+    
+    publishStatus = .handShakeStart
   }
     
   public func publishVideo(data: Data, delta: UInt32) async throws {
@@ -134,10 +138,11 @@ extension RTMPPublishSession: RTMPSocketDelegate {
   
   func socketStreamPublishStart(_ socket: RTMPSocket) {
     print("[HPRTMP] socketStreamPublishStart")
+    publishStatus = .publishStart
     Task {
       guard let configure = configure, let connectId = connectId else { return }
       let metaMessage = MetaMessage(encodeType: encodeType, msgStreamId: connectId, meta: configure.meta)
-      try await socket.send(message: metaMessage)
+      try await socket.send(message: metaMessage, firstType: true)
     }
   }
   
@@ -154,19 +159,22 @@ extension RTMPPublishSession: RTMPSocketDelegate {
   }
 
   func socketConnectDone(_ socket: RTMPSocket) {
+    publishStatus = .connect
     Task {
       let message = CreateStreamMessage(encodeType: encodeType, transactionId: await transactionIdGenerator.nextId())
       await self.socket.messageHolder.register(message: message)
-      try await socket.send(message: message)
+      try await socket.send(message: message, firstType: true)
       
       // make chunk size more bigger
       let chunkSize: UInt32 = 1024*10
       let size = ChunkSizeMessage(size: chunkSize)
-      try await socket.send(message: size)
+      try await socket.send(message: size, firstType: true)
     }
   }
   
   func socketHandShakeDone(_ socket: RTMPSocket) {
+    publishStatus = .handShakeDone
+
     Task {
       guard let urlInfo = socket.urlInfo else { return }
       let connect = ConnectMessage(encodeType: encodeType,
@@ -191,7 +199,7 @@ extension RTMPPublishSession: RTMPSocketDelegate {
 
       message.msgStreamId = msgStreamId
       self.connectId = msgStreamId
-      try await socket.send(message: message)
+      try await socket.send(message: message, firstType: true)
       publishStatus = .connect
     }
   }

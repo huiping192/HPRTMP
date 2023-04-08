@@ -186,7 +186,7 @@ extension Stream.Event: CustomStringConvertible {
 }
 
 extension RTMPSocket {
-  func send(message: RTMPMessage & Encodable, firstType: Bool = false) async throws {
+  func send(message: RTMPMessage & Encodable, firstType: Bool) async throws {
     print("[HPRTMP] send message start: \(message)")
     
     if let message = message as? ChunkSizeMessage {
