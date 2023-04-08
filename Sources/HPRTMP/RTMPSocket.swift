@@ -86,9 +86,7 @@ public class RTMPSocket {
   private(set) var urlInfo: RTMPURLInfo?
   
   let messageHolder = MessageHolder()
-  
-  var connectId: Int = 0
-  
+    
   private let encoder = ChunkEncoder()
   private let decoder = MessageDecoder()
   

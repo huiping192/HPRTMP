@@ -89,7 +89,7 @@ public class RTMPPublishSession {
   
   private var configure: PublishConfigure?
   
-  private var connectId: Int?
+  private var connectId: Int = 0
   
   public init() {}
   
@@ -102,22 +102,22 @@ public class RTMPPublishSession {
   }
     
   public func publishVideo(data: Data, delta: UInt32) async throws {
-    let message = VideoMessage(msgStreamId: socket.connectId, data: data, timestamp: delta)
+    let message = VideoMessage(msgStreamId: connectId, data: data, timestamp: delta)
     try await socket.send(message: message, firstType: false)
   }
   
   public func publishVideoHeader(data: Data, time: UInt32) async throws {
-    let message = VideoMessage(msgStreamId: socket.connectId, data: data, timestamp: time)
+    let message = VideoMessage(msgStreamId: connectId, data: data, timestamp: time)
     try await socket.send(message: message, firstType: true)
   }
   
   public func publishAudio(data: Data, delta: UInt32) async throws {
-    let message = AudioMessage(msgStreamId: socket.connectId, data: data, timestamp: delta)
+    let message = AudioMessage(msgStreamId: connectId, data: data, timestamp: delta)
     try await socket.send(message: message, firstType: false)
   }
   
   public func publishAudioHeader(data: Data, time: UInt32) async throws {
-    let message = AudioMessage(msgStreamId: socket.connectId, data: data, timestamp: 0)
+    let message = AudioMessage(msgStreamId: connectId, data: data, timestamp: 0)
     try await socket.send(message: message, firstType: true)
   }
   
@@ -140,7 +140,7 @@ extension RTMPPublishSession: RTMPSocketDelegate {
     print("[HPRTMP] socketStreamPublishStart")
     publishStatus = .publishStart
     Task {
-      guard let configure = configure, let connectId = connectId else { return }
+      guard let configure = configure else { return }
       let metaMessage = MetaMessage(encodeType: encodeType, msgStreamId: connectId, meta: configure.meta)
       try await socket.send(message: metaMessage, firstType: true)
     }
