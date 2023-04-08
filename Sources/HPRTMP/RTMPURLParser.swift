@@ -8,6 +8,9 @@
 import Foundation
 struct RTMPURLInfo {
   let url: URL
+  var tcUrl: String {
+    "rtmp://\(url.host!)/\(appName)"
+  }
   let appName: String
   let key: String
   let port: Int
@@ -43,7 +46,7 @@ struct RTMPURLParser {
     let appName = pathComponents[1]
     let key = pathComponents[2]
     let port = parsedURL.port ?? 1935
-    
+        
     return RTMPURLInfo(url: parsedURL, appName: appName, key: key, port: port)
   }
 }

@@ -76,7 +76,8 @@ class CommandMessage: RTMPBaseMessage, CustomStringConvertible {
 class ConnectMessage: CommandMessage, Encodable {
   let argument: [String: Any?]?
   init(encodeType: ObjectEncodingType = .amf0,
-       url: URL,
+       tcUrl: String,
+       appName: String,
        flashVer: String,
        swfURL: URL? = nil,
        fpad: Bool,
@@ -85,11 +86,10 @@ class ConnectMessage: CommandMessage, Encodable {
        pageURL: URL? = nil,
        argument: [String: Any?]? = nil) {
     self.argument = argument
-    let u = url.path.split(separator: "/").first ?? "urlEmpty"
-    let obj:[String: Any?] = ["app": String(u),
+    let obj:[String: Any?] = ["app": appName,
                               "flashver": flashVer,
                               "swfUrl":swfURL?.absoluteString,
-                              "tcUrl":url.absoluteString,
+                              "tcUrl":tcUrl,
                               "fpad":fpad,
                               "audioCodecs": audio.rawValue,
                               "videoCodecs":video.rawValue,

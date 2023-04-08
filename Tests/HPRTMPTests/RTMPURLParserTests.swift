@@ -22,6 +22,7 @@ final class RTMPURLParserTests: XCTestCase {
     XCTAssertEqual(result?.key, expectedURLInfo.key)
     XCTAssertEqual(result?.port, expectedURLInfo.port)
     XCTAssertEqual(result?.host, "example.com")
+    XCTAssertEqual(result?.tcUrl, "rtmp://example.com/live")
   }
   
   func testParseValidURLWithCustomPart() throws {
@@ -35,6 +36,7 @@ final class RTMPURLParserTests: XCTestCase {
     XCTAssertEqual(result?.key, expectedURLInfo.key)
     XCTAssertEqual(result?.port, expectedURLInfo.port)
     XCTAssertEqual(result?.host, "example.com")
+    XCTAssertEqual(result?.tcUrl, "rtmp://example.com/live")
   }
   
   func testParseInvalidURL() {

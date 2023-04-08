@@ -131,8 +131,6 @@ actor RTMPHandshake {
     // handshak done status
     status = .handshakeDone
   }
-  
-  
 }
 
 

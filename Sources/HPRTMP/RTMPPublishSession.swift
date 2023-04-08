@@ -168,8 +168,10 @@ extension RTMPPublishSession: RTMPSocketDelegate {
   
   func socketHandShakeDone(_ socket: RTMPSocket) {
     Task {
+      guard let urlInfo = socket.urlInfo else { return }
       let connect = ConnectMessage(encodeType: encodeType,
-                                   url: socket.urlInfo!.url,
+                                   tcUrl: urlInfo.tcUrl,
+                                   appName: urlInfo.appName,
                                    flashVer: flashVer,
                                    fpad: false,
                                    audio: .aac,
