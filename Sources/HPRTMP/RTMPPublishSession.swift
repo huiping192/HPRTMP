@@ -101,18 +101,18 @@ public class RTMPPublishSession {
     publishStatus = .handShakeStart
   }
     
-  public func publishVideo(data: Data, delta: UInt32) async throws {
-    let message = VideoMessage(msgStreamId: connectId, data: data, timestamp: delta)
-    try await socket.send(message: message, firstType: false)
-  }
+  private var videoHeaderSended = false
   
   public func publishVideoHeader(data: Data, time: UInt32) async throws {
     let message = VideoMessage(msgStreamId: connectId, data: data, timestamp: time)
     try await socket.send(message: message, firstType: true)
+    videoHeaderSended = true
   }
   
-  public func publishAudio(data: Data, delta: UInt32) async throws {
-    let message = AudioMessage(msgStreamId: connectId, data: data, timestamp: delta)
+  public func publishVideo(data: Data, delta: UInt32) async throws {
+    guard videoHeaderSended else { return }
+
+    let message = VideoMessage(msgStreamId: connectId, data: data, timestamp: delta)
     try await socket.send(message: message, firstType: false)
   }
   
@@ -121,6 +121,10 @@ public class RTMPPublishSession {
     try await socket.send(message: message, firstType: true)
   }
   
+  public func publishAudio(data: Data, delta: UInt32) async throws {
+    let message = AudioMessage(msgStreamId: connectId, data: data, timestamp: delta)
+    try await socket.send(message: message, firstType: false)
+  }
 }
 
 extension RTMPPublishSession: RTMPSocketDelegate {
