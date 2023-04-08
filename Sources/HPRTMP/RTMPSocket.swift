@@ -106,7 +106,7 @@ public class RTMPSocket {
   }
   
   public func connect(streamURL: URL, streamKey: String, port: Int = 1935) {
-    let urlInfo = RTMPURLInfo(url: streamURL, key: streamKey, port: port)
+    let urlInfo = RTMPURLInfo(url: streamURL, appName: "", key: streamKey, port: port)
     self.urlInfo = urlInfo
   }
 }

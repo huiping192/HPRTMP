@@ -14,21 +14,24 @@ final class RTMPURLParserTests: XCTestCase {
   func testParseValidURLWithDefaultPort() throws {
     let parser = RTMPURLParser()
     let url = "rtmp://example.com/live/stream"
-    let expectedURLInfo = RTMPURLInfo(url: URL(string: url)!, key: "live/stream", port: 1935)
+    let expectedURLInfo = RTMPURLInfo(url: URL(string: url)!, appName: "live", key: "stream", port: 1935)
     
     let result = try parser.parse(url: url)
     XCTAssertEqual(result?.url, expectedURLInfo.url)
+    XCTAssertEqual(result?.appName, expectedURLInfo.appName)
     XCTAssertEqual(result?.key, expectedURLInfo.key)
     XCTAssertEqual(result?.port, expectedURLInfo.port)
     XCTAssertEqual(result?.host, "example.com")
   }
+  
   func testParseValidURLWithCustomPart() throws {
     let parser = RTMPURLParser()
     let url = "rtmp://example.com:1937/live/stream"
-    let expectedURLInfo = RTMPURLInfo(url: URL(string: url)!, key: "live/stream", port: 1937)
+    let expectedURLInfo = RTMPURLInfo(url: URL(string: url)!, appName: "live", key: "stream", port: 1937)
     
     let result = try parser.parse(url: url)
     XCTAssertEqual(result?.url, expectedURLInfo.url)
+    XCTAssertEqual(result?.appName, expectedURLInfo.appName)
     XCTAssertEqual(result?.key, expectedURLInfo.key)
     XCTAssertEqual(result?.port, expectedURLInfo.port)
     XCTAssertEqual(result?.host, "example.com")
@@ -38,7 +41,9 @@ final class RTMPURLParserTests: XCTestCase {
     let parser = RTMPURLParser()
     let url = "http://example.com/live/stream"
     
-    XCTAssertThrowsError(try parser.parse(url: url))
+    XCTAssertThrowsError(try parser.parse(url: url)) { error in
+      XCTAssertEqual(error as? RTMPURLParsingError, RTMPURLParsingError.invalidScheme)
+    }
   }
   
 }

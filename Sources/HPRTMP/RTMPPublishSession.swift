@@ -48,12 +48,26 @@ public protocol RTMPPublishSessionDelegate: AnyObject {
 }
 
 public class RTMPPublishSession {
-  public enum Status {
-      case unknown
-      case connect
-      case publishStart
-      case failed(err: RTMPError)
-      case disconnected
+  public enum Status: Equatable {
+    case unknown
+    case connect
+    case publishStart
+    case failed(err: RTMPError)
+    case disconnected
+    
+    public static func ==(lhs: Status, rhs: Status) -> Bool {
+      switch (lhs, rhs) {
+      case (.unknown, .unknown),
+        (.connect, .connect),
+        (.publishStart, .publishStart),
+        (.disconnected, .disconnected):
+        return true
+      case let (.failed(err1), .failed(err2)):
+        return err1.localizedDescription == err2.localizedDescription
+      default:
+        return false
+      }
+    }
   }
   
   public weak var delegate: RTMPPublishSessionDelegate?

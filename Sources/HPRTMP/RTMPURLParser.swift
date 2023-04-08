@@ -6,9 +6,9 @@
 //
 
 import Foundation
-
 struct RTMPURLInfo {
   let url: URL
+  let appName: String
   let key: String
   let port: Int
   
@@ -18,8 +18,9 @@ struct RTMPURLInfo {
 }
 
 enum RTMPURLParsingError: Error {
-    case invalidScheme
-    case invalidURL
+  case invalidScheme
+  case invalidURL
+  case missingAppNameOrKey
 }
 
 struct RTMPURLParser {
@@ -27,16 +28,22 @@ struct RTMPURLParser {
   
   func parse(url: String) throws -> RTMPURLInfo? {
     guard let parsedURL = URL(string: url) else {
-      return nil
+      throw RTMPURLParsingError.invalidURL
     }
     
     guard let scheme = parsedURL.scheme, scheme == "rtmp" else {
       throw RTMPURLParsingError.invalidScheme
     }
     
-    let port = parsedURL.port ?? 1935
-    let key = parsedURL.path.dropFirst().trimmingCharacters(in: .whitespacesAndNewlines)
+    let pathComponents = parsedURL.pathComponents
+    guard pathComponents.count >= 3 else {
+      throw RTMPURLParsingError.missingAppNameOrKey
+    }
     
-    return RTMPURLInfo(url: parsedURL, key: key, port: port)
+    let appName = pathComponents[1]
+    let key = pathComponents[2]
+    let port = parsedURL.port ?? 1935
+    
+    return RTMPURLInfo(url: parsedURL, appName: appName, key: key, port: port)
   }
 }

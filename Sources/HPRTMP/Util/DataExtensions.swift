@@ -7,7 +7,7 @@
 
 import Foundation
 
-extension Data {
+public extension Data {
   mutating func write(_ value: UInt8) {
     write([value])
   }
