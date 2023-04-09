@@ -173,25 +173,22 @@ extension Stream.Event: CustomStringConvertible {
 }
 
 extension RTMPSocket {
-  func send(message: RTMPMessage & Encodable, firstType: Bool) async throws {
-    print("[HPRTMP] send message start: \(message)")
-    
-    if let message = message as? ChunkSizeMessage {
-      encoder.chunkSize = message.size
-    }
-    let datas = encoder.chunk(message: message, isFirstType0: firstType).map({ $0.encode() })
-    do {
-      try await self.sendChunk(datas)
-      print("[HPRTMP] send message successd: \(message)")
-    } catch {
-      print("[HPRTMP] send message failed: \(message), error: \(error)")
-      throw error
-    }
-    
-  }
-  
-  private func sendChunk(_ data: [Data]) async throws {
-    try await connection?.sendData(data)
+  func send(message: RTMPMessage & Encodable, firstType: Bool) {
+    Task {
+      print("[HPRTMP] send message start: \(message)")
+      
+      if let message = message as? ChunkSizeMessage {
+        encoder.chunkSize = message.size
+      }
+      let datas = encoder.chunk(message: message, isFirstType0: firstType).map({ $0.encode() })
+      do {
+        try await connection?.sendData(datas)
+        print("[HPRTMP] send message successd: \(message)")
+      } catch {
+        print("[HPRTMP] send message failed: \(message), error: \(error)")
+        delegate?.socketError(self, err: .stream(desc: error.localizedDescription))
+      }
+    }    
   }
 }
 

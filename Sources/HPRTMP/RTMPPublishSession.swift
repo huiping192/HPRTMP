@@ -37,7 +37,7 @@ public struct PublishConfigure {
 
 
 public protocol RTMPPublishSessionDelegate: AnyObject {
-    func sessionStatusChange(_ session: RTMPPublishSession,  status: RTMPPublishSession.Status)
+  func sessionStatusChange(_ session: RTMPPublishSession,  status: RTMPPublishSession.Status)
 }
 
 public class RTMPPublishSession {
@@ -66,7 +66,7 @@ public class RTMPPublishSession {
   }
   
   public weak var delegate: RTMPPublishSessionDelegate?
-
+  
   public var publishStatus: Status = .unknown {
     didSet {
       delegate?.sessionStatusChange(self, status: publishStatus)
@@ -74,7 +74,7 @@ public class RTMPPublishSession {
   }
   
   public let encodeType: ObjectEncodingType = .amf0
-
+  
   private let socket = RTMPSocket()
   
   private let transactionIdGenerator = TransactionIdGenerator()
@@ -92,29 +92,29 @@ public class RTMPPublishSession {
     
     publishStatus = .handShakeStart
   }
-    
+  
   private var videoHeaderSended = false
   
   public func publishVideoHeader(data: Data, time: UInt32) async throws {
     let message = VideoMessage(msgStreamId: connectId, data: data, timestamp: time)
-    try await socket.send(message: message, firstType: true)
+    socket.send(message: message, firstType: true)
     videoHeaderSended = true
   }
   
   public func publishVideo(data: Data, delta: UInt32) async throws {
     guard videoHeaderSended else { return }
     let message = VideoMessage(msgStreamId: connectId, data: data, timestamp: delta)
-    try await socket.send(message: message, firstType: false)
+    socket.send(message: message, firstType: false)
   }
   
   public func publishAudioHeader(data: Data, time: UInt32) async throws {
     let message = AudioMessage(msgStreamId: connectId, data: data, timestamp: 0)
-    try await socket.send(message: message, firstType: true)
+    socket.send(message: message, firstType: true)
   }
   
   public func publishAudio(data: Data, delta: UInt32) async throws {
     let message = AudioMessage(msgStreamId: connectId, data: data, timestamp: delta)
-    try await socket.send(message: message, firstType: false)
+    socket.send(message: message, firstType: false)
   }
 }
 
@@ -134,11 +134,9 @@ extension RTMPPublishSession: RTMPSocketDelegate {
   func socketStreamPublishStart(_ socket: RTMPSocket) {
     print("[HPRTMP] socketStreamPublishStart")
     publishStatus = .publishStart
-    Task {
-      guard let configure = configure else { return }
-      let metaMessage = MetaMessage(encodeType: encodeType, msgStreamId: connectId, meta: configure.meta)
-      try await socket.send(message: metaMessage, firstType: true)
-    }
+    guard let configure = configure else { return }
+    let metaMessage = MetaMessage(encodeType: encodeType, msgStreamId: connectId, meta: configure.meta)
+    socket.send(message: metaMessage, firstType: true)
   }
   
   func socketStreamRecord(_ socket: RTMPSocket) {
@@ -152,24 +150,24 @@ extension RTMPPublishSession: RTMPSocketDelegate {
   func socketStreamPause(_ socket: RTMPSocket, pause: Bool) {
     
   }
-
+  
   func socketConnectDone(_ socket: RTMPSocket) {
     publishStatus = .connect
     Task {
       let message = CreateStreamMessage(encodeType: encodeType, transactionId: await transactionIdGenerator.nextId())
       await self.socket.messageHolder.register(transactionId: message.transactionId, message: message)
-      try await socket.send(message: message, firstType: true)
+      socket.send(message: message, firstType: true)
       
       // make chunk size more bigger
       let chunkSize: UInt32 = 1024*10
       let size = ChunkSizeMessage(size: chunkSize)
-      try await socket.send(message: size, firstType: true)
+      socket.send(message: size, firstType: true)
     }
   }
   
   func socketHandShakeDone(_ socket: RTMPSocket) {
     publishStatus = .handShakeDone
-
+    
     Task {
       guard let urlInfo = socket.urlInfo else { return }
       let connect = ConnectMessage(encodeType: encodeType,
@@ -180,28 +178,22 @@ extension RTMPPublishSession: RTMPSocketDelegate {
                                    audio: .aac,
                                    video: .h264)
       await self.socket.messageHolder.register(transactionId: connect.transactionId, message: connect)
-      do {
-        try await self.socket.send(message: connect, firstType: true)
-      } catch {
-        // todo
-      }
+      self.socket.send(message: connect, firstType: true)
     }
   }
   
   func socketCreateStreamDone(_ socket: RTMPSocket, msgStreamId: Int) {
-    Task {
-      let message = PublishMessage(encodeType: encodeType, streamName: socket.urlInfo?.key ?? "", type: .live)
-
-      message.msgStreamId = msgStreamId
-      self.connectId = msgStreamId
-      try await socket.send(message: message, firstType: true)
-      publishStatus = .connect
-    }
+    let message = PublishMessage(encodeType: encodeType, streamName: socket.urlInfo?.key ?? "", type: .live)
+    
+    message.msgStreamId = msgStreamId
+    self.connectId = msgStreamId
+    socket.send(message: message, firstType: true)
+    publishStatus = .connect
   }
   
   func socketPinRequest(_ socket: RTMPSocket, data: Data) {
-//    let message = UserControlMessage(type: .pingRequest, data: data)
-//    socket.send(message: message, firstType: true)
+    //    let message = UserControlMessage(type: .pingRequest, data: data)
+    //    socket.send(message: message, firstType: true)
   }
   
   func socketError(_ socket: RTMPSocket, err: RTMPError) {
@@ -209,10 +201,8 @@ extension RTMPPublishSession: RTMPSocketDelegate {
   }
   
   func socketPeerBandWidth(_ socket: RTMPSocket, size: UInt32) {
-  // send window ack message  to server
-    Task {
-      try await socket.send(message: WindowAckMessage(size: size), firstType: true)
-    }
+    // send window ack message  to server
+    socket.send(message: WindowAckMessage(size: size), firstType: true)
   }
   
   func socketDisconnected(_ socket: RTMPSocket) {
