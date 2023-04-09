@@ -17,12 +17,15 @@ public enum RTMPStatus {
 }
 
 public enum RTMPError: Error {
+  case shakehands(desc: String)
   case stream(desc: String)
   case command(desc: String)
   case uknown(desc: String)
   var localizedDescription: String {
     get {
       switch self {
+      case .shakehands(let desc):
+        return desc
       case .stream(let desc):
         return desc
       case .command(let desc):
@@ -118,16 +121,12 @@ extension RTMPSocket {
     let host = NWEndpoint.Host(urlInfo.host)
     let connection = NWConnection(host: host, port: port ?? 1935, using: .tcp)
     self.connection = connection
-    connection.stateUpdateHandler = { newState in
+    connection.stateUpdateHandler = { [weak self]newState in
+      guard let self else { return }
       print("[HPRTMP] connection \(connection) state: \(newState)")
       switch newState {
       case .ready:
-        Task {
-          try await self.handshake?.start()
-          self.delegate?.socketHandShakeDone(self)
-          // handshake終わったあとのデータ取得
-          try await self.startReceiveData()
-        }
+        self.startShakeHands()
       case .failed(let error):
         print("[HPRTMP] connection error: \(error.localizedDescription)")
         self.delegate?.socketError(self, err: .uknown(desc: error.localizedDescription))
@@ -141,6 +140,22 @@ extension RTMPSocket {
     connection.start(queue: DispatchQueue.global(qos: .default))
   }
   
+  private func startShakeHands() {
+    Task {
+      do {
+        try await handshake?.start()
+        self.delegate?.socketHandShakeDone(self)
+      } catch {
+        self.delegate?.socketError(self, err: .shakehands(desc: error.localizedDescription))
+      }
+      do {
+        // handshake終わったあとのデータ取得
+        try await startReceiveData()
+      } catch {
+        self.delegate?.socketError(self, err: .uknown(desc: error.localizedDescription))
+      }
+    }
+  }
   
   public func invalidate() {
     guard status != .closed && status != .none else { return }
@@ -148,9 +163,8 @@ extension RTMPSocket {
       await handshake?.reset()
       await decoder.reset()
       encoder.reset()
-      //    info.reset(clearInfo)
+      urlInfo = nil
     }
-    
   }
   
   private func startReceiveData() async throws {
