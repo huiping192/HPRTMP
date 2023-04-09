@@ -184,13 +184,13 @@ public enum AudioData {
     }
   }
   
-  enum SoundRate: Int {
+  public enum SoundRate: Int {
     case kHz5_5 = 0
     case kHz11 = 1
     case kHz22 = 2
     case kHz44 = 3
     
-    init(value: Float64) {
+    public init(value: Float64) {
       switch value {
       case 44100:
         self = .kHz44
@@ -205,7 +205,7 @@ public enum AudioData {
       }
     }
     
-    var value: Float64 {
+    public var value: Float64 {
       switch self {
       case .kHz5_5:
         return 5500
@@ -219,12 +219,12 @@ public enum AudioData {
     }
   }
   
-  enum SoundSize: Int {
+  public enum SoundSize: Int {
     case snd8Bit = 0
     case snd16Bit = 1
   }
   
-  enum SoundType: Int {
+  public enum SoundType: Int {
     case sndMono = 0
     case sndStereo = 1
   }
@@ -232,5 +232,116 @@ public enum AudioData {
   public enum AACPacketType: UInt8 {
     case header = 0
     case raw = 1
+  }
+}
+
+public enum ChannelConfigType: UInt8 {
+  // C = Center
+  // L = Left
+  // R = Right
+  // LFE = LFE-channel
+  case aot = 0
+  case front_C = 1
+  case front_LR = 2
+  case front_CLR = 3
+  case front_CLR_back_C = 4
+  case front_CLR_back_LR = 5
+  case front_CLR_back_LR_LFE = 6
+  case front_CLR_side_LR_back_LR_LFE = 7
+  case reserved = 8
+  case unknown = 0xff
+  public init(rawValue: UInt8) {
+    switch rawValue {
+    case 0: self = .aot
+    case 1: self = .front_C
+    case 2: self = .front_LR
+    case 3: self = .front_CLR
+    case 4: self = .front_CLR_back_C
+    case 5: self = .front_CLR_back_LR
+    case 6: self = .front_CLR_back_LR_LFE
+    case 7: self = .front_CLR_side_LR_back_LR_LFE
+    case 8: self = .reserved
+    default: self = .unknown
+    }
+  }
+}
+
+public enum SampleFrequencyType: UInt8 {
+  case kHz96000 = 0
+  case kHz88200 = 1
+  case kHz64000 = 2
+  case kHz48000 = 3
+  case kHz44100 = 4
+  case kHz32000 = 5
+  case kHz24000 = 6
+  case kHz22050 = 7
+  case kHz16000 = 8
+  case kHz12000 = 9
+  case kHz11025 = 10
+  case kHz8000 = 11
+  case kHz7350 = 12
+  case reserved0 = 13
+  case reserved1 = 14
+  case writenExplictly = 15
+  case unknown = 0xff
+  public init(rawValue: UInt8) {
+    switch rawValue {
+    case 0: self = .kHz96000
+    case 1: self = .kHz88200
+    case 2: self = .kHz64000
+    case 3: self = .kHz48000
+    case 4: self = .kHz44100
+    case 5: self = .kHz32000
+    case 6: self = .kHz24000
+    case 7: self = .kHz22050
+    case 8: self = .kHz16000
+    case 9: self = .kHz12000
+    case 10: self = .kHz11025
+    case 11: self = .kHz8000
+    case 12: self = .kHz7350
+    case 13: self = .reserved0
+    case 14: self = .reserved1
+    case 15: self = .writenExplictly
+    default: self = .unknown
+    }
+  }
+  
+  public init(value: Double) {
+    switch value {
+    case 96000: self = .kHz96000
+    case 88200: self = .kHz88200
+    case 64000: self = .kHz64000
+    case 48000: self = .kHz48000
+    case 44100: self = .kHz44100
+    case 32000: self = .kHz32000
+    case 24000: self = .kHz24000
+    case 22050: self = .kHz22050
+    case 16000: self = .kHz16000
+    case 12000: self = .kHz12000
+    case 11025: self = .kHz11025
+    case 8000: self = .kHz8000
+    case 7350: self = .kHz7350
+    default: self = .unknown
+    }
+    
+    
+  }
+  public var value: Int {
+    switch self {
+    case .kHz96000: return 96000
+    case .kHz88200: return 88200
+    case .kHz64000: return 64000
+    case .kHz48000: return 48000
+    case .kHz44100: return 44100
+    case .kHz32000: return 32000
+    case .kHz24000: return 24000
+    case .kHz22050: return 22050
+    case .kHz16000: return 16000
+    case .kHz12000: return 12000
+    case .kHz11025: return 11025
+    case .kHz8000: return 8000
+    case .kHz7350: return 7350
+    case .unknown, .reserved0, .reserved1 , .writenExplictly: return 0xff
+    }
   }
 }

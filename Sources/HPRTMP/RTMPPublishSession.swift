@@ -111,7 +111,6 @@ public class RTMPPublishSession {
   
   public func publishVideo(data: Data, delta: UInt32) async throws {
     guard videoHeaderSended else { return }
-
     let message = VideoMessage(msgStreamId: connectId, data: data, timestamp: delta)
     try await socket.send(message: message, firstType: false)
   }
