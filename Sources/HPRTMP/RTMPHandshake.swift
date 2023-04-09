@@ -8,7 +8,7 @@
 import Foundation
 
 protocol RTMPHandshakeDelegate: AnyObject {
-  func rtmpHandshakeDidChangeStatus(status: RTMPHandshake.Status)
+  func rtmpHandshakeDidChange(status: RTMPHandshake.Status)
 }
 
 actor RTMPHandshake {
@@ -41,7 +41,7 @@ actor RTMPHandshake {
   private(set) var status = Status.none {
     didSet {
       print("[HPRTMP] handshake status changed: \(status)")
-      delegate?.rtmpHandshakeDidChangeStatus(status: status)
+      delegate?.rtmpHandshakeDidChange(status: status)
     }
   }
   

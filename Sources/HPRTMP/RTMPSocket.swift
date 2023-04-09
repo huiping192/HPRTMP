@@ -104,7 +104,11 @@ extension RTMPSocket {
       print("[HPRTMP] connection \(connection) state: \(newState)")
       switch newState {
       case .ready:
-        self.startShakeHands()
+        Task {
+          self.handshake = RTMPHandshake(dataSender: connection.sendData, dataReceiver: connection.receiveData)
+          await self.handshake?.setDelegate(delegate: self)
+          self.startShakeHands()
+        }
       case .failed(let error):
         print("[HPRTMP] connection error: \(error.localizedDescription)")
         self.delegate?.socketError(self, err: .uknown(desc: error.localizedDescription))
@@ -114,7 +118,7 @@ extension RTMPSocket {
       }
     }
     
-    handshake = RTMPHandshake(dataSender: connection.sendData, dataReceiver: connection.receiveData)
+
     connection.start(queue: DispatchQueue.global(qos: .default))
   }
   
@@ -122,15 +126,8 @@ extension RTMPSocket {
     Task {
       do {
         try await handshake?.start()
-        self.delegate?.socketHandShakeDone(self)
       } catch {
         self.delegate?.socketError(self, err: .handShake(desc: error.localizedDescription))
-      }
-      do {
-        // handshake終わったあとのデータ取得
-        try await startReceiveData()
-      } catch {
-        self.delegate?.socketError(self, err: .uknown(desc: error.localizedDescription))
       }
     }
   }
@@ -195,6 +192,21 @@ extension RTMPSocket {
   
   private func sendChunk(_ data: [Data]) async throws {
     try await connection?.sendData(data)
+  }
+}
+
+extension RTMPSocket: RTMPHandshakeDelegate {
+  func rtmpHandshakeDidChange(status: RTMPHandshake.Status) {
+    guard status == .handshakeDone else { return }
+    Task {
+      do {
+        self.delegate?.socketHandShakeDone(self)
+        // handshake終わったあとのデータ取得
+        try await startReceiveData()
+      } catch {
+        self.delegate?.socketError(self, err: .uknown(desc: error.localizedDescription))
+      }
+    }
   }
 }
 
