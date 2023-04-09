@@ -7,6 +7,10 @@
 
 import Foundation
 
+protocol RTMPHandshakeDelegate: AnyObject {
+  func rtmpHandshakeDidChangeStatus(status: RTMPHandshake.Status)
+}
+
 actor RTMPHandshake {
   enum Status {
     case uninitalized
@@ -18,11 +22,16 @@ actor RTMPHandshake {
   
   // const 1536 byte
   static let packetSize = 1536
-  static let rtmpVersion: UInt8 = 3
-  var timestamp:TimeInterval = 0
+  private static let rtmpVersion: UInt8 = 3
   
   private let dataSender: (Data) async throws -> Void
   private let dataReceiver: () async throws -> Data
+  
+  weak var delegate: RTMPHandshakeDelegate?
+  
+  public func setDelegate(delegate: RTMPHandshakeDelegate?) {
+    self.delegate = delegate
+  }
   
   public init(dataSender: @escaping (Data) async throws -> Void, dataReceiver: @escaping () async throws -> Data) {
     self.dataSender = dataSender
@@ -32,14 +41,7 @@ actor RTMPHandshake {
   private(set) var status = Status.none {
     didSet {
       print("[HPRTMP] handshake status changed: \(status)")
-      switch status {
-      case .none, .uninitalized:
-        timestamp = 0
-      case .verSent:
-        break
-      default:
-        break
-      }
+      delegate?.rtmpHandshakeDidChangeStatus(status: status)
     }
   }
   
@@ -49,7 +51,7 @@ actor RTMPHandshake {
     // rtmp version
     data.write(RTMPHandshake.rtmpVersion)
     // time stamp
-    data.write(UInt32(timestamp).toUInt8Array())
+    data.write(UInt32(0).toUInt8Array())
     // const 0,0,0,0
     data.write([0x00,0x00,0x00,0x00])
     
@@ -66,7 +68,7 @@ actor RTMPHandshake {
     // s1 timestamp
     data.append(s0s1Packet.subdata(in: 0..<4))
     // timestamp
-    data.write(UInt32(Date().timeIntervalSince1970 - timestamp).bigEndian.toUInt8Array())
+    data.write(UInt32(Date().timeIntervalSince1970).bigEndian.toUInt8Array())
     // c2 random
     data.append(s0s1Packet.subdata(in: 8..<RTMPHandshake.packetSize))
     return data
@@ -75,57 +77,49 @@ actor RTMPHandshake {
   func reset() {
     self.status = .none
   }
-    
-  private func sendC0c1Packet() async throws {
-    try await dataSender(c0c1Packet)
-  }
   
-  private func sendC2Packet(data: Data) async throws {
-    try await dataSender(c2Packet(s0s1Packet: data))
-  }
-  
-    
   func start() async throws {
     // status: uninitalized
     status = .uninitalized
     
     // send c0c1 packet
-    try await sendC0c1Packet()
+    try await dataSender(c0c1Packet)
     
     var handshakeData = Data()
     
     var s0s1Packet: Data = Data()
     while true {
-      // receive server data 1536bytes
+      // receive server data
       let data = try await dataReceiver()
       handshakeData.append(data)
-
+      
       // first byte is rtmp version, ignore
-      if handshakeData.count >= 1536 + 1 {
-        s0s1Packet = handshakeData.subdata(in: 1..<1537)
-        handshakeData.removeSubrange(0..<1537)
+      let firstHandlingDataSize = Self.packetSize + 1
+      if handshakeData.count >= firstHandlingDataSize {
+        s0s1Packet = handshakeData.subdata(in: 1..<firstHandlingDataSize)
+        handshakeData.removeSubrange(0..<firstHandlingDataSize)
         // verSent status
         status = .verSent
         break
       }
     }
-   
+    
     // send c2 packet
-    try await sendC2Packet(data: c2Packet(s0s1Packet:s0s1Packet))
+    try await dataSender(c2Packet(s0s1Packet: s0s1Packet))
     
     // ackSent status
     status = .ackSent
     
     while true {
-      if handshakeData.count >= 1536 {
+      if handshakeData.count >= Self.packetSize {
         // remove s2 packet
-        handshakeData.removeSubrange(0..<1536)
+        handshakeData.removeSubrange(0..<Self.packetSize)
         break
       }
       
       // receive server data 1536bytes
       let data = try await dataReceiver()
-
+      
       handshakeData.append(data)
     }
     // handshak done status

@@ -56,5 +56,4 @@ final class RTMPHandshakeTests: XCTestCase {
     XCTAssertEqual(c2Timestamp, Data(s1Timestamp), "C2 timestamp is incorrect")
     XCTAssertEqual(c2Packet.subdata(in: 8..<1536), s1Packet.subdata(in: 8..<RTMPHandshake.packetSize), "C2 random data is incorrect")
   }
-  
 }
