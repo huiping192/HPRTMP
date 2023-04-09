@@ -566,7 +566,7 @@ class ChunkDecoderTests: XCTestCase {
   
   
   func testMessageHeaderType0() async {
-    let data: [UInt8] = [0x00, 0x01, 0x02, 0x00, 0x00, 0x04, 0x12, 0x34, 0x56, 0x78, 0x00]
+    let data: [UInt8] = [0x00, 0x01, 0x02, 0x00, 0x00, 0x04, 0x12, 0x00, 0x00, 0x00, 0x01]
     
     let decoder = ChunkDecoder()
     
@@ -577,7 +577,7 @@ class ChunkDecoderTests: XCTestCase {
     XCTAssertEqual(headerType0.timestamp, Data([0x02, 0x01, 0x00, 0x00]).uint32)
     XCTAssertEqual(headerType0.messageLength, 0x000004)
     XCTAssertEqual(headerType0.type, MessageType.data(type: .amf0))
-    let streamId = Data([0x00, 0x78, 0x56, 0x34]).uint32
+    let streamId = Data([0x00, 0x00, 0x00, 0x01]).uint32
     XCTAssertEqual(headerType0.messageStreamId, Int(streamId))
   }
   

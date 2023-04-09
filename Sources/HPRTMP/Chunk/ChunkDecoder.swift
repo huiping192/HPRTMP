@@ -279,8 +279,8 @@ actor ChunkDecoder {
       let messageLength = Data(data[3...5].reversed() + [0x00]).uint32
       // message type id 1byte
       let messageType = MessageType(rawValue: data[6])
-      // msg stream id 4bytes
-      let messageStreamId = Data(data[7...10].reversed()).uint32
+      // msg stream id 4bytes, little-endian
+      let messageStreamId = Data(data[7...10]).uint32
       
       if timestamp == maxTimestamp {
         let extendTimestamp = Data(data[11...14].reversed()).uint32
