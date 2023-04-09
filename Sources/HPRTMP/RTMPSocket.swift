@@ -152,26 +152,6 @@ extension RTMPSocket {
   }
 }
 
-
-extension Stream.Event: CustomStringConvertible {
-  public var description: String {
-    switch self {
-    case Stream.Event.openCompleted:
-      return "openCompleted"
-    case Stream.Event.hasBytesAvailable:
-      return "hasBytesAvailable"
-    case Stream.Event.hasSpaceAvailable:
-      return "hasSpaceAvailable"
-    case Stream.Event.errorOccurred:
-      return "errorOccurred"
-    case Stream.Event.endEncountered:
-      return "endEncountered"
-    default:
-      return "unknown"
-    }
-  }
-}
-
 extension RTMPSocket {
   func send(message: RTMPMessage & Encodable, firstType: Bool) {
     Task {
