@@ -157,7 +157,7 @@ extension RTMPPublishSession: RTMPSocketDelegate {
     publishStatus = .connect
     Task {
       let message = CreateStreamMessage(encodeType: encodeType, transactionId: await transactionIdGenerator.nextId())
-      await self.socket.messageHolder.register(message: message)
+      await self.socket.messageHolder.register(transactionId: message.transactionId, message: message)
       try await socket.send(message: message, firstType: true)
       
       // make chunk size more bigger
@@ -179,7 +179,7 @@ extension RTMPPublishSession: RTMPSocketDelegate {
                                    fpad: false,
                                    audio: .aac,
                                    video: .h264)
-      await self.socket.messageHolder.register(message: connect)
+      await self.socket.messageHolder.register(transactionId: connect.transactionId, message: connect)
       do {
         try await self.socket.send(message: connect, firstType: true)
       } catch {
@@ -222,12 +222,3 @@ extension RTMPPublishSession: RTMPSocketDelegate {
   
 }
 
-
-private actor TransactionIdGenerator {
-  private var currentId: Int = 1
-  
-  func nextId() -> Int {
-    currentId += 1
-    return currentId
-  }
-}

@@ -17,14 +17,14 @@ public enum RTMPStatus {
 }
 
 public enum RTMPError: Error {
-  case shakehands(desc: String)
+  case handShake(desc: String)
   case stream(desc: String)
   case command(desc: String)
   case uknown(desc: String)
   var localizedDescription: String {
     get {
       switch self {
-      case .shakehands(let desc):
+      case .handShake(let desc):
         return desc
       case .stream(let desc):
         return desc
@@ -54,28 +54,6 @@ protocol RTMPSocketDelegate: AnyObject {
   func socketStreamRecord(_ socket: RTMPSocket)
   func socketStreamPlayStart(_ socket: RTMPSocket)
   func socketStreamPause(_ socket: RTMPSocket, pause: Bool)
-}
-
-actor MessageHolder {
-  private (set) var transactionId = 1
-  
-  var raw = [Int: RTMPBaseMessage]()
-  
-  func register(message: RTMPBaseMessage) {
-    raw[transactionId] = message
-  }
-  
-  func removeMessage(id: Int) -> RTMPBaseMessage? {
-    let value = raw[transactionId]
-    raw[transactionId] = nil
-    return value
-  }
-  
-  @discardableResult
-  func shiftTransactionId () -> Int {
-    self.transactionId += 1
-    return self.transactionId
-  }
 }
 
 public class RTMPSocket {
@@ -146,7 +124,7 @@ extension RTMPSocket {
         try await handshake?.start()
         self.delegate?.socketHandShakeDone(self)
       } catch {
-        self.delegate?.socketError(self, err: .shakehands(desc: error.localizedDescription))
+        self.delegate?.socketError(self, err: .handShake(desc: error.localizedDescription))
       }
       do {
         // handshake終わったあとのデータ取得
@@ -298,7 +276,7 @@ extension RTMPSocket {
       return
     }
     
-    let message = await messageHolder.removeMessage(id: commandMessage.transactionId)
+    let message = await messageHolder.removeMessage(transactionId: commandMessage.transactionId)
     switch message {
     case is ConnectMessage:
       if commandMessage.commandNameType == .result {
