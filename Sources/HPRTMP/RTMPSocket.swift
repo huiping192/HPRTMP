@@ -222,9 +222,7 @@ extension RTMPSocket {
 
 extension RTMPSocket {
   private func handleOutputData(data: Data) {
-    let length = data.count
-    guard length > 0 else { return }
-    
+    guard !data.isEmpty else { return }
     Task {
       await decoder.append(data)
       var dataRemainCount = 0
@@ -237,13 +235,12 @@ extension RTMPSocket {
   }
   
   private func decode(data: Data) async {
-    
     guard let message = await decoder.decode() else {
       print("[HPRTMP] decode message need more data.")
       return
     }
     
-    if let windowAckMessage  = message as? WindowAckMessage {
+    if let windowAckMessage = message as? WindowAckMessage {
       print("[HTRTMP] WindowAckMessage, size \(windowAckMessage.size)")
       return
     }
@@ -311,7 +308,7 @@ extension RTMPSocket {
           self.delegate?.socketConnectDone(self)
         } else {
           print("[HTRTMP] Connect failed")
-          // connect failed
+          self.delegate?.socketError(self, err: .command(desc: connectResponse?.code.rawValue ?? "Connect error"))
         }
       }
     case is CreateStreamMessage:
@@ -322,7 +319,8 @@ extension RTMPSocket {
         let msgStreamId = commandMessage.info as? Double ?? 0
         self.delegate?.socketCreateStreamDone(self, msgStreamId: Int(msgStreamId))
       } else {
-        print("[HTRTMP] Create Stream failed")
+        print("[HTRTMP] Create Stream failed, \(commandMessage.info ?? "")")
+        self.delegate?.socketError(self, err: .command(desc: "Create Stream error"))
       }
     default:
       break
