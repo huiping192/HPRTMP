@@ -1,10 +1,3 @@
-//
-//  ChunkEncoder.swift
-//  
-//
-//  Created by Huiping Guo on 2023/02/03.
-//
-
 import Foundation
 
 class ChunkEncoder {

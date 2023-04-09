@@ -1,10 +1,3 @@
-//
-//  File.swift
-//  
-//
-//  Created by Huiping Guo on 2022/10/24.
-//
-
 import Foundation
 
 protocol Encodable {

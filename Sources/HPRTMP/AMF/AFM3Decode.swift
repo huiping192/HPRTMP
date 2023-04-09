@@ -1,10 +1,3 @@
-//
-//  File.swift
-//  
-//
-//  Created by 郭 輝平 on 2023/03/26.
-//
-
 import Foundation
 
 //Note that 3 separate reference tables are used for Strings, Complex Objects and Object Traits respectively.

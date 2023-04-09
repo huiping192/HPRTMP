@@ -1,15 +1,8 @@
-//
-//  File.swift
-//  
-//
-//  Created by Huiping Guo on 2022/09/19.
-//
-
 import Foundation
 struct RTMPURLInfo {
   let url: URL
   var tcUrl: String {
-    "rtmp://\(url.host!)/\(appName)"
+    "rtmp://\(host)/\(appName)"
   }
   let appName: String
   let key: String

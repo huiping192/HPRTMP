@@ -1,10 +1,3 @@
-//
-//  File.swift
-//  
-//
-//  Created by Huiping Guo on 2023/02/04.
-//
-
 import Foundation
 
 actor MessageDecoder {

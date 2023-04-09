@@ -1,10 +1,3 @@
-//
-//  File.swift
-//  
-//
-//  Created by Huiping Guo on 2022/11/03.
-//
-
 import Foundation
 
 public struct PublishConfigure {
@@ -81,7 +74,6 @@ public class RTMPPublishSession {
   }
   
   public let encodeType: ObjectEncodingType = .amf0
-  let flashVer: String = "FMLE/3.0 (compatible; FMSc/1.0)"
 
   private let socket = RTMPSocket()
   
@@ -183,7 +175,7 @@ extension RTMPPublishSession: RTMPSocketDelegate {
       let connect = ConnectMessage(encodeType: encodeType,
                                    tcUrl: urlInfo.tcUrl,
                                    appName: urlInfo.appName,
-                                   flashVer: flashVer,
+                                   flashVer: "FMLE/3.0 (compatible; FMSc/1.0)",
                                    fpad: false,
                                    audio: .aac,
                                    video: .h264)

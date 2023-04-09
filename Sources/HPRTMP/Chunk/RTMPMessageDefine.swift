@@ -1,10 +1,3 @@
-//
-//  File.swift
-//  
-//
-//  Created by Huiping Guo on 2022/10/25.
-//
-
 import Foundation
 
 public enum ObjectEncodingType: UInt8, Decodable {
