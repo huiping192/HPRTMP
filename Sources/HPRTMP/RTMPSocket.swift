@@ -235,6 +235,30 @@ extension RTMPSocket {
       
       return
     }
+    
+    if let dataMessage = message as? DataMessage {
+      print("[HTRTMP] DataMessage, message Type:  \(dataMessage.messageType)")
+      
+      return
+    }
+    
+//    if let shareMessage = message as? ShareMessage {
+//      print("[HTRTMP] ShareMessage, message Type:  \(shareMessage.messageType)")
+//
+//      return
+//    }
+    
+    if let videoMessage = message as? VideoMessage {
+      print("[HTRTMP] VideoMessage, message Type:  \(videoMessage.messageType)")
+      
+      return
+    }
+    
+    if let audioMessage = message as? AudioMessage {
+      print("[HTRTMP] AudioMessage, message Type:  \(audioMessage.messageType)")
+      
+      return
+    }
   }
   
   private func handleCommandMessage(_ commandMessage: CommandMessage) async {
@@ -259,12 +283,14 @@ extension RTMPSocket {
       return
     }
     
+    // meta data
     if commandMessage.commandNameType == .onMetaData {
       guard let meta = MetaDataResponse(commandObject: commandMessage.commandObject) else { return }
       self.delegate?.socketGetMeta(self, meta: meta)
       return
     }
     
+    // back from server
     let message = await messageHolder.removeMessage(transactionId: commandMessage.transactionId)
     switch message {
     case is ConnectMessage:
