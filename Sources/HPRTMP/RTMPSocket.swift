@@ -233,9 +233,21 @@ extension RTMPSocket {
       return
     }
     
+    if let userControlMessage = message as? UserControlMessage {
+      print("[HTRTMP] UserControlMessage, message Type:  \(userControlMessage.type)")
+      switch userControlMessage.type {
+      case .pingRequest:
+          self.delegate?.socketPinRequest(self, data: userControlMessage.data)
+      case .streamIsRecorded:
+          self.delegate?.socketStreamRecord(self)
+      default:
+          break
+      }
+    }
+    
     if let controlMessage = message as? ControlMessage {
       print("[HTRTMP] ControlMessage, message Type:  \(controlMessage.messageType)")
-      
+            
       return
     }
     

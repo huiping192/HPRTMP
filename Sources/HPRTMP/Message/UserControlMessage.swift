@@ -18,7 +18,7 @@ enum UserControlEventType: Int {
     case none = 0xff
 }
 
-struct UserControlMessage: Encodable {
+class UserControlMessage: Encodable {
   let type: UserControlEventType
   let data: Data
   
@@ -27,7 +27,7 @@ struct UserControlMessage: Encodable {
     self.data = data
   }
   
-  init(streamBufferLength: Int, streamId: Int) {
+  convenience init(streamBufferLength: Int, streamId: Int) {
     var data = Data()
     let id = UInt32(streamId).bigEndian.data
     data.append(id)
