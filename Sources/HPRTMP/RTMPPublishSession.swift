@@ -116,6 +116,11 @@ public class RTMPPublishSession {
     let message = AudioMessage(msgStreamId: connectId, data: data, timestamp: delta)
     socket.send(message: message, firstType: false)
   }
+  
+  public func invalidate() {
+    self.socket.invalidate()
+    self.publishStatus = .disconnected
+  }
 }
 
 extension RTMPPublishSession: RTMPSocketDelegate {

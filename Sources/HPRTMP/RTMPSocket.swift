@@ -138,7 +138,10 @@ extension RTMPSocket {
       await handshake?.reset()
       await decoder.reset()
       encoder.reset()
+      connection?.cancel()
+      connection = nil
       urlInfo = nil
+      delegate?.socketDisconnected(self)
     }
   }
   
