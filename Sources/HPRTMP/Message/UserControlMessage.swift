@@ -18,13 +18,15 @@ enum UserControlEventType: Int {
     case none = 0xff
 }
 
-class UserControlMessage: Encodable {
+class UserControlMessage: RTMPBaseMessage, Encodable {
   let type: UserControlEventType
   let data: Data
   
-  init(type: UserControlEventType, data: Data) {
+  init(type: UserControlEventType, data: Data, streamId: Int) {
     self.type = type
     self.data = data
+    
+    super.init(type: .control, streamId: streamId)
   }
   
   convenience init(streamBufferLength: Int, streamId: Int) {
@@ -34,7 +36,7 @@ class UserControlMessage: Encodable {
     let length = UInt32(streamBufferLength).bigEndian.data
     data.append(length)
 
-    self.init(type: .streamBufferLength, data: data)
+    self.init(type: .streamBufferLength, data: data, streamId: streamId)
   }
   
   func encode() -> Data {

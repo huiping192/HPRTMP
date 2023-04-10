@@ -45,8 +45,6 @@ enum MessageType: Equatable {
   case control
   case windowAcknowledgement
   case peerBandwidth
-  
-  
   case command(type: ObjectEncodingType)
   case data(type: ObjectEncodingType)
   case share(type: ObjectEncodingType)

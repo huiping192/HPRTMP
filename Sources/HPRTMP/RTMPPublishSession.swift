@@ -197,8 +197,8 @@ extension RTMPPublishSession: RTMPSocketDelegate {
   }
   
   func socketPinRequest(_ socket: RTMPSocket, data: Data) {
-    //    let message = UserControlMessage(type: .pingRequest, data: data)
-    //    socket.send(message: message, firstType: true)
+    let message = UserControlMessage(type: .pingResponse, data: data, streamId: connectId)
+    socket.send(message: message, firstType: true)
   }
   
   func socketError(_ socket: RTMPSocket, err: RTMPError) {
