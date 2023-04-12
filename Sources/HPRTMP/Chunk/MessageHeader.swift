@@ -22,8 +22,8 @@ struct MessageHeaderType0: MessageHeader {
     var data = Data()
     let isExtendTime = timestamp > maxTimestamp
     let time = isExtendTime ?  maxTimestamp : timestamp
-    data.writeU24(Int(time), bigEndian: true)
-    data.writeU24(messageLength, bigEndian: true)
+    data.writeU24(UInt32(time), bigEndian: true)
+    data.writeU24(UInt32(messageLength), bigEndian: true)
     data.append(type.rawValue)
     data.append(UInt32(messageStreamId).data) // little-endian
 
@@ -41,8 +41,8 @@ struct MessageHeaderType1: MessageHeader {
   
   func encode() -> Data {
     var data = Data()
-    data.writeU24(Int(timestampDelta), bigEndian: true)
-    data.writeU24(messageLength, bigEndian: true)
+    data.writeU24(UInt32(timestampDelta), bigEndian: true)
+    data.writeU24(UInt32(messageLength), bigEndian: true)
     data.write(type.rawValue)
     return data
   }
@@ -53,7 +53,7 @@ struct MessageHeaderType2: MessageHeader {
   
   func encode() -> Data {
     var data = Data()
-    data.writeU24(Int(timestampDelta), bigEndian: true)
+    data.writeU24(UInt32(timestampDelta), bigEndian: true)
     return data
   }
 }

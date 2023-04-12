@@ -94,7 +94,8 @@ public class RTMPPublishSession {
   }
   
   private var videoHeaderSended = false
-  
+  private var audioHeaderSended = false
+
   public func publishVideoHeader(data: Data, time: UInt32) async throws {
     let message = VideoMessage(msgStreamId: connectId, data: data, timestamp: time)
     socket.send(message: message, firstType: true)
@@ -107,12 +108,14 @@ public class RTMPPublishSession {
     socket.send(message: message, firstType: false)
   }
   
-  public func publishAudioHeader(data: Data, time: UInt32) async throws {
+  public func publishAudioHeader(data: Data) async throws {
     let message = AudioMessage(msgStreamId: connectId, data: data, timestamp: 0)
     socket.send(message: message, firstType: true)
+    audioHeaderSended = true
   }
   
   public func publishAudio(data: Data, delta: UInt32) async throws {
+    guard audioHeaderSended else { return }
     let message = AudioMessage(msgStreamId: connectId, data: data, timestamp: delta)
     socket.send(message: message, firstType: false)
   }

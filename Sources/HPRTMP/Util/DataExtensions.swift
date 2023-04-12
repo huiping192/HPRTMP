@@ -24,7 +24,17 @@ public extension Data {
     self.append(value.bigEndian.data)
   }
   
-  mutating func writeU24(_ value: Int, bigEndian: Bool) {
+  mutating func write24(_ value: Int32, bigEndian: Bool) {
+    if bigEndian {
+      let convert = value.bigEndian.data
+      append(convert[1...(convert.count-1)])
+    } else {
+      let convert = value.data
+      append(convert[0..<convert.count-1])
+    }
+  }
+  
+  mutating func writeU24(_ value: UInt32, bigEndian: Bool) {
     if bigEndian {
       let convert = UInt32(value).bigEndian.data
       append(convert[1...(convert.count-1)])
