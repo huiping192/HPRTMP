@@ -7,6 +7,8 @@ actor MessageDecoder {
   
   private var maxChunkSize: Int = Int(128)
   
+  private(set) var isDecoding = false
+  
   func setMaxChunkSize(maxChunkSize: Int) async {
     self.maxChunkSize = maxChunkSize
     await chunkDecoder.setMaxChunkSize(maxChunkSize: maxChunkSize)
@@ -22,10 +24,11 @@ actor MessageDecoder {
   
   func decode() async -> RTMPMessage? {
     print("[HPRTMP] decode message start")
+    isDecoding = true
     let (message,size) = await decodeMessage(data: data)
     guard let message else { return nil }
     data.removeFirst(size)
-    
+    isDecoding = false
     print("[HPRTMP] decode message success: \(message)")
     print("[HPRTMP] MessageDecoder remain data count: \(data.count)")
     return message

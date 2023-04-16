@@ -195,6 +195,10 @@ extension RTMPSocket {
     guard !data.isEmpty else { return }
     Task {
       await decoder.append(data)
+      
+      if await decoder.isDecoding {
+        return
+      }
       var dataRemainCount = 0
       while await decoder.remainDataCount != dataRemainCount, await decoder.remainDataCount != 0 {
         dataRemainCount = await decoder.remainDataCount
