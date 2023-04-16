@@ -23,6 +23,7 @@ actor MessageDecoder {
   }
   
   func decode() async -> RTMPMessage? {
+    guard !isDecoding else { return nil }
     print("[HPRTMP] decode message start")
     isDecoding = true
     let (message,size) = await decodeMessage(data: data)
