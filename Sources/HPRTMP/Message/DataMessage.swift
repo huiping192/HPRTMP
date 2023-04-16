@@ -104,3 +104,26 @@ class AudioMessage: RTMPBaseMessage, Encodable {
         return data
     }
 }
+
+class SharedObjectMessage: DataMessage, Encodable {
+  let sharedObjectName: String?
+  let sharedObject: [String: Any]?
+  
+  init(encodeType: ObjectEncodingType, msgStreamId: Int, sharedObjectName: String?, sharedObject: [String: Any]?) {
+    self.sharedObjectName = sharedObjectName
+    self.sharedObject = sharedObject
+    super.init(encodeType: encodeType, msgStreamId: msgStreamId)
+  }
+  
+  func encode() -> Data {
+    var amf: AMFProtocol = encodeType == .amf0 ? AMF0Object() : AMF3Object()
+    amf.append("onSharedObject")
+    if let sharedObjectName {
+      amf.append(sharedObjectName)
+    }
+    if let sharedObject {
+      amf.append(sharedObject)
+    }
+    return amf.data
+  }
+}

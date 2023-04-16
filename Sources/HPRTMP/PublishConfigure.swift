@@ -6,7 +6,9 @@ public struct PublishConfigure {
   let videocodecid: Int
   let audiocodecid: Int
   let framerate: Int
+  // kpbss
   let videoDatarate: Int?
+  // kpbss
   let audioDatarate: Int?
   let audioSamplerate: Int?
 

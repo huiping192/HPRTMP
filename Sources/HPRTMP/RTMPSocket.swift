@@ -286,7 +286,7 @@ extension RTMPSocket {
     if commandMessage.commandNameType == .onStatus {
       guard let statusResponse = StatusResponse(info: commandMessage.info) else { return }
       if statusResponse.level == .error {
-        self.delegate?.socketError(self, err: .command(desc: statusResponse.description))
+        self.delegate?.socketError(self, err: .command(desc: statusResponse.description ?? ""))
         return
       }
       switch statusResponse.code {

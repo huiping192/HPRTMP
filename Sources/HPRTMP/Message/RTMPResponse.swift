@@ -77,7 +77,7 @@ struct StatusResponse: Decodable {
   }
   let code: StreamStatus?
   let level: Level?
-  let description: String
+  let description: String?
   
   init?(info: Any?) {
     guard let info = info as? [String: Any?] else { return nil }
@@ -86,9 +86,7 @@ struct StatusResponse: Decodable {
     
     guard let level = info["level"] as? String else { return nil }
     self.level = Level(rawValue: level)
-    guard let description = info["description"] as? String else { return nil }
-    self.description = description
-    
+    self.description = info["description"] as? String
   }
   
 }
