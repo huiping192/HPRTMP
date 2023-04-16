@@ -3,34 +3,41 @@
 public struct PublishConfigure {
   let width: Int
   let height: Int
-  let displayWidth: Int
-  let displayHeight: Int
   let videocodecid: Int
   let audiocodecid: Int
   let framerate: Int
-  let videoframerate: Int
-  
-  public init(width: Int, height: Int, displayWidth: Int, displayHeight: Int, videocodecid: Int, audiocodecid: Int, framerate: Int, videoframerate: Int) {
+  let videoDatarate: Int?
+  let audioDatarate: Int?
+  let audioSamplerate: Int?
+
+  public init(width: Int, height: Int, videocodecid: Int, audiocodecid: Int, framerate: Int, videoDatarate: Int?, audioDatarate: Int?, audioSamplerate: Int?) {
     self.width = width
     self.height = height
-    self.displayWidth = displayWidth
-    self.displayHeight = displayHeight
     self.videocodecid = videocodecid
     self.audiocodecid = audiocodecid
     self.framerate = framerate
-    self.videoframerate = videoframerate
+    self.videoDatarate = videoDatarate
+    self.audioDatarate = audioDatarate
+    self.audioSamplerate = audioSamplerate
   }
   
   var meta: [String: Any] {
-    return [
+    var dic: [String: Any] = [
       "width": Int32(width),
       "height": Int32(height),
-      "displayWidth": Int32(displayWidth),
-      "displayHeight": Int32(displayHeight),
       "videocodecid": videocodecid,
       "audiocodecid": audiocodecid,
-      "framerate": framerate,
-      "videoframerate": videoframerate
+      "framerate": framerate
     ]
+    if let videoDatarate {
+      dic["videodatarate"] = videoDatarate
+    }
+    if let audioDatarate {
+      dic["audiodatarate"] = audioDatarate
+    }
+    if let audioSamplerate {
+      dic["audiosamplerate"] = audioSamplerate
+    }
+    return dic
   }
 }
