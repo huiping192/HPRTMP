@@ -140,6 +140,46 @@ class CreateStreamMessage: CommandMessage, Encodable {
   }
 }
 
+class CloseStreamMessage: CommandMessage, Encodable {
+  init(encodeType: ObjectEncodingType = .amf0, msgStreamId: Int) {
+    super.init(encodeType: encodeType,commandName: "closeStream", msgStreamId: msgStreamId, transactionId: 0, commandObject: nil)
+  }
+  
+  func encode() -> Data {
+    var amf: AMFProtocol = encodeType == .amf0 ? AMF0Object() : AMF3Object()
+    amf.append(commandName)
+    amf.append(Double(transactionId))
+    amf.append(commandObject)
+    return amf.data
+  }
+  
+  override var description: String {
+    let objDesc = commandObject != nil ? "\(commandObject!)" : "nil"
+    let infoDesc = info != nil ? "\(info!)" : "nil"
+    return "CloseStreamMessage: { commandName: \(commandName), transactionId: \(transactionId), commandObject: \(objDesc), info: \(infoDesc) }"
+  }
+}
+
+class DeleteStreamMessage: CommandMessage, Encodable {
+  init(encodeType: ObjectEncodingType = .amf0, msgStreamId: Int) {
+    super.init(encodeType: encodeType,commandName: "deleteStream", msgStreamId: msgStreamId, transactionId: 0, commandObject: nil)
+  }
+  
+  func encode() -> Data {
+    var amf: AMFProtocol = encodeType == .amf0 ? AMF0Object() : AMF3Object()
+    amf.append(commandName)
+    amf.append(Double(transactionId))
+    amf.append(commandObject)
+    return amf.data
+  }
+  
+  override var description: String {
+    let objDesc = commandObject != nil ? "\(commandObject!)" : "nil"
+    let infoDesc = info != nil ? "\(info!)" : "nil"
+    return "DeleteStreamMessage: { commandName: \(commandName), transactionId: \(transactionId), commandObject: \(objDesc), info: \(infoDesc) }"
+  }
+}
+
 public enum PubishType: String {
   case live = "live"
   case record = "record"
