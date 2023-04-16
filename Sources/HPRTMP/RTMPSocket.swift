@@ -67,7 +67,7 @@ public class RTMPSocket {
   private(set) var urlInfo: RTMPURLInfo?
   
   let messageHolder = MessageHolder()
-    
+  
   private let encoder = ChunkEncoder()
   private let decoder = MessageDecoder()
   
@@ -118,8 +118,9 @@ extension RTMPSocket {
       }
     }
     
-
+    
     connection.start(queue: DispatchQueue.global(qos: .default))
+    status = .open
   }
   
   private func startShakeHands() {
@@ -141,6 +142,7 @@ extension RTMPSocket {
       connection?.cancel()
       connection = nil
       urlInfo = nil
+      status = .closed
       delegate?.socketDisconnected(self)
     }
   }
@@ -235,17 +237,17 @@ extension RTMPSocket {
       print("[HTRTMP] UserControlMessage, message Type:  \(userControlMessage.type)")
       switch userControlMessage.type {
       case .pingRequest:
-          self.delegate?.socketPinRequest(self, data: userControlMessage.data)
+        self.delegate?.socketPinRequest(self, data: userControlMessage.data)
       case .streamIsRecorded:
-          self.delegate?.socketStreamRecord(self)
+        self.delegate?.socketStreamRecord(self)
       default:
-          break
+        break
       }
     }
     
     if let controlMessage = message as? ControlMessage {
       print("[HTRTMP] ControlMessage, message Type:  \(controlMessage.messageType)")
-            
+      
       return
     }
     
@@ -255,11 +257,11 @@ extension RTMPSocket {
       return
     }
     
-//    if let shareMessage = message as? ShareMessage {
-//      print("[HTRTMP] ShareMessage, message Type:  \(shareMessage.messageType)")
-//
-//      return
-//    }
+    //    if let shareMessage = message as? ShareMessage {
+    //      print("[HTRTMP] ShareMessage, message Type:  \(shareMessage.messageType)")
+    //
+    //      return
+    //    }
     
     if let videoMessage = message as? VideoMessage {
       print("[HTRTMP] VideoMessage, message Type:  \(videoMessage.messageType)")
@@ -321,7 +323,7 @@ extension RTMPSocket {
       if commandMessage.commandNameType == .result {
         print("[HTRTMP] Create Stream Success")
         self.status = .connected
-                
+        
         let msgStreamId = commandMessage.info as? Double ?? 0
         self.delegate?.socketCreateStreamDone(self, msgStreamId: Int(msgStreamId))
       } else {
