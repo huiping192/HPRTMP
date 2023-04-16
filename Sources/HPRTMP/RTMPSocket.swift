@@ -48,8 +48,8 @@ protocol RTMPSocketDelegate: AnyObject {
   func socketDisconnected(_ socket: RTMPSocket)
   
   
-  func socketStreamOutputAudio(_ socket: RTMPSocket, data: Data, timeStamp: Int64, isFirst: Bool)
-  func socketStreamOutputVideo(_ socket: RTMPSocket, data: Data, timeStamp: Int64, isFirst: Bool)
+  func socketStreamOutputAudio(_ socket: RTMPSocket, data: Data, timeStamp: Int64)
+  func socketStreamOutputVideo(_ socket: RTMPSocket, data: Data, timeStamp: Int64)
   func socketStreamPublishStart(_ socket: RTMPSocket)
   func socketStreamRecord(_ socket: RTMPSocket)
   func socketStreamPlayStart(_ socket: RTMPSocket)
@@ -261,23 +261,25 @@ extension RTMPSocket {
       return
     }
     
-    //    if let shareMessage = message as? ShareMessage {
-    //      print("[HTRTMP] ShareMessage, message Type:  \(shareMessage.messageType)")
-    //
-    //      return
-    //    }
-    
     if let videoMessage = message as? VideoMessage {
       print("[HTRTMP] VideoMessage, message Type:  \(videoMessage.messageType)")
       
+      self.delegate?.socketStreamOutputVideo(self, data: videoMessage.data, timeStamp: Int64(videoMessage.timestamp))
       return
     }
     
     if let audioMessage = message as? AudioMessage {
       print("[HTRTMP] AudioMessage, message Type:  \(audioMessage.messageType)")
-      
+      self.delegate?.socketStreamOutputAudio(self, data: audioMessage.data, timeStamp: Int64(audioMessage.timestamp))
       return
     }
+    
+    //  音视频传输不使用到Share message
+    //    if let shareMessage = message as? ShareMessage {
+    //      print("[HTRTMP] ShareMessage, message Type:  \(shareMessage.messageType)")
+    //
+    //      return
+    //    }
   }
   
   private func handleCommandMessage(_ commandMessage: CommandMessage) async {

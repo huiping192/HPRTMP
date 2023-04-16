@@ -100,17 +100,9 @@ public class RTMPPublishSession {
 }
 
 extension RTMPPublishSession: RTMPSocketDelegate {
-  func socketGetMeta(_ socket: RTMPSocket, meta: MetaDataResponse) {
-    
-  }
-  
-  func socketStreamOutputAudio(_ socket: RTMPSocket, data: Data, timeStamp: Int64, isFirst: Bool) {
-    
-  }
-  
-  func socketStreamOutputVideo(_ socket: RTMPSocket, data: Data, timeStamp: Int64, isFirst: Bool) {
-    
-  }
+  func socketGetMeta(_ socket: RTMPSocket, meta: MetaDataResponse) {}
+  func socketStreamOutputAudio(_ socket: RTMPSocket, data: Data, timeStamp: Int64) {}
+  func socketStreamOutputVideo(_ socket: RTMPSocket, data: Data, timeStamp: Int64) {}
   
   func socketStreamPublishStart(_ socket: RTMPSocket) {
     print("[HPRTMP] socketStreamPublishStart")
