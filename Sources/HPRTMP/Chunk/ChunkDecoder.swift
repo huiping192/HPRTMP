@@ -102,7 +102,7 @@ actor MessageDecoder {
     
     if let messageHeaderType0 = firstChunk.chunkHeader.messageHeader as? MessageHeaderType0 {
       previousChunkMessageId = messageHeaderType0.messageStreamId
-      return await handleMessageHeaderType0(firstChunk: firstChunk, chunkSize: chunkSize, messageHeaderType0: messageHeaderType0)
+      return await handleMessageHeaderType0(firstChunk: firstChunk, chunkSize: chunkSize, messageHeaderType0: messageHeaderType0, data: data)
     }
     
     if let messageHeaderType1 = firstChunk.chunkHeader.messageHeader as? MessageHeaderType1 {
@@ -114,7 +114,7 @@ actor MessageDecoder {
     return (nil,0)
   }
   
-  private func handleMessageHeaderType0(firstChunk: Chunk, chunkSize: Int, messageHeaderType0: MessageHeaderType0) async -> (RTMPMessage?,Int) {
+  private func handleMessageHeaderType0(firstChunk: Chunk, chunkSize: Int, messageHeaderType0: MessageHeaderType0, data: Data) async -> (RTMPMessage?,Int) {
     let messageLength = messageHeaderType0.messageLength
     // one chunk = one message
     if messageLength <= maxChunkSize {
