@@ -274,12 +274,10 @@ extension RTMPSocket {
       return
     }
     
-    //  音视频传输不使用到Share message
-    //    if let shareMessage = message as? ShareMessage {
-    //      print("[HTRTMP] ShareMessage, message Type:  \(shareMessage.messageType)")
-    //
-    //      return
-    //    }
+    if let sharedObjectMessage = message as? SharedObjectMessage {
+      print("[HTRTMP] ShareMessage, message Type:  \(sharedObjectMessage.messageType)")
+      return
+    }
   }
   
   private func handleCommandMessage(_ commandMessage: CommandMessage) async {
