@@ -26,6 +26,8 @@ enum CodeType {
 }
 
 enum CommandNameType: String {
+  //检测带宽成功
+  case onBWDone     = "onBWDone"
   case onStatus     = "onStatus"
   case onMetaData = "onMetaData"
   case publish     = "publish"
