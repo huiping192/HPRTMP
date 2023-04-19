@@ -73,10 +73,26 @@ public class RTMPSocket {
   
   private var handshake: RTMPHandshake?
   
-  public init() {}
+  private let windowControl = WindowControl()
+  
+  public init() {
+    Task {
+      await windowControl.setInBytesWindowEvent { [weak self]inbytesCount in
+        self?.sendAcknowledgementMessage(sequence: inbytesCount)
+      }
+    }
+  }
+  
+  private func sendAcknowledgementMessage(sequence: UInt32) {
+    Task {
+      guard status == .connected else { return }
+      try await self.send(message: AcknowledgementMessage(sequence: UInt32(sequence)), firstType: true)
+    }
+  }
   
   
   public func connect(url: String) {
+
     let urlParser = RTMPURLParser()
     guard let urlInfo = try? urlParser.parse(url: url) else { return }
     self.urlInfo = urlInfo
@@ -167,6 +183,7 @@ extension RTMPSocket {
     let datas = encoder.chunk(message: message, isFirstType0: firstType).map({ $0.encode() })
     do {
       try await connection?.sendData(datas)
+      await windowControl.addOutBytesCount(UInt32(datas.count))
       print("[HPRTMP] send message successd: \(message)")
     } catch {
       print("[HPRTMP] send message failed: \(message), error: \(error)")
@@ -194,6 +211,7 @@ extension RTMPSocket {
   private func handleOutputData(data: Data) {
     guard !data.isEmpty else { return }
     Task {
+      await windowControl.addInBytesCount(UInt32(data.count))
       await decoder.append(data)
       
       if await decoder.isDecoding {
@@ -221,6 +239,7 @@ extension RTMPSocket {
     
     if let acknowledgementMessage = message as? AcknowledgementMessage {
       print("[HTRTMP] AcknowledgementMessage, size \(acknowledgementMessage.sequence)")
+      await windowControl.setWindowSize(acknowledgementMessage.sequence)
       return
     }
     
