@@ -219,6 +219,11 @@ extension RTMPSocket {
       return
     }
     
+    if let acknowledgementMessage = message as? AcknowledgementMessage {
+      print("[HTRTMP] AcknowledgementMessage, size \(acknowledgementMessage.sequence)")
+      return
+    }
+    
     if let peerBandwidthMessage = message as? PeerBandwidthMessage {
       print("[HTRTMP] PeerBandwidthMessage, size \(peerBandwidthMessage.windowSize)")
       delegate?.socketPeerBandWidth(self, size: peerBandwidthMessage.windowSize)
@@ -263,7 +268,6 @@ extension RTMPSocket {
     
     if let videoMessage = message as? VideoMessage {
       print("[HTRTMP] VideoMessage, message Type:  \(videoMessage.messageType)")
-      
       self.delegate?.socketStreamOutputVideo(self, data: videoMessage.data, timeStamp: Int64(videoMessage.timestamp))
       return
     }
