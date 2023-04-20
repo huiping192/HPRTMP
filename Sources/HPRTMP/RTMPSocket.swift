@@ -301,6 +301,11 @@ extension RTMPSocket {
       print("[HTRTMP] ShareMessage, message Type:  \(sharedObjectMessage.messageType)")
       return
     }
+    
+    if let abortMessage = message as? AbortMessage {
+      print("[HTRTMP] AbortMessage, message Type:  \(abortMessage.chunkStreamId)")
+      return
+    }
   }
   
   private func handleCommandMessage(_ commandMessage: CommandMessage) async {
