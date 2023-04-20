@@ -234,12 +234,12 @@ extension RTMPSocket {
     
     if let windowAckMessage = message as? WindowAckMessage {
       print("[HTRTMP] WindowAckMessage, size \(windowAckMessage.size)")
+      await windowControl.setWindowSize(windowAckMessage.size)
       return
     }
     
     if let acknowledgementMessage = message as? AcknowledgementMessage {
       print("[HTRTMP] AcknowledgementMessage, size \(acknowledgementMessage.sequence)")
-      await windowControl.setWindowSize(acknowledgementMessage.sequence)
       return
     }
     
