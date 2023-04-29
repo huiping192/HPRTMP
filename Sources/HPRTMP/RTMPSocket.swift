@@ -8,7 +8,6 @@
 import Foundation
 import Network
 
-
 public enum RTMPStatus {
   case none
   case open
@@ -56,13 +55,17 @@ protocol RTMPSocketDelegate: AnyObject {
   func socketStreamPause(_ socket: RTMPSocket, pause: Bool)
 }
 
-public class RTMPSocket {
+public actor RTMPSocket {
   
   private var connection: NWConnection?
   
   private var status: RTMPStatus = .none
   
   weak var delegate: RTMPSocketDelegate?
+  
+  func setDelegate(delegate: RTMPSocketDelegate) {
+    self.delegate = delegate
+  }
   
   private(set) var urlInfo: RTMPURLInfo?
   
@@ -75,29 +78,25 @@ public class RTMPSocket {
   
   private let windowControl = WindowControl()
   
-  public init() {
-    Task {
-      await windowControl.setInBytesWindowEvent { [weak self]inbytesCount in
-        self?.sendAcknowledgementMessage(sequence: inbytesCount)
-      }
+  public init() async {
+    await windowControl.setInBytesWindowEvent { [weak self]inbytesCount in
+      try? await self?.sendAcknowledgementMessage(sequence: inbytesCount)
     }
   }
   
-  private func sendAcknowledgementMessage(sequence: UInt32) {
-    Task {
-      guard status == .connected else { return }
-      try await self.send(message: AcknowledgementMessage(sequence: UInt32(sequence)), firstType: true)
-    }
+  private func sendAcknowledgementMessage(sequence: UInt32) async throws {
+    guard status == .connected else { return }
+    try await self.send(message: AcknowledgementMessage(sequence: UInt32(sequence)), firstType: true)
   }
   
   
-  public func connect(url: String) {
-
+  public func connect(url: String) async {
+    
     let urlParser = RTMPURLParser()
     guard let urlInfo = try? urlParser.parse(url: url) else { return }
     self.urlInfo = urlInfo
     
-    resume()
+    await resume()
   }
   
   public func connect(streamURL: URL, streamKey: String, port: Int = 1935) {
@@ -108,7 +107,7 @@ public class RTMPSocket {
 
 // public func
 extension RTMPSocket {
-  public func resume() {
+  public func resume() async {
     guard status != .connected else { return }
     guard let urlInfo else { return }
     let port = NWEndpoint.Port(rawValue: UInt16(urlInfo.port))
@@ -117,49 +116,48 @@ extension RTMPSocket {
     self.connection = connection
     connection.stateUpdateHandler = { [weak self]newState in
       guard let self else { return }
-      print("[HPRTMP] connection \(connection) state: \(newState)")
-      switch newState {
-      case .ready:
-        guard status == .open else { return }
-        startShakeHands()
-      case .failed(let error):
-        print("[HPRTMP] connection error: \(error.localizedDescription)")
-        self.delegate?.socketError(self, err: .uknown(desc: error.localizedDescription))
-        self.invalidate()
-      default:
-        break
+      Task {
+        print("[HPRTMP] connection \(connection) state: \(newState)")
+        switch newState {
+        case .ready:
+          guard await self.status == .open else { return }
+          await self.startShakeHands()
+        case .failed(let error):
+          print("[HPRTMP] connection error: \(error.localizedDescription)")
+          await self.delegate?.socketError(self, err: .uknown(desc: error.localizedDescription))
+          await self.invalidate()
+        default:
+          break
+        }
       }
     }
+    NWConnection.maxReadSize = Int((await windowControl.windowSize))
     
     status = .open
     connection.start(queue: DispatchQueue.global(qos: .default))
   }
   
-  private func startShakeHands() {
-    Task {
-      guard let connection = self.connection else { return }
-      self.handshake = RTMPHandshake(dataSender: connection.sendData, dataReceiver: connection.receiveData)
-      await self.handshake?.setDelegate(delegate: self)
-      do {
-        try await self.handshake?.start()
-      } catch {
-        self.delegate?.socketError(self, err: .handShake(desc: error.localizedDescription))
-      }
+  private func startShakeHands() async {
+    guard let connection = self.connection else { return }
+    self.handshake = RTMPHandshake(dataSender: connection.sendData, dataReceiver: connection.receiveData)
+    await self.handshake?.setDelegate(delegate: self)
+    do {
+      try await self.handshake?.start()
+    } catch {
+      self.delegate?.socketError(self, err: .handShake(desc: error.localizedDescription))
     }
   }
   
-  public func invalidate() {
+  public func invalidate() async {
     guard status != .closed && status != .none else { return }
-    Task {
-      await handshake?.reset()
-      await decoder.reset()
-      encoder.reset()
-      connection?.cancel()
-      connection = nil
-      urlInfo = nil
-      status = .closed
-      delegate?.socketDisconnected(self)
-    }
+    await handshake?.reset()
+    await decoder.reset()
+    encoder.reset()
+    connection?.cancel()
+    connection = nil
+    urlInfo = nil
+    status = .closed
+    delegate?.socketDisconnected(self)
   }
   
   private func startReceiveData() async throws {
@@ -167,7 +165,7 @@ extension RTMPSocket {
     while true {
       let data = try await connection.receiveData()
       print("[HPRTMP] receive data count: \(data.count)")
-      self.handleOutputData(data: data)
+      await self.handleOutputData(data: data)
     }
   }
 }
@@ -192,37 +190,34 @@ extension RTMPSocket {
 }
 
 extension RTMPSocket: RTMPHandshakeDelegate {
-  func rtmpHandshakeDidChange(status: RTMPHandshake.Status) {
-    guard status == .handshakeDone else { return }
+  nonisolated func rtmpHandshakeDidChange(status: RTMPHandshake.Status) {
     Task {
+      guard status == .handshakeDone else { return }
       do {
-        self.delegate?.socketHandShakeDone(self)
+        await self.delegate?.socketHandShakeDone(self)
         // handshake終わったあとのデータ取得
         try await startReceiveData()
       } catch {
-        self.delegate?.socketError(self, err: .uknown(desc: error.localizedDescription))
+        await self.delegate?.socketError(self, err: .uknown(desc: error.localizedDescription))
       }
     }
   }
 }
 
 extension RTMPSocket {
-  private func handleOutputData(data: Data) {
+  private func handleOutputData(data: Data) async {
     guard !data.isEmpty else { return }
-    Task {
-      await windowControl.addInBytesCount(UInt32(data.count))
-      await decoder.append(data)
-      
-      if await decoder.isDecoding {
-        return
-      }
-      var dataRemainCount = 0
-      while await decoder.remainDataCount != dataRemainCount, await decoder.remainDataCount != 0 {
-        dataRemainCount = await decoder.remainDataCount
-        await decode(data: data)
-      }
-    }
+    await windowControl.addInBytesCount(UInt32(data.count))
+    await decoder.append(data)
     
+    if await decoder.isDecoding {
+      return
+    }
+    var dataRemainCount = 0
+    while await decoder.remainDataCount != dataRemainCount, await decoder.remainDataCount != 0 {
+      dataRemainCount = await decoder.remainDataCount
+      await decode(data: data)
+    }
   }
   
   private func decode(data: Data) async {

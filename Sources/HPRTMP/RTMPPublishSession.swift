@@ -40,7 +40,7 @@ public class RTMPPublishSession {
   
   public let encodeType: ObjectEncodingType = .amf0
   
-  private let socket = RTMPSocket()
+  private var socket: RTMPSocket!
   
   private let transactionIdGenerator = TransactionIdGenerator()
   
@@ -51,11 +51,17 @@ public class RTMPPublishSession {
   public init() {}
   
   public func publish(url: String, configure: PublishConfigure) {
-    self.configure = configure
-    socket.delegate = self
-    socket.connect(url: url)
-    
-    publishStatus = .handShakeStart
+    Task {
+      self.configure = configure
+      if socket != nil {
+        await socket.invalidate()
+      }
+      socket = await RTMPSocket()
+      await socket.setDelegate(delegate: self)
+      await socket.connect(url: url)
+      
+      publishStatus = .handShakeStart
+    }
   }
   
   private var videoHeaderSended = false
@@ -94,7 +100,7 @@ public class RTMPPublishSession {
     let deleteStreamMessage = DeleteStreamMessage(msgStreamId: connectId)
     try await socket.send(message: deleteStreamMessage, firstType: true)
     
-    self.socket.invalidate()
+    await self.socket.invalidate()
     self.publishStatus = .disconnected
   }
 }
@@ -144,7 +150,7 @@ extension RTMPPublishSession: RTMPSocketDelegate {
     publishStatus = .handShakeDone
     
     Task {
-      guard let urlInfo = socket.urlInfo else { return }
+      guard let urlInfo = await socket.urlInfo else { return }
       let connect = ConnectMessage(encodeType: encodeType,
                                    tcUrl: urlInfo.tcUrl,
                                    appName: urlInfo.appName,
@@ -161,7 +167,7 @@ extension RTMPPublishSession: RTMPSocketDelegate {
     publishStatus = .connect
 
     Task {
-      let message = PublishMessage(encodeType: encodeType, streamName: socket.urlInfo?.key ?? "", type: .live)
+      let message = await PublishMessage(encodeType: encodeType, streamName: socket.urlInfo?.key ?? "", type: .live)
       
       message.msgStreamId = msgStreamId
       self.connectId = msgStreamId

@@ -1,15 +1,8 @@
-//
-//  File.swift
-//  
-//
-//  Created by 郭 輝平 on 2023/03/15.
-//
-
 import Foundation
 import Network
 
 extension NWConnection {
-  private static let maxReadSize = Int(UInt16.max)
+  static var maxReadSize = Int(UInt16.max)
   
   func sendData(_ datas: [Data]) async throws -> Void {
     for data in datas {
@@ -35,7 +28,7 @@ extension NWConnection {
         continuation.resume(returning: Data())
         return
       }
-      self.receive(minimumIncompleteLength: Int(1), maximumLength: NWConnection.maxReadSize) { data, context, isComplete, error in
+      self.receive(minimumIncompleteLength: 0, maximumLength: NWConnection.maxReadSize) { data, context, isComplete, error in
         if let error {
           continuation.resume(throwing: error)
           return
