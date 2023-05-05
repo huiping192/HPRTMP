@@ -10,12 +10,10 @@ on:
 
 env:
   DEVELOPER_DIR: /Applications/Xcode.app
-
+  
 jobs:
   build:
     runs-on: self-hosted
-    labels:
-      - macminim2
     steps:
     - uses: actions/checkout@v2
     - name: Build
