@@ -9,11 +9,13 @@ on:
       - main
 
 env:
-  DEVELOPER_DIR: /Applications/Xcode_14.2.app
-  
+  DEVELOPER_DIR: /Applications/Xcode.app
+
 jobs:
   build:
-    runs-on: macOS-latest
+    runs-on: self-hosted
+    labels:
+      - macminim2
     steps:
     - uses: actions/checkout@v2
     - name: Build
