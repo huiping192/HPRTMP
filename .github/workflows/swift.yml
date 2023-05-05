@@ -13,7 +13,7 @@ env:
   
 jobs:
   build:
-    runs-on: self-hosted
+    runs-on: macminim2
     steps:
     - uses: actions/checkout@v2
     - name: Build
