@@ -50,18 +50,16 @@ public class RTMPPublishSession {
   
   public init() {}
   
-  public func publish(url: String, configure: PublishConfigure) {
-    Task {
-      self.configure = configure
-      if socket != nil {
-        await socket.invalidate()
-      }
-      socket = await RTMPSocket()
-      await socket.setDelegate(delegate: self)
-      await socket.connect(url: url)
-      
-      publishStatus = .handShakeStart
+  public func publish(url: String, configure: PublishConfigure) async {
+    self.configure = configure
+    if socket != nil {
+      await socket.invalidate()
     }
+    socket = await RTMPSocket()
+    await socket.setDelegate(delegate: self)
+    await socket.connect(url: url)
+    
+    publishStatus = .handShakeStart
   }
   
   private var videoHeaderSended = false

@@ -91,7 +91,6 @@ public actor RTMPSocket {
   
   
   public func connect(url: String) async {
-    
     let urlParser = RTMPURLParser()
     guard let urlInfo = try? urlParser.parse(url: url) else { return }
     self.urlInfo = urlInfo
