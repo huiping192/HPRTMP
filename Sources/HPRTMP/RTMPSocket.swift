@@ -80,13 +80,13 @@ public actor RTMPSocket {
   
   public init() async {
     await windowControl.setInBytesWindowEvent { [weak self]inbytesCount in
-      try? await self?.sendAcknowledgementMessage(sequence: inbytesCount)
+      await self?.sendAcknowledgementMessage(sequence: inbytesCount)
     }
   }
   
-  private func sendAcknowledgementMessage(sequence: UInt32) async throws {
+  private func sendAcknowledgementMessage(sequence: UInt32) async {
     guard status == .connected else { return }
-    try await self.send(message: AcknowledgementMessage(sequence: UInt32(sequence)), firstType: true)
+    await self.send(message: AcknowledgementMessage(sequence: UInt32(sequence)), firstType: true)
   }
   
   
@@ -171,7 +171,7 @@ extension RTMPSocket {
 }
 
 extension RTMPSocket {
-  func send(message: RTMPMessage & Encodable, firstType: Bool) async throws {
+  func send(message: RTMPMessage & Encodable, firstType: Bool) async {
     print("[HPRTMP] send message start: \(message)")
     
     if let message = message as? ChunkSizeMessage {
