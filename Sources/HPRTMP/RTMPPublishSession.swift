@@ -67,31 +67,31 @@ public class RTMPPublishSession {
   private var videoHeaderSended = false
   private var audioHeaderSended = false
 
-  public func publishVideoHeader(data: Data, time: UInt32) async throws {
+  public func publishVideoHeader(data: Data, time: UInt32) async {
     let message = VideoMessage(msgStreamId: connectId, data: data, timestamp: time)
     await socket.send(message: message, firstType: true)
     videoHeaderSended = true
   }
   
-  public func publishVideo(data: Data, delta: UInt32) async throws {
+  public func publishVideo(data: Data, delta: UInt32) async {
     guard videoHeaderSended else { return }
     let message = VideoMessage(msgStreamId: connectId, data: data, timestamp: delta)
     await socket.send(message: message, firstType: false)
   }
   
-  public func publishAudioHeader(data: Data) async throws {
+  public func publishAudioHeader(data: Data) async {
     let message = AudioMessage(msgStreamId: connectId, data: data, timestamp: 0)
     await socket.send(message: message, firstType: true)
     audioHeaderSended = true
   }
   
-  public func publishAudio(data: Data, delta: UInt32) async throws {
+  public func publishAudio(data: Data, delta: UInt32) async {
     guard audioHeaderSended else { return }
     let message = AudioMessage(msgStreamId: connectId, data: data, timestamp: delta)
     await socket.send(message: message, firstType: false)
   }
   
-  public func invalidate() async throws {
+  public func invalidate() async {
     // send closeStream
     let closeStreamMessage = CloseStreamMessage(msgStreamId: connectId)
     await socket.send(message: closeStreamMessage, firstType: true)
