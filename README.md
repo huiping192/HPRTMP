@@ -1,4 +1,4 @@
-# HPRTMP (Work in Progress)
+# HPRTMP
 
 **Note: This library is still a work in progress and not yet finished.**
 
