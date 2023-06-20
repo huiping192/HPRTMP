@@ -24,6 +24,7 @@ The main goals of this library are:
 - [x] Send and receive metadata and event messages
 - [x] Handle different message types and chunk sizes for efficient streaming
 - [x] Support for multiple streams and different message header types (Type 0, 1, 2, 3)
+- [x] Support AMF0 and AMF3 codec
 
 
 ## Requirements
