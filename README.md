@@ -17,16 +17,18 @@ The main goals of this library are:
 
 ## Features
 
-- [ ] Connect to RTMP servers and authenticate using various methods (Digest, Basic, etc.)
-- [ ] Publish and play streams with different media types (audio, video, data)
-- [ ] Send and receive metadata and event messages
-- [ ] Handle different message types and chunk sizes for efficient streaming
-- [ ] Support for multiple streams and different message header types (Type 0, 1, 2, 3)
+- [ ] Connect to RTMP servers and authenticate using various methods
+    - [x] RTMP
+    - [ ] RTMPS
+- [x] Publish and play streams with different media types (audio, video, data)
+- [x] Send and receive metadata and event messages
+- [x] Handle different message types and chunk sizes for efficient streaming
+- [x] Support for multiple streams and different message header types (Type 0, 1, 2, 3)
 
 
 ## Requirements
 
-- iOS 10.0+ / macOS 10.12+ / tvOS 10.0+ / watchOS 3.0+
+- iOS 13.0+ / macOS 10.15+
 - Swift 5.0+
 
 ## Installation
@@ -35,7 +37,7 @@ You can install HPRTMP using [Swift Package Manager](https://swift.org/package-m
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/huiping192/HPRTMP.git", from: "1.0.0")
+    .package(url: "https://github.com/huiping192/HPRTMP.git", from: "0.0.1")
 ]
 ```
 Alternatively, you can clone this repository and use the included HPRTMP.xcodeproj file, or you can copy the source files directly into your project.
