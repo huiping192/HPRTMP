@@ -1,4 +1,5 @@
 import Foundation
+import os
 
 public protocol RTMPPublishSessionDelegate: AnyObject {
   func sessionStatusChange(_ session: RTMPPublishSession,  status: RTMPPublishSession.Status)
@@ -47,6 +48,9 @@ public class RTMPPublishSession {
   private var configure: PublishConfigure?
   
   private var connectId: Int = 0
+  
+  private let logger = Logger(subsystem: "HPRTMP", category: "Publish")
+
   
   public init() {}
   
@@ -109,7 +113,7 @@ extension RTMPPublishSession: RTMPSocketDelegate {
   func socketStreamOutputVideo(_ socket: RTMPSocket, data: Data, timeStamp: Int64) {}
   
   func socketStreamPublishStart(_ socket: RTMPSocket) {
-    print("[HPRTMP] socketStreamPublishStart")
+    logger.debug("socketStreamPublishStart")
     publishStatus = .publishStart
     guard let configure = configure else { return }
     Task {
@@ -119,15 +123,15 @@ extension RTMPPublishSession: RTMPSocketDelegate {
   }
   
   func socketStreamRecord(_ socket: RTMPSocket) {
-    
+    // publisher dont need implement
   }
   
   func socketStreamPlayStart(_ socket: RTMPSocket) {
-    
+    // publisher dont need implement
   }
   
   func socketStreamPause(_ socket: RTMPSocket, pause: Bool) {
-    
+    // publisher dont need implement
   }
   
   func socketConnectDone(_ socket: RTMPSocket) {

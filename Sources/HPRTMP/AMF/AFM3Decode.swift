@@ -1,4 +1,5 @@
 import Foundation
+import os
 
 //Note that 3 separate reference tables are used for Strings, Complex Objects and Object Traits respectively.
 public class AMF3ReferenceTable {
@@ -57,6 +58,9 @@ extension Data {
 
 private let nullString = "Null"
 
+private let logger = Logger(subsystem: "HPRTMP", category: "AMF3Decoder")
+
+
 private extension Data {
   mutating func decode(reference: inout AMF3ReferenceTable) -> [Any]? {
     var decodeData = [Any]()
@@ -69,7 +73,7 @@ private extension Data {
         let value = try self.parseValue(type: realType, reference: &reference)
         decodeData.append(value)
       } catch let error {
-        print("Decode Error \(error.localizedDescription)")
+        logger.error("Decode Error \(error.localizedDescription)")
         return nil
       }
       

@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import os
 
 enum AMF0DecodeError: Error {
   case rangeError
@@ -80,6 +81,7 @@ extension Data {
 
 class AMF0Decoder {
   private var data: Data = Data()
+  private let logger = Logger(subsystem: "HPRTMP", category: "AMF0Decoder")
   func decodeAMF0(_ data: Data) -> [Any]? {
     self.data = data
     var decodeData = [Any]()
@@ -92,7 +94,7 @@ class AMF0Decoder {
       do {
         try decodeData.append(self.parseValue(type: realType))
       } catch {
-        print("Decode Error \(error.localizedDescription)")
+        logger.error("Decode Error \(error.localizedDescription)")
         return nil
       }
     }

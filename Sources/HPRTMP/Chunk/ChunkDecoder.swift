@@ -1,4 +1,5 @@
 import Foundation
+import os
 
 actor MessageDecoder {
   private var data = Data()
@@ -8,6 +9,8 @@ actor MessageDecoder {
   private var maxChunkSize: Int = Int(128)
   
   private(set) var isDecoding = false
+  
+  private let logger = Logger(subsystem: "HPRTMP", category: "MessageDecoder")
   
   func setMaxChunkSize(maxChunkSize: Int) async {
     self.maxChunkSize = maxChunkSize
@@ -24,14 +27,14 @@ actor MessageDecoder {
   
   func decode() async -> RTMPMessage? {
     guard !isDecoding else { return nil }
-    print("[HPRTMP] decode message start")
+    logger.debug("decode message start")
     isDecoding = true
     let (message,size) = await decodeMessage(data: data)
     guard let message else { return nil }
     data.removeFirst(size)
     isDecoding = false
-    print("[HPRTMP] decode message success: \(message)")
-    print("[HPRTMP] MessageDecoder remain data count: \(data.count)")
+//    logger.debug("decode message success: \(message.messageType)")
+    logger.debug("MessageDecoder remain data count: \(self.data.count)")
     return message
   }
   

@@ -7,6 +7,7 @@
 
 import Foundation
 import Network
+import os
 
 public enum RTMPStatus {
   case none
@@ -78,6 +79,8 @@ public actor RTMPSocket {
   
   private let windowControl = WindowControl()
   
+  private let logger = Logger(subsystem: "HPRTMP", category: "RTMPSocket")
+  
   public init() async {
     await windowControl.setInBytesWindowEvent { [weak self]inbytesCount in
       await self?.sendAcknowledgementMessage(sequence: inbytesCount)
@@ -116,16 +119,17 @@ extension RTMPSocket {
     connection.stateUpdateHandler = { [weak self]newState in
       guard let self else { return }
       Task {
-        print("[HPRTMP] connection \(connection) state: \(newState)")
         switch newState {
         case .ready:
+          self.logger.info("connection state: ready")
           guard await self.status == .open else { return }
           await self.startShakeHands()
         case .failed(let error):
-          print("[HPRTMP] connection error: \(error.localizedDescription)")
+          self.logger.error("[HPRTMP] connection error: \(error.localizedDescription)")
           await self.delegate?.socketError(self, err: .uknown(desc: error.localizedDescription))
           await self.invalidate()
         default:
+          self.logger.info("connection state: other")
           break
         }
       }
@@ -163,7 +167,7 @@ extension RTMPSocket {
     guard let connection else { return }
     while true {
       let data = try await connection.receiveData()
-      print("[HPRTMP] receive data count: \(data.count)")
+      logger.debug("receive data count: \(data.count)")
       await self.handleOutputData(data: data)
     }
   }
@@ -171,7 +175,7 @@ extension RTMPSocket {
 
 extension RTMPSocket {
   func send(message: RTMPMessage & Encodable, firstType: Bool) async {
-    print("[HPRTMP] send message start: \(message)")
+    logger.debug("send message start: \(type(of: message))")
     
     if let message = message as? ChunkSizeMessage {
       encoder.chunkSize = message.size
@@ -180,9 +184,9 @@ extension RTMPSocket {
     do {
       try await connection?.sendData(datas)
       await windowControl.addOutBytesCount(UInt32(datas.count))
-      print("[HPRTMP] send message successd: \(message)")
+      logger.info("[HPRTMP] send message successd: \(type(of: message))")
     } catch {
-      print("[HPRTMP] send message failed: \(message), error: \(error)")
+      logger.error("[HPRTMP] send message failed: \(type(of: message)), error: \(error)")
       delegate?.socketError(self, err: .stream(desc: error.localizedDescription))
     }
   }
@@ -221,41 +225,41 @@ extension RTMPSocket {
   
   private func decode(data: Data) async {
     guard let message = await decoder.decode() else {
-      print("[HPRTMP] decode message need more data.")
+      logger.info("[HPRTMP] decode message need more data.")
       return
     }
     
     if let windowAckMessage = message as? WindowAckMessage {
-      print("[HTRTMP] WindowAckMessage, size \(windowAckMessage.size)")
+      logger.info("WindowAckMessage, size \(windowAckMessage.size)")
       await windowControl.setWindowSize(windowAckMessage.size)
       return
     }
     
     if let acknowledgementMessage = message as? AcknowledgementMessage {
-      print("[HTRTMP] AcknowledgementMessage, size \(acknowledgementMessage.sequence)")
+      logger.info("AcknowledgementMessage, size \(acknowledgementMessage.sequence)")
       return
     }
     
     if let peerBandwidthMessage = message as? PeerBandwidthMessage {
-      print("[HTRTMP] PeerBandwidthMessage, size \(peerBandwidthMessage.windowSize)")
+      logger.info("PeerBandwidthMessage, size \(peerBandwidthMessage.windowSize)")
       delegate?.socketPeerBandWidth(self, size: peerBandwidthMessage.windowSize)
       return
     }
     
     if let chunkSizeMessage = message as? ChunkSizeMessage {
-      print("[HTRTMP] chunkSizeMessage, size \(chunkSizeMessage.size)")
+      logger.info("chunkSizeMessage, size \(chunkSizeMessage.size)")
       await decoder.setMaxChunkSize(maxChunkSize: Int(chunkSizeMessage.size))
       return
     }
     
     if let commandMessage = message as? CommandMessage {
-      print("[HTRTMP] CommandMessage, \(commandMessage.description)")
+      logger.info("CommandMessage, \(commandMessage.description)")
       await handleCommandMessage(commandMessage)
       return
     }
     
     if let userControlMessage = message as? UserControlMessage {
-      print("[HTRTMP] UserControlMessage, message Type:  \(userControlMessage.type)")
+      logger.info("UserControlMessage, message Type:  \(userControlMessage.type.rawValue)")
       switch userControlMessage.type {
       case .pingRequest:
         self.delegate?.socketPinRequest(self, data: userControlMessage.data)
@@ -267,36 +271,36 @@ extension RTMPSocket {
     }
     
     if let controlMessage = message as? ControlMessage {
-      print("[HTRTMP] ControlMessage, message Type:  \(controlMessage.messageType)")
+      logger.info("ControlMessage, message Type:  \(controlMessage.messageType.rawValue)")
       
       return
     }
     
     if let dataMessage = message as? DataMessage {
-      print("[HTRTMP] DataMessage, message Type:  \(dataMessage.messageType)")
+      logger.info("DataMessage, message Type:  \(dataMessage.messageType.rawValue)")
       
       return
     }
     
     if let videoMessage = message as? VideoMessage {
-      print("[HTRTMP] VideoMessage, message Type:  \(videoMessage.messageType)")
+      logger.info("VideoMessage, message Type:  \(videoMessage.messageType.rawValue)")
       self.delegate?.socketStreamOutputVideo(self, data: videoMessage.data, timeStamp: Int64(videoMessage.timestamp))
       return
     }
     
     if let audioMessage = message as? AudioMessage {
-      print("[HTRTMP] AudioMessage, message Type:  \(audioMessage.messageType)")
+      logger.info("AudioMessage, message Type:  \(audioMessage.messageType.rawValue)")
       self.delegate?.socketStreamOutputAudio(self, data: audioMessage.data, timeStamp: Int64(audioMessage.timestamp))
       return
     }
     
     if let sharedObjectMessage = message as? SharedObjectMessage {
-      print("[HTRTMP] ShareMessage, message Type:  \(sharedObjectMessage.messageType)")
+      logger.info("ShareMessage, message Type:  \(sharedObjectMessage.messageType.rawValue)")
       return
     }
     
     if let abortMessage = message as? AbortMessage {
-      print("[HTRTMP] AbortMessage, message Type:  \(abortMessage.chunkStreamId)")
+      logger.info("AbortMessage, message Type:  \(abortMessage.chunkStreamId)")
       return
     }
   }
@@ -337,22 +341,22 @@ extension RTMPSocket {
       if commandMessage.commandNameType == .result {
         let connectResponse = ConnectResponse(info: commandMessage.info)
         if connectResponse?.code == .success {
-          print("[HTRTMP] Connect Success")
+          logger.info("Connect Success")
           self.delegate?.socketConnectDone(self)
         } else {
-          print("[HTRTMP] Connect failed")
+          logger.error("Connect failed")
           self.delegate?.socketError(self, err: .command(desc: connectResponse?.code.rawValue ?? "Connect error"))
         }
       }
     case is CreateStreamMessage:
       if commandMessage.commandNameType == .result {
-        print("[HTRTMP] Create Stream Success")
+        logger.info("Create Stream Success")
         self.status = .connected
         
         let msgStreamId = commandMessage.info as? Double ?? 0
         self.delegate?.socketCreateStreamDone(self, msgStreamId: Int(msgStreamId))
       } else {
-        print("[HTRTMP] Create Stream failed, \(commandMessage.info ?? "")")
+        logger.error("Create Stream failed, \(commandMessage.info.debugDescription)")
         self.delegate?.socketError(self, err: .command(desc: "Create Stream error"))
       }
     default:
