@@ -12,12 +12,12 @@ extension MessageHeader where Self: Equatable {
 struct MessageHeaderType0: MessageHeader {
   // max timestamp 0xFFFFFF
   let maxTimestamp: UInt32 = 16777215
-  
+
   let timestamp: UInt32
   let messageLength: Int
   let type: MessageType
   let messageStreamId: Int
-  
+
   func encode() -> Data {
     var data = Data()
     let isExtendTime = timestamp > maxTimestamp
@@ -38,7 +38,7 @@ struct MessageHeaderType1: MessageHeader {
   let timestampDelta: UInt32
   let messageLength: Int
   let type: MessageType
-  
+
   func encode() -> Data {
     var data = Data()
     data.writeU24(UInt32(timestampDelta), bigEndian: true)
@@ -50,7 +50,7 @@ struct MessageHeaderType1: MessageHeader {
 
 struct MessageHeaderType2: MessageHeader {
   let timestampDelta: UInt32
-  
+
   func encode() -> Data {
     var data = Data()
     data.writeU24(UInt32(timestampDelta), bigEndian: true)

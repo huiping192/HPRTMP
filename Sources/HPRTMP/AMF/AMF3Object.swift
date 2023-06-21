@@ -75,72 +75,69 @@ enum RTMPAMF3Type: UInt8 {
 
 struct AMF3Object: AMF3Protocol {
   var data = Data()
-  
+
   mutating func appendUndefined() {
     data.append(RTMPAMF3Type.undefined.rawValue)
   }
-  
+
   mutating func appendNil() {
     data.append(RTMPAMF3Type.null.rawValue)
   }
-  
+
   mutating func appned(_ value: Bool) {
     data.append(value.amf3Encode)
   }
-  
+
   mutating func append(_ value: Int) {
     data.append(value.amf3Encode)
   }
-  
+
   mutating func append(_ value: Double) {
     data.append(value.amf3Encode)
   }
-  
+
   mutating func append(_ value: String) {
     data.append(value.amf3Encode)
   }
-  
+
   mutating func appendXML(_ value: String) {
     data.append(value.amf3Encode)
   }
-  
+
   mutating func append(_ value: Date) {
     data.append(value.amf3Encode)
   }
-  
+
   mutating func append(_ value: [Any]) {
     data.append(value.amf3Encode)
   }
-  
+
   mutating func append(_ value: [String: Any?]?) {
-    if let v = value {
-      data.append(v.amf3Encode)
-    }
+    guard let value = value else { return }
+    data.append(value.amf3Encode)
   }
-  
+
   mutating func appendVector(_ value: [Int32]) {
     data.append(value.amf3VectorEncode)
   }
-  
+
   mutating func appendVector(_ value: [UInt32]) {
     data.append(value.amf3VectorEncode)
   }
-  
+
   mutating func appendVector(_ value: [Double]) {
     data.append(value.amf3VectorEncode)
   }
-  
+
   mutating func appendByteArray(_ value: Data) {
     data.append(value.byteEncode)
   }
-  
+
   public func decode() -> [Any]? {
     data.decodeAMF3()
   }
-  
+
   public static func decode(_ data: Data) -> [Any]? {
     data.decodeAMF3()
   }
 }
-
-

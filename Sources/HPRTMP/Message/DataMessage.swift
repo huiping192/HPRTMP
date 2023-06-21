@@ -5,12 +5,10 @@
 //  Created by Huiping Guo on 2022/11/03.
 //
 
-
 import Foundation
 
 // max timestamp 0xFFFFFF
 let maxTimestamp: UInt32 = 16777215
-
 
 enum RTMPStreamId: Int {
     case control = 2
@@ -20,17 +18,17 @@ enum RTMPStreamId: Int {
 }
 
 protocol RTMPMessage {
-  var timestamp: UInt32 { set get }
+  var timestamp: UInt32 { get set }
   var messageType: MessageType { get }
-  var msgStreamId: Int  { get set }
-  var streamId: Int  { get }
+  var msgStreamId: Int { get set }
+  var streamId: Int { get }
 }
 
 public class RTMPBaseMessage: RTMPMessage {
     let messageType: MessageType
     var msgStreamId: Int
     let streamId: Int
-    
+
     init(type: MessageType, msgStreamId: Int = 0, streamId: Int) {
         self.messageType = type
         self.msgStreamId = msgStreamId
@@ -38,7 +36,7 @@ public class RTMPBaseMessage: RTMPMessage {
     }
 
     private var _timeInterval: UInt32 = 0
-    public var timestamp:UInt32  {
+    public var timestamp: UInt32 {
         set {
             _timeInterval = newValue >= maxTimestamp ? maxTimestamp : newValue
         } get {
@@ -57,7 +55,6 @@ class DataMessage: RTMPBaseMessage {
     }
 }
 
-
 class MetaMessage: DataMessage, Encodable {
     let meta: [String: Any]
     init(encodeType: ObjectEncodingType, msgStreamId: Int, meta: [String: Any]) {
@@ -65,7 +62,7 @@ class MetaMessage: DataMessage, Encodable {
         super.init(encodeType: encodeType,
                    msgStreamId: msgStreamId)
     }
-    
+
     func encode() -> Data {
         var amf: AMFProtocol = encodeType == .amf0 ? AMF0Object() : AMF3Object()
         amf.append("onMetaData")
@@ -73,7 +70,6 @@ class MetaMessage: DataMessage, Encodable {
         return amf.data
     }
 }
-
 
 class VideoMessage: RTMPBaseMessage, Encodable {
     let data: Data
@@ -88,7 +84,6 @@ class VideoMessage: RTMPBaseMessage, Encodable {
         return data
     }
 }
-
 
 class AudioMessage: RTMPBaseMessage, Encodable {
     let data: Data
@@ -108,13 +103,13 @@ class AudioMessage: RTMPBaseMessage, Encodable {
 class SharedObjectMessage: DataMessage, Encodable {
   let sharedObjectName: String?
   let sharedObject: [String: Any]?
-  
+
   init(encodeType: ObjectEncodingType, msgStreamId: Int, sharedObjectName: String?, sharedObject: [String: Any]?) {
     self.sharedObjectName = sharedObjectName
     self.sharedObject = sharedObject
     super.init(encodeType: encodeType, msgStreamId: msgStreamId)
   }
-  
+
   func encode() -> Data {
     var amf: AMFProtocol = encodeType == .amf0 ? AMF0Object() : AMF3Object()
     amf.append("onSharedObject")

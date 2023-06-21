@@ -1,5 +1,3 @@
-
-
 public struct PublishConfigure {
   let width: Int
   let height: Int
@@ -22,7 +20,7 @@ public struct PublishConfigure {
     self.audioDatarate = audioDatarate
     self.audioSamplerate = audioSamplerate
   }
-  
+
   var meta: [String: Any] {
     var dic: [String: Any] = [
       "width": Int32(width),

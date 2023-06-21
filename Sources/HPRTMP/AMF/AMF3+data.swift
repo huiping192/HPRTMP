@@ -27,13 +27,11 @@ protocol AMF3VectorUnitEncode {
   var vectorData: Data { get }
 }
 
-
 extension Bool: AMF3Encode {
   var amf3Encode: Data {
     return Data([self == false ? 0x02 : 0x03])
   }
 }
-
 
 extension Int: AMF3Encode {
   var amf3Encode: Data {
@@ -65,7 +63,7 @@ extension Int: AMF3Encode {
       return Double(self).amf3Encode
     }
   }
-  
+
   var vectorData: Data {
     return self.bigEndian.data
   }
@@ -87,7 +85,7 @@ extension String: AMF3Encode, AMF3KeyEncode {
     data.append(Data(self.utf8))
     return data
   }
-  
+
   var amf3Encode: Data {
     var data = Data()
     data.write(RTMPAMF3Type.string.rawValue)
@@ -110,18 +108,18 @@ extension Date: AMF3Encode {
 extension Dictionary: AMF3Encode where Key: AMF3KeyEncode, Value: AMF3Encode {
   var amf3Encode: Data {
     var data = Data([0x03]) // Object marker
-    
+
     // Write object traits
     data.append(Data([0x0b])) // Trait type (object)
     data.append(Data([0x01])) // Trait count (1)
     data.append(self.keys.count.amf3Encode) // Write number of keys
     data.append(Data([0x01])) // Trait property name (always an empty string)
-    
+
     for key in self.keys {
       data.append(key.amf3KeyEncode) // Write the key as a string
       data.append(self[key]!.amf3Encode) // Write the value
     }
-    
+
     return data
   }
 }
@@ -129,7 +127,7 @@ extension Dictionary: AMF3Encode where Key: AMF3KeyEncode, Value: AMF3Encode {
 extension Dictionary where Key == String {
   var amf3Encode: Data {
     var data = Data()
-    data.write([RTMPAMF3Type.object.rawValue,0x0b,RTMPAMF3Type.null.rawValue])
+    data.write([RTMPAMF3Type.object.rawValue, 0x0b, RTMPAMF3Type.null.rawValue])
     self.forEach { (key, value) in
       let keyEncode = key.amf3KeyEncode
       data.append(keyEncode)
@@ -150,7 +148,7 @@ extension Array: AMF3Encode {
     var data = Data()
     data.write(RTMPAMF3Type.array.rawValue)
     data.append(encodeLength)
-    
+
     self.forEach {
       if let valueEncode = ($0 as? AMF3Encode)?.amf3Encode {
         data.append(valueEncode)
@@ -172,17 +170,17 @@ extension Array: AMF3VectorEncode {
     } else {
       type = .vectorObject
     }
-    
-    guard let t = type else {
+
+    guard let type = type else {
       return Data()
     }
-    
+
     let encodeLength = (self.count << 1 | 0x01).amf3LengthConvert
     var data = Data()
-    data.write(t.rawValue)
+    data.write(type.rawValue)
     data.append(encodeLength)
     data.write(AMF3EncodeType.Vector.dynamic.rawValue)
-    
+
     if type == .vectorObject {
       let objectType = "*".amf3Encode
       let encodeLength = (objectType.count << 1 | 0x01).amf3LengthConvert
@@ -200,7 +198,7 @@ extension Array: AMF3VectorEncode {
         }
       }
     }
-    
+
     return data
   }
 }

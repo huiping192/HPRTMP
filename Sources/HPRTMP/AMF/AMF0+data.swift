@@ -106,31 +106,30 @@ extension String: AMF0Encode {
     let isLongString = self.count > UInt16.max
     return isLongString ? amf0LongStringValue : amf0StringValue
   }
-  
-  
+
   private var amf0StringValue: Data {
     var data = Data()
-    
+
     data.write(RTMPAMF0Type.string.rawValue)
     data.append(UInt16(Data(self.utf8).count).bigEndian.data)
     data.append(Data(self.utf8))
-    
+
     return data
   }
-  
+
   private var amf0LongStringValue: Data {
     var data = Data()
-    
+
     data.write(RTMPAMF0Type.longString.rawValue)
     data.append(UInt32(Data(self.utf8).count).bigEndian.data)
     data.append(Data(self.utf8))
-    
+
     return data
   }
-  
+
   var amf0KeyEncode: Data {
     let isLong = UInt32(UInt16.max) < UInt32(self.count)
-    
+
     var data = Data()
     let convert = Data(self.utf8)
     if isLong {
@@ -150,11 +149,10 @@ extension Date: AMF0Encode {
     var data = Data()
     data.write(RTMPAMF0Type.date.rawValue)
     data.append(Data(mileSecondSince1970.bitPattern.data))
-    data.write([UInt8]([0x0,0x0]))
+    data.write([UInt8]([0x0, 0x0]))
     return data
   }
 }
-
 
 // Object - 0x03 (Set of key/value pairs)
 // Object End - 0x09 (preceded by an empty 16-bit string length)
@@ -163,10 +161,10 @@ extension Dictionary where Key == String {
     var data = Data()
     data.write(RTMPAMF0Type.object.rawValue)
     data.append(keyValueEncode())
-    data.write([0x00,0x00,RTMPAMF0Type.objectEnd.rawValue])
+    data.write([0x00, 0x00, RTMPAMF0Type.objectEnd.rawValue])
     return data
   }
-  
+
   // ECMA Array
   var amf0EcmaArray: Data {
     var data = Data()
@@ -175,7 +173,7 @@ extension Dictionary where Key == String {
     data.append(self.keyValueEncode())
     return data
   }
-  
+
   fileprivate func keyValueEncode() -> Data {
     var data = Data()
     self.forEach { (key, value) in
@@ -221,5 +219,3 @@ extension Array {
     return group
   }
 }
-
-
