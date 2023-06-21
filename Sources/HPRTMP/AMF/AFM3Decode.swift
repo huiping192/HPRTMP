@@ -1,7 +1,7 @@
 import Foundation
 import os
 
-//Note that 3 separate reference tables are used for Strings, Complex Objects and Object Traits respectively.
+// Note that 3 separate reference tables are used for Strings, Complex Objects and Object Traits respectively.
 public class AMF3ReferenceTable {
     private(set) lazy var string = {
        return [String]()
@@ -15,7 +15,7 @@ extension AMF3ReferenceTable {
     func append(_ value: String) {
         self.string.append(value)
     }
-    
+
     func string(index: Int) -> String {
         return self.string[index]
     }
@@ -26,20 +26,19 @@ extension AMF3ReferenceTable {
         self.objects.append([Any]())
         return self.objects.count-1
     }
-    
+
     func replace(_ value: Any, idx: Int) {
         self.objects[idx] = value
     }
-    
+
     func append(_ value: Any) {
         self.objects.append(value)
     }
-    
+
     func object<T>(_ index: Int) -> T? {
         return self.objects[index] as? T
     }
 }
-
 
 public enum AMF3DecodeError: Error {
   case rangeError
@@ -50,16 +49,15 @@ public enum AMF3DecodeError: Error {
 
 extension Data {
   public func decodeAMF3() -> [Any]? {
-    var b = self
+    var bytes = self
     var reference = AMF3ReferenceTable()
-    return b.decode(reference: &reference)
+    return bytes.decode(reference: &reference)
   }
 }
 
 private let nullString = "Null"
 
 private let logger = Logger(subsystem: "HPRTMP", category: "AMF3Decoder")
-
 
 private extension Data {
   mutating func decode(reference: inout AMF3ReferenceTable) -> [Any]? {
@@ -76,14 +74,14 @@ private extension Data {
         logger.error("Decode Error \(error.localizedDescription)")
         return nil
       }
-      
+
     }
     return decodeData
   }
-  
+
   mutating func parseValue(type: RTMPAMF3Type, reference: inout AMF3ReferenceTable) throws -> Any {
     switch type {
-    case .undefined ,.null:
+    case .undefined, .null:
       return nullString
     case .boolTrue:
       return true
@@ -124,7 +122,7 @@ private extension Data {
     }
     return 0
   }
-  
+
   mutating func decodeDouble() throws -> Double {
     let range = 0..<8
     guard let value = self[safe: range] else {
@@ -133,9 +131,9 @@ private extension Data {
     self.removeSubrange(range)
     return Data(value.reversed()).double
   }
-  
+
   mutating func decodeString(_ reference: inout AMF3ReferenceTable) throws -> String {
-    
+
     let (length, type) = try self.decodeLengthWithType()
     switch type {
     case .value:
@@ -153,10 +151,10 @@ private extension Data {
       return reference.string(index: length)
     }
   }
-  
+
   mutating func decodeDate(_ reference: inout AMF3ReferenceTable) throws -> Date {
     let (length, type) = try self.decodeLengthWithType()
-    
+
     switch type {
     case .reference:
       guard let date: Date = reference.object(length) else {
@@ -174,7 +172,7 @@ private extension Data {
       return value
     }
   }
-  
+
   mutating func decodeArray(_ reference: inout AMF3ReferenceTable) throws -> [Any] {
     let (length, type) = try self.decodeLengthWithType()
     switch type {
@@ -189,7 +187,7 @@ private extension Data {
       return value
     }
   }
-  
+
   private mutating func decodeArray(length: Int, reference: inout AMF3ReferenceTable) throws -> [Any] {
     self.remove(at: 0)
     var decodeData = [Any]()
@@ -207,7 +205,7 @@ private extension Data {
     }
     return decodeData
   }
-  
+
   mutating func decodeXML(_ reference: inout AMF3ReferenceTable) throws -> String {
     let (length, type) = try self.decodeLengthWithType()
     switch type {
@@ -227,7 +225,7 @@ private extension Data {
       return xml
     }
   }
-  
+
   mutating func decodeObjectInfo(_ reference: inout AMF3ReferenceTable) throws -> [String: Any] {
     var map = [String: Any]()
     if let className = try? self.decodeString(&reference), className.count > 0 {
@@ -236,7 +234,7 @@ private extension Data {
     var key = ""
     while let first = self.first {
       var type: RTMPAMF3Type? = RTMPAMF3Type(rawValue: first)
-      
+
       if key.isEmpty {
         type = .string
         let value = try self.decodeString(&reference)
@@ -244,12 +242,12 @@ private extension Data {
         if key.count == 0 { break }
         continue
       }
-      guard let t = type else {
+      guard let type = type else {
         throw AMF3DecodeError.rangeError
       }
-      
+
       self.remove(at: 0)
-      switch t {
+      switch type {
       case .string:
         let value = try self.decodeString(&reference)
         map[key] = value
@@ -261,7 +259,7 @@ private extension Data {
         reference.replace(value, idx: idx)
         key = ""
       default:
-        let value = try self.parseValue(type: t, reference: &reference)
+        let value = try self.parseValue(type: type, reference: &reference)
         map[key] = value
         key = ""
       }
@@ -284,7 +282,7 @@ private extension Data {
     } else if value & 0x0f == 0x07, let className = try? self.decodeString(&reference), className.count > 0 {
       map["className"] = className
     } else if value & 0x0f == 0x0b {
-      
+
       let idx = reference.createReserved()
       let info = try self.decodeObjectInfo(&reference)
       reference.replace(info, idx: idx)
@@ -292,7 +290,7 @@ private extension Data {
     }
     return map
   }
-  
+
   mutating func decodeByteArray(_ reference: inout AMF3ReferenceTable) throws -> Data {
     let (length, type) = try self.decodeLengthWithType()
     switch type {
@@ -311,13 +309,11 @@ private extension Data {
       return byte
     }
   }
-  
+
   mutating func decodeVectorNumber<T>(_ reference: inout AMF3ReferenceTable) throws -> [T] {
     var decodeData = [T]()
     let (length, type) = try self.decodeLengthWithType()
-    
-    guard let first = self.first,
-          let _ = AMF3EncodeType.Vector(rawValue: first) else {
+    guard let first = self.first, AMF3EncodeType.Vector(rawValue: first) != nil else {
       throw AMF3DecodeError.rangeError
     }
     self.remove(at: 0)
@@ -331,12 +327,12 @@ private extension Data {
         guard let rangeBytes = self[safe: range] else {
           throw AMF3DecodeError.rangeError
         }
-        if T.self == UInt32.self {
-          decodeData.append(Data(rangeBytes.reversed()).uint32 as! T)
-        } else if T.self == Int32.self {
-          decodeData.append(Data(rangeBytes.reversed()).int32 as! T)
-        } else if T.self == Double.self {
-          decodeData.append(Data(rangeBytes.reversed()).double as! T)
+        if let data = Data(rangeBytes.reversed()).uint32 as? T, T.self == UInt32.self {
+          decodeData.append(data)
+        } else if let data = Data(rangeBytes.reversed()).int32 as? T, T.self == Int32.self {
+          decodeData.append(data)
+        } else if let data = Data(rangeBytes.reversed()).double as? T, T.self == Double.self {
+          decodeData.append(data)
         }
         self.removeSubrange(range)
       }
@@ -349,7 +345,7 @@ private extension Data {
     reference.append(decodeData)
     return decodeData
   }
-  
+
   mutating func decodeVectorObject(_ reference: inout AMF3ReferenceTable) throws -> [Any] {
     let (count, objType) = try self.decodeLengthWithType()
     self.remove(at: 0)
@@ -357,7 +353,7 @@ private extension Data {
     switch objType {
     case .value:
       let range = 0..<typeLength
-      guard let _ = self[safe: range] else {
+      guard self[safe: range] != nil else {
         throw AMF3DecodeError.rangeError
       }
       self.removeSubrange(range)
@@ -369,20 +365,17 @@ private extension Data {
     }
     return [Any]()
   }
-  
-  
+
   mutating func decodeLengthWithType() throws -> (length: Int, type: AMF3EncodeType.U29) {
     let value = self.convertLength()
-    
     let length = value >> 1
     let u29Raw = UInt8(value & 0x01)
-    
     guard let type = AMF3EncodeType.U29(rawValue: u29Raw) else {
       throw AMF3DecodeError.rangeError
     }
     return (length, type)
   }
-  
+
   mutating func convertLength() -> Int {
     var lastIdx = 0
     var numberArr = [UInt8]()
@@ -394,14 +387,14 @@ private extension Data {
       if isEnd { break }
       lastIdx += 1
     }
-    let value = numberArr.enumerated().reduce(0) { (rc, current) -> Int in
+    let value = numberArr.enumerated().reduce(0) { (rcValue, current) -> Int in
       var shift =  (lastIdx-current.offset)*7
       if lastIdx == 3 && current.offset != 3 {
         shift += 1
       }
-      return rc + Int(current.element) << shift
+      return rcValue + Int(current.element) << shift
     }
-    
+
     return value
   }
 }

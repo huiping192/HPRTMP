@@ -34,7 +34,7 @@ final class ChunkTests: XCTestCase {
     let chunkHeader2 = ChunkHeader(streamId: streamId, messageHeader: messageHeaderType2)
 
     XCTAssertEqual(chunkHeader2.basicHeader.type, .type2)
-    
+
     let messageHeaderType3 = MessageHeaderType3()
     let chunkHeader3 = ChunkHeader(streamId: streamId, messageHeader: messageHeaderType3)
 

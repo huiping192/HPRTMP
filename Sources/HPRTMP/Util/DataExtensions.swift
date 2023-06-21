@@ -11,19 +11,19 @@ public extension Data {
   mutating func write(_ value: UInt8) {
     write([value])
   }
-  
+
   mutating func write(_ value: [UInt8]) {
     self.append(contentsOf: value)
   }
-  
+
   mutating func write(_ value: UInt16) {
     self.append(value.bigEndian.data)
   }
-  
+
   mutating func write(_ value: UInt32) {
     self.append(value.bigEndian.data)
   }
-  
+
   mutating func write24(_ value: Int32, bigEndian: Bool) {
     if bigEndian {
       let convert = value.bigEndian.data
@@ -33,7 +33,7 @@ public extension Data {
       append(convert[0..<convert.count-1])
     }
   }
-  
+
   mutating func writeU24(_ value: UInt32, bigEndian: Bool) {
     if bigEndian {
       let convert = UInt32(value).bigEndian.data
@@ -46,28 +46,28 @@ public extension Data {
 }
 
 extension Data {
-  subscript (r: Range<Int>) -> Data {
-    let range = Range(uncheckedBounds: (lower: Swift.max(0, r.lowerBound),
-                                        upper: Swift.min(count, r.upperBound)))
+  subscript (range: Range<Int>) -> Data {
+    let range = Range(uncheckedBounds: (lower: Swift.max(0, range.lowerBound),
+                                        upper: Swift.min(count, range.upperBound)))
     return self.subdata(in: range)
   }
-  
+
   subscript (safe range: CountableRange<Int>) -> Data? {
     if range.lowerBound < 0 || range.upperBound > self.count {
       return nil
     }
-    
+
     return self[range]
   }
-  
+
   subscript (safe range: CountableClosedRange<Int>) -> Data? {
     if range.lowerBound < 0 || range.upperBound >= self.count {
       return nil
     }
-    
+
     return self[range]
   }
-  
+
   subscript (safe index: Int) -> UInt8? {
     if index > 0 && index < self.count {
       return self[index]
@@ -87,5 +87,5 @@ extension UInt32 {
     }
     return Array(bytePtr)
   }
-  
+
 }

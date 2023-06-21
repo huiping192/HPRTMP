@@ -13,13 +13,13 @@ env:
   
 jobs:
   build:
-    runs-on: self-hosted
+    runs-on: macOS-latest
     steps:
     - uses: actions/checkout@v2
     - name: Build
       run: swift build -v
   test:
-    runs-on: self-hosted
+    runs-on: macOS-latest
     steps:
     - uses: actions/checkout@v2
     - name: Test

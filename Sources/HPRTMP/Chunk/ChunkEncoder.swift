@@ -1,14 +1,14 @@
 import Foundation
 
 class ChunkEncoder {
-  
+
   static let maxChunkSize: UInt8 = 128
-  
+
   var chunkSize = UInt32(ChunkEncoder.maxChunkSize)
-  
+
   func chunk(message: RTMPMessage & Encodable, isFirstType0: Bool = true) -> [Chunk] {
     let payload = message.encode()
-    
+
     return payload.split(size: Int(chunkSize))
       .enumerated()
       .map({
@@ -19,17 +19,17 @@ class ChunkEncoder {
           if isFirstType0 {
             messageHeader = MessageHeaderType0(timestamp: message.timestamp,
                                                messageLength: payload.count,
-                                               type: message.messageType ,
+                                               type: message.messageType,
                                                messageStreamId: message.msgStreamId)
           } else {
             messageHeader = MessageHeaderType1(timestampDelta: message.timestamp,
                                                messageLength: payload.count,
                                                type: message.messageType)
           }
-          
+
           let header = ChunkHeader(streamId: message.streamId,
                              messageHeader: messageHeader)
-          
+
           return Chunk(chunkHeader: header, chunkData: Data($0.element))
         }
         let header = ChunkHeader(streamId: message.streamId,
@@ -37,9 +37,9 @@ class ChunkEncoder {
         return Chunk(chunkHeader: header, chunkData: Data($0.element))
       })
   }
-  
+
   func reset() {
-    
+
   }
 }
 
@@ -52,4 +52,3 @@ public extension Data {
     })
   }
 }
-

@@ -8,10 +8,9 @@
 import SwiftUI
 
 struct ContentView: View {
-  
+
   let rtmpService = RTMPService()
-  
-  
+
     var body: some View {
         Text("Hello, world!")
         .padding().onAppear(perform: {

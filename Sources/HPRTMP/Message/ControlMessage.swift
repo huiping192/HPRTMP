@@ -20,7 +20,7 @@ class ChunkSizeMessage: ControlMessage, Encodable {
     self.size = size
     super.init(type: .chunkSize)
   }
-  
+
   func encode() -> Data {
     var data = Data()
     data.write(size & 0x7FFFFFFF)
@@ -28,22 +28,20 @@ class ChunkSizeMessage: ControlMessage, Encodable {
   }
 }
 
-
 // Abort message (2)
 class AbortMessage: ControlMessage, Encodable {
   let chunkStreamId: UInt16
-  init(chunkStreamId : UInt16) {
+  init(chunkStreamId: UInt16) {
     self.chunkStreamId = chunkStreamId
     super.init(type: .abort)
   }
-  
+
   func encode() -> Data {
     var data = Data()
     data.write(UInt32(chunkStreamId))
     return data
   }
 }
-
 
 // Acknowledgement (3)
 class AcknowledgementMessage: ControlMessage, Encodable {
@@ -52,7 +50,7 @@ class AcknowledgementMessage: ControlMessage, Encodable {
     self.sequence = sequence
     super.init(type: .acknowledgement)
   }
-  
+
   func encode() -> Data {
     var data = Data()
     data.write(sequence)
@@ -60,15 +58,14 @@ class AcknowledgementMessage: ControlMessage, Encodable {
   }
 }
 
-
-//Window Acknowledgement Size (5)
+// Window Acknowledgement Size (5)
 class WindowAckMessage: ControlMessage, Encodable {
   let size: UInt32
   init(size: UInt32) {
     self.size = size
     super.init(type: .windowAcknowledgement)
   }
-  
+
   func encode() -> Data {
     var data = Data()
     data.write(size)
@@ -76,16 +73,15 @@ class WindowAckMessage: ControlMessage, Encodable {
   }
 }
 
-
-//Set Peer Bandwidth (6)
+// Set Peer Bandwidth (6)
 class PeerBandwidthMessage: ControlMessage, Encodable {
-  
+
   enum LimitType: UInt8 {
     case hard = 0
     case soft = 1
     case dynamic = 2
   }
-  
+
   let windowSize: UInt32
   let limit: LimitType
   init(windowSize: UInt32, limit: LimitType) {
@@ -93,7 +89,7 @@ class PeerBandwidthMessage: ControlMessage, Encodable {
     self.limit = limit
     super.init(type: .peerBandwidth)
   }
-  
+
   func encode() -> Data {
     var data = Data()
     data.write(windowSize)

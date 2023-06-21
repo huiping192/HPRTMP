@@ -9,16 +9,16 @@ import Foundation
 import HPRTMP
 
 class RTMPService {
-  
+
   private var session = RTMPPublishSession()
-  
+
   init() {
 //    let url = URL(string: "rtmp://192.168.11.23/live")!
 //    let streamKey = "hello"
 //    let port = 1935
 //    socket.connect(streamURL: url, streamKey: streamKey, port: port)
   }
-  
+
   func run() {
     let publishConfig = PublishConfigure(
       width: 640,
@@ -30,7 +30,7 @@ class RTMPService {
       framerate: 30,
       videoframerate: 30
     )
-    
+
     session.publish(url: "rtmp://192.168.11.48/live/haha", configure: publishConfig)
   }
 }

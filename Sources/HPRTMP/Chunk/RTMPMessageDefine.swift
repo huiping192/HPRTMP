@@ -13,7 +13,7 @@ enum RTMPAudioCodecsType: UInt16 {
   case none    = 0x0001
   case adpcm   = 0x0002
   case mp3     = 0x0004
-  case intel   = 0x0008 //not use
+  case intel   = 0x0008 // not use
   case unused  = 0x0010 // not use
   case nelly   = 0x0040
   case g711a   = 0x0080
@@ -25,9 +25,9 @@ enum RTMPAudioCodecsType: UInt16 {
 }
 
 enum RTMPVideoCodecsType: UInt16 {
-  case unused    = 0x0001   //Obsolete value
-  case jpeg      = 0x0002   //Obsolete value
-  case sorenson  = 0x0004   //Sorenson Flash Video
+  case unused    = 0x0001   // Obsolete value
+  case jpeg      = 0x0002   // Obsolete value
+  case sorenson  = 0x0004   // Sorenson Flash Video
   case homebrew  = 0x0008   // V1 screen sharning
   case vp6       = 0x0010   // on2 video(Flash 8+)
   case vp6Alpha  = 0x0020
@@ -37,7 +37,7 @@ enum RTMPVideoCodecsType: UInt16 {
 }
 
 enum MessageType: Equatable {
-  
+
   // controll
   case chunkSize
   case abort
@@ -52,7 +52,7 @@ enum MessageType: Equatable {
   case video
   case aggreate
   case none
-  
+
   init(rawValue: UInt8) {
     switch rawValue {
     case 1:  self = .chunkSize
@@ -61,8 +61,7 @@ enum MessageType: Equatable {
     case 4:  self = .control
     case 5:  self = .windowAcknowledgement
     case 6:  self = .peerBandwidth
-      
-      
+
     case 20: self = .command(type: .amf0)
     case 17: self = .command(type: .amf3)
     case 18: self = .data(type: .amf0)
@@ -75,7 +74,7 @@ enum MessageType: Equatable {
     default: self = .none
     }
   }
-  
+
   var rawValue: UInt8 {
     switch self {
     case .chunkSize:
@@ -106,11 +105,11 @@ enum MessageType: Equatable {
       return 0xff
     }
   }
-  
+
   static func == (lhs: MessageType, rhs: MessageType) -> Bool {
     lhs.rawValue == rhs.rawValue
   }
-  
+
 }
 
 public enum VideoData {
@@ -121,7 +120,7 @@ public enum VideoData {
     case generated = 4
     case command = 5
   }
-  
+
   public enum CodecId: Int {
     case jpeg = 1
     case h263 = 2
@@ -131,7 +130,7 @@ public enum VideoData {
     case screen2 = 6
     case avc = 7
   }
-  
+
   public enum AVCPacketType: UInt8 {
     case header = 0
     case nalu = 1
@@ -162,9 +161,9 @@ public enum AudioData {
     case reserved = 9
     case aac = 10
     case speex = 11
-    case mp3_8KHZ = 14
+    case mp3SmapleRate8KHZ = 14
     case device = 15
-    
+
     var headerSize: Int {
       switch self {
       case .aac:
@@ -174,13 +173,13 @@ public enum AudioData {
       }
     }
   }
-  
+
   public enum SoundRate: Int {
-    case kHz5_5 = 0
+    case kHz5Point5 = 0
     case kHz11 = 1
     case kHz22 = 2
     case kHz44 = 3
-    
+
     public init(value: Float64) {
       switch value {
       case 44100:
@@ -190,15 +189,15 @@ public enum AudioData {
       case 22050:
         self = .kHz22
       case 5500:
-        self = .kHz5_5
+        self = .kHz5Point5
       default:
         self = .kHz44
       }
     }
-    
+
     public var value: Float64 {
       switch self {
-      case .kHz5_5:
+      case .kHz5Point5:
         return 5500
       case .kHz11:
         return 11025
@@ -209,17 +208,17 @@ public enum AudioData {
       }
     }
   }
-  
+
   public enum SoundSize: Int {
     case snd8Bit = 0
     case snd16Bit = 1
   }
-  
+
   public enum SoundType: Int {
     case sndMono = 0
     case sndStereo = 1
   }
-  
+
   public enum AACPacketType: UInt8 {
     case header = 0
     case raw = 1
@@ -232,25 +231,25 @@ public enum ChannelConfigType: UInt8 {
   // R = Right
   // LFE = LFE-channel
   case aot = 0
-  case front_C = 1
-  case front_LR = 2
-  case front_CLR = 3
-  case front_CLR_back_C = 4
-  case front_CLR_back_LR = 5
-  case front_CLR_back_LR_LFE = 6
-  case front_CLR_side_LR_back_LR_LFE = 7
+  case frontC = 1
+  case frontLR = 2
+  case frontCLR = 3
+  case frontCLRBackC = 4
+  case frontCLRBackLR = 5
+  case frontCLRBackLRLFE = 6
+  case frontCLRSideLRBackLRLFE = 7
   case reserved = 8
   case unknown = 0xff
   public init(rawValue: UInt8) {
     switch rawValue {
     case 0: self = .aot
-    case 1: self = .front_C
-    case 2: self = .front_LR
-    case 3: self = .front_CLR
-    case 4: self = .front_CLR_back_C
-    case 5: self = .front_CLR_back_LR
-    case 6: self = .front_CLR_back_LR_LFE
-    case 7: self = .front_CLR_side_LR_back_LR_LFE
+    case 1: self = .frontC
+    case 2: self = .frontLR
+    case 3: self = .frontCLR
+    case 4: self = .frontCLRBackC
+    case 5: self = .frontCLRBackLR
+    case 6: self = .frontCLRBackLRLFE
+    case 7: self = .frontCLRSideLRBackLRLFE
     case 8: self = .reserved
     default: self = .unknown
     }
@@ -296,7 +295,7 @@ public enum SampleFrequencyType: UInt8 {
     default: self = .unknown
     }
   }
-  
+
   public init(value: Double) {
     switch value {
     case 96000: self = .kHz96000
@@ -314,8 +313,7 @@ public enum SampleFrequencyType: UInt8 {
     case 7350: self = .kHz7350
     default: self = .unknown
     }
-    
-    
+
   }
   public var value: Int {
     switch self {
@@ -332,7 +330,7 @@ public enum SampleFrequencyType: UInt8 {
     case .kHz11025: return 11025
     case .kHz8000: return 8000
     case .kHz7350: return 7350
-    case .unknown, .reserved0, .reserved1 , .writenExplictly: return 0xff
+    case .unknown, .reserved0, .reserved1, .writenExplictly: return 0xff
     }
   }
 }

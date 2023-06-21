@@ -5,7 +5,7 @@ Pod::Spec.new do |s|
   s.homepage         = 'https://github.com/huiping192/HPRTMP'
   s.license          = 'MIT'
   s.author           = { 'huiping192' => 'huiping192@163.com' }
-  s.platforms        = { :ios => '14.0', :osx => '11' }
+  s.platforms        = { :ios => '14.0', :osx => '12' }
   s.source           = { :git => 'https://github.com/huiping192/HPRTMP.git', :tag => s.version.to_s }
   s.swift_version    = '5.5'
   
