@@ -16,7 +16,7 @@ public class RTMPPublishSession {
     case failed(err: RTMPError)
     case disconnected
 
-    public static func ==(lhs: Status, rhs: Status) -> Bool {
+    public static func == (lhs: Status, rhs: Status) -> Bool {
       switch (lhs, rhs) {
       case (.unknown, .unknown),
         (.connect, .connect),

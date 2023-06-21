@@ -22,17 +22,15 @@ public enum RTMPError: Error {
   case command(desc: String)
   case uknown(desc: String)
   var localizedDescription: String {
-    get {
-      switch self {
-      case .handShake(let desc):
-        return desc
-      case .stream(let desc):
-        return desc
-      case .command(let desc):
-        return desc
-      case .uknown(let desc):
-        return desc
-      }
+    switch self {
+    case .handShake(let desc):
+      return desc
+    case .stream(let desc):
+      return desc
+    case .command(let desc):
+      return desc
+    case .uknown(let desc):
+      return desc
     }
   }
 }
@@ -128,7 +126,6 @@ extension RTMPSocket {
           await self.invalidate()
         default:
           self.logger.info("connection state: other")
-          break
         }
       }
     }
@@ -221,7 +218,7 @@ extension RTMPSocket {
     }
   }
 
-  private func decode(data: Data) async {
+  private func decode(data: Data) async { // swiftlint:disable:this function_body_length
     guard let message = await decoder.decode() else {
       logger.info("[HPRTMP] decode message need more data.")
       return
@@ -303,7 +300,7 @@ extension RTMPSocket {
     }
   }
 
-  private func handleCommandMessage(_ commandMessage: CommandMessage) async {
+  private func handleCommandMessage(_ commandMessage: CommandMessage) async { // swiftlint:disable:this function_body_length
     if commandMessage.commandNameType == .onStatus {
       guard let statusResponse = StatusResponse(info: commandMessage.info) else { return }
       if statusResponse.level == .error {

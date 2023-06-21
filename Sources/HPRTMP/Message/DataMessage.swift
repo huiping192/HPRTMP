@@ -35,14 +35,15 @@ public class RTMPBaseMessage: RTMPMessage {
         self.streamId = streamId
     }
 
-    private var _timeInterval: UInt32 = 0
-    public var timestamp: UInt32 {
-        set {
-            _timeInterval = newValue >= maxTimestamp ? maxTimestamp : newValue
-        } get {
-            return _timeInterval
-        }
+  private var _timeInterval: UInt32 = 0
+  public var timestamp: UInt32 {
+    get {
+      return _timeInterval
     }
+    set {
+      _timeInterval = newValue >= maxTimestamp ? maxTimestamp : newValue
+    }
+  }
 }
 
 class DataMessage: RTMPBaseMessage {

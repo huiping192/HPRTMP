@@ -61,7 +61,7 @@ actor RTMPHandshake {
     // random
     let randomSize = RTMPHandshake.packetSize - data.count
     (0...randomSize).forEach { _ in
-      data.write(UInt8(arc4random_uniform(0xff)))
+      data.write(UInt8.random(in: 0...0xff))
     }
     return data
   }

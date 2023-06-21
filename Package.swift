@@ -5,7 +5,7 @@ import PackageDescription
 
 let package = Package(
     name: "HPRTMP",
-    platforms: [.iOS(.v14), .macOS(.v11)],
+    platforms: [.iOS(.v14), .macOS(.v12)],
     products: [
         .library(
             name: "HPRTMP",

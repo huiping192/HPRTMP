@@ -181,9 +181,9 @@ class DeleteStreamMessage: CommandMessage, Encodable {
 }
 
 public enum PubishType: String {
-  case live = "live"
-  case record = "record"
-  case append = "append"
+  case live
+  case record
+  case append
 }
 
 class PublishMessage: CommandMessage, Encodable {

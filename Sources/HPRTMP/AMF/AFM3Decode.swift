@@ -313,9 +313,7 @@ private extension Data {
   mutating func decodeVectorNumber<T>(_ reference: inout AMF3ReferenceTable) throws -> [T] {
     var decodeData = [T]()
     let (length, type) = try self.decodeLengthWithType()
-
-    guard let first = self.first,
-          let _ = AMF3EncodeType.Vector(rawValue: first) else {
+    guard let first = self.first, AMF3EncodeType.Vector(rawValue: first) != nil else {
       throw AMF3DecodeError.rangeError
     }
     self.remove(at: 0)
@@ -355,7 +353,7 @@ private extension Data {
     switch objType {
     case .value:
       let range = 0..<typeLength
-      guard let _ = self[safe: range] else {
+      guard self[safe: range] != nil else {
         throw AMF3DecodeError.rangeError
       }
       self.removeSubrange(range)
@@ -370,10 +368,8 @@ private extension Data {
 
   mutating func decodeLengthWithType() throws -> (length: Int, type: AMF3EncodeType.U29) {
     let value = self.convertLength()
-
     let length = value >> 1
     let u29Raw = UInt8(value & 0x01)
-
     guard let type = AMF3EncodeType.U29(rawValue: u29Raw) else {
       throw AMF3DecodeError.rangeError
     }
@@ -391,12 +387,12 @@ private extension Data {
       if isEnd { break }
       lastIdx += 1
     }
-    let value = numberArr.enumerated().reduce(0) { (rc, current) -> Int in
+    let value = numberArr.enumerated().reduce(0) { (rcValue, current) -> Int in
       var shift =  (lastIdx-current.offset)*7
       if lastIdx == 3 && current.offset != 3 {
         shift += 1
       }
-      return rc + Int(current.element) << shift
+      return rcValue + Int(current.element) << shift
     }
 
     return value

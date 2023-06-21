@@ -1,0 +1,10 @@
+disabled_rules:
+  - cyclomatic_complexity
+included:
+  - Sources
+  - Tests
+#excluded:
+#  - "the place where i committed many coding sins"
+line_length: 200
+#reporter: "json"
+#allow_zero_lintable_files: true

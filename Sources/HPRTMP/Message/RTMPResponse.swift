@@ -24,9 +24,9 @@ struct ConnectResponse {
 
 struct StatusResponse: Decodable {
   enum Level: String, Decodable {
-    case warning = "warning"
-    case status = "status"
-    case error = "error"
+    case warning
+    case status
+    case error
   }
 
   enum StreamStatus: String, Decodable {
@@ -123,27 +123,27 @@ public struct MetaDataResponse {
   public var audiocodecid: String = ""
 
   enum CodingKeys: String, CodingKey {
-    case duration = "duration"
-    case height = "height"
-    case frameWidth = "frameWidth"
-    case moovposition = "moovposition"
-    case framerate = "framerate"
-    case avcprofile = "avcprofile"
-    case videocodecid = "videocodecid"
-    case frameHeight = "frameHeight"
-    case videoframerate = "videoframerate"
-    case audiochannels = "audiochannels"
-    case displayWidth = "displayWidth"
-    case displayHeight = "displayHeight"
-    case trackinfo = "trackinfo"
-    case width = "width"
-    case avclevel = "avclevel"
-    case audiosamplerate = "audiosamplerate"
-    case aacaot = "aacaot"
-    case audiocodecid = "audiocodecid"
+    case duration
+    case height
+    case frameWidth
+    case moovposition
+    case framerate
+    case avcprofile
+    case videocodecid
+    case frameHeight
+    case videoframerate
+    case audiochannels
+    case displayWidth
+    case displayHeight
+    case trackinfo
+    case width
+    case avclevel
+    case audiosamplerate
+    case aacaot
+    case audiocodecid
   }
 
-  init?(commandObject: [String: Any?]?) { // swiftlint:disable:this cyclomatic_complexity
+  init?(commandObject: [String: Any?]?) { // swiftlint:disable:this function_body_length
     guard let commandObject = commandObject else { return nil }
 
     if let duration = commandObject["duration"] as? Double {
@@ -198,7 +198,7 @@ public struct MetaDataResponse {
       self.audiocodecid = audiocodecid
     }
     if let trackinfoArray = commandObject["trackinfo"] as? [[String: Any?]] {
-      var trackinfo = [Trackinfo]()
+      var trackinfos = [Trackinfo]()
       for trackinfoDict in trackinfoArray {
         if let timescale = trackinfoDict["timescale"] as? Double,
            let length = trackinfoDict["length"] as? Double,
@@ -210,10 +210,11 @@ public struct MetaDataResponse {
               sampledescription.append(SampleDescription(sampletype: sampletype))
             }
           }
-          trackinfo.append(Trackinfo(sampledescription: sampledescription, language: language, timescale: timescale, length: length))
+          let trackinfo = Trackinfo(sampledescription: sampledescription, language: language, timescale: timescale, length: length)
+          trackinfos.append(trackinfo)
         }
       }
-      self.trackinfo = trackinfo
+      self.trackinfo = trackinfos
     }
   }
 }
