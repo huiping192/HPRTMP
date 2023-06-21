@@ -53,17 +53,13 @@ session.delegate = self
 let configure = PublishConfigure()
 session.publish(url: "rtmp://your.rtmp.server/app/key", configure: configure)
 
-// Check rtmp session status
-if session.publishStatus == .publishStart {
-    // Send audio and video headers
-    session.publishAudioHeader(data: audioHeaderData)
-    session.publishVideoHeader(data: videoHeaderData, time: 0)
+// Send audio and video headers
+session.publishAudioHeader(data: audioHeaderData)
+session.publishVideoHeader(data: videoHeaderData, time: 0)
 
-    // Publish audio and video data
-    session.publishAudio(data: audioData, delta: delta)
-    session.publishVideo(data: videoData, delta: delta)
-}
-
+// Publish audio and video data
+session.publishAudio(data: audioData, delta: delta)
+session.publishVideo(data: videoData, delta: delta)
 
 // Invalidate the session when done
 session.invalidate()
