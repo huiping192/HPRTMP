@@ -41,6 +41,34 @@ dependencies: [
 ```
 Alternatively, you can clone this repository and use the included HPRTMP.xcodeproj file, or you can copy the source files directly into your project.
 
+
+## Usage
+
+### Publishing Example
+``` 
+let session = RTMPPublishSession()
+session.delegate = self
+
+// Configure the session
+let configure = PublishConfigure()
+session.publish(url: "rtmp://your.rtmp.server/app/key", configure: configure)
+
+// Check rtmp session status
+if session.publishStatus == .publishStart {
+    // Send audio and video headers
+    session.publishAudioHeader(data: audioHeaderData)
+    session.publishVideoHeader(data: videoHeaderData, time: 0)
+
+    // Publish audio and video data
+    session.publishAudio(data: audioData, delta: delta)
+    session.publishVideo(data: videoData, delta: delta)
+}
+
+
+// Invalidate the session when done
+session.invalidate()
+```
+
 ## Contributing
 
 Contributions are welcome! If you encounter any issues or have suggestions for improvements, please open an issue or submit a pull request.
