@@ -121,20 +121,21 @@ extension RTMPPublishSession: RTMPSocketDelegate {
   func socketStreamPlayStart(_ socket: RTMPSocket) {}
   func socketStreamPause(_ socket: RTMPSocket, pause: Bool) {}
   
-    
+  
   func socketStreamPublishStart(_ socket: RTMPSocket) {
-    logger.debug("socketStreamPublishStart")
-    publishStatus = .publishStart
-    guard let configure = configure else { return }
     Task {
+      logger.debug("socketStreamPublishStart")
+      publishStatus = .publishStart
+      guard let configure = configure else { return }
       let metaMessage = MetaMessage(encodeType: encodeType, msgStreamId: connectId, meta: configure.meta)
       await socket.send(message: metaMessage, firstType: true)
     }
   }
   
   func socketConnectDone(_ socket: RTMPSocket) {
-    publishStatus = .connect
     Task {
+      
+      publishStatus = .connect
       let message = CreateStreamMessage(encodeType: encodeType, transactionId: await transactionIdGenerator.nextId())
       await self.socket.messageHolder.register(transactionId: message.transactionId, message: message)
       await socket.send(message: message, firstType: true)
@@ -147,9 +148,10 @@ extension RTMPPublishSession: RTMPSocketDelegate {
   }
   
   func socketHandShakeDone(_ socket: RTMPSocket) {
-    publishStatus = .handShakeDone
-    
     Task {
+      
+      publishStatus = .handShakeDone
+      
       guard let urlInfo = await socket.urlInfo else { return }
       let connect = ConnectMessage(encodeType: encodeType,
                                    tcUrl: urlInfo.tcUrl,
@@ -164,9 +166,10 @@ extension RTMPPublishSession: RTMPSocketDelegate {
   }
   
   func socketCreateStreamDone(_ socket: RTMPSocket, msgStreamId: Int) {
-    publishStatus = .connect
-
     Task {
+      
+      publishStatus = .connect
+      
       let message = await PublishMessage(encodeType: encodeType, streamName: socket.urlInfo?.key ?? "", type: .live)
       
       message.msgStreamId = msgStreamId
