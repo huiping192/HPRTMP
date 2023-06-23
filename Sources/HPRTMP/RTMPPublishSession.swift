@@ -1,12 +1,12 @@
 import Foundation
 import os
 
-public protocol RTMPPublishSessionDelegate: AnyObject {
+public protocol RTMPPublishSessionDelegate: Actor {
   func sessionStatusChange(_ session: RTMPPublishSession,  status: RTMPPublishSession.Status)
   func sessionError(_ session: RTMPPublishSession,  error: RTMPError)
 }
 
-public class RTMPPublishSession {
+public actor RTMPPublishSession {
   public enum Status: Equatable {
     case unknown
     case handShakeStart
@@ -35,7 +35,9 @@ public class RTMPPublishSession {
   
   public var publishStatus: Status = .unknown {
     didSet {
-      delegate?.sessionStatusChange(self, status: publishStatus)
+      Task {
+        await delegate?.sessionStatusChange(self, status: publishStatus)
+      }
     }
   }
   
@@ -178,7 +180,9 @@ extension RTMPPublishSession: RTMPSocketDelegate {
   }
   
   func socketError(_ socket: RTMPSocket, err: RTMPError) {
-    delegate?.sessionError(self, error: err)
+    Task {
+      await delegate?.sessionError(self, error: err)
+    }
   }
   
   func socketPeerBandWidth(_ socket: RTMPSocket, size: UInt32) {

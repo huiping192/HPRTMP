@@ -37,7 +37,7 @@ public enum RTMPError: Error {
   }
 }
 
-protocol RTMPSocketDelegate: AnyObject {
+protocol RTMPSocketDelegate: Actor {
   func socketHandShakeDone(_ socket: RTMPSocket)
   func socketPinRequest(_ socket: RTMPSocket, data: Data)
   func socketConnectDone(_ socket: RTMPSocket)
@@ -147,7 +147,7 @@ extension RTMPSocket {
     do {
       try await self.handshake?.start()
     } catch {
-      self.delegate?.socketError(self, err: .handShake(desc: error.localizedDescription))
+      await self.delegate?.socketError(self, err: .handShake(desc: error.localizedDescription))
     }
   }
   
@@ -159,7 +159,7 @@ extension RTMPSocket {
     connection = nil
     urlInfo = nil
     status = .closed
-    delegate?.socketDisconnected(self)
+    await delegate?.socketDisconnected(self)
   }
   
   private func startReceiveData() async throws {
@@ -186,7 +186,7 @@ extension RTMPSocket {
       logger.info("[HPRTMP] send message successd: \(type(of: message))")
     } catch {
       logger.error("[HPRTMP] send message failed: \(type(of: message)), error: \(error)")
-      delegate?.socketError(self, err: .stream(desc: error.localizedDescription))
+      await delegate?.socketError(self, err: .stream(desc: error.localizedDescription))
     }
   }
 }
@@ -241,7 +241,7 @@ extension RTMPSocket {
     
     if let peerBandwidthMessage = message as? PeerBandwidthMessage {
       logger.info("PeerBandwidthMessage, size \(peerBandwidthMessage.windowSize)")
-      delegate?.socketPeerBandWidth(self, size: peerBandwidthMessage.windowSize)
+      await delegate?.socketPeerBandWidth(self, size: peerBandwidthMessage.windowSize)
       return
     }
     
@@ -261,9 +261,9 @@ extension RTMPSocket {
       logger.info("UserControlMessage, message Type:  \(userControlMessage.type.rawValue)")
       switch userControlMessage.type {
       case .pingRequest:
-        self.delegate?.socketPinRequest(self, data: userControlMessage.data)
+        await self.delegate?.socketPinRequest(self, data: userControlMessage.data)
       case .streamIsRecorded:
-        self.delegate?.socketStreamRecord(self)
+        await self.delegate?.socketStreamRecord(self)
       default:
         break
       }
@@ -283,13 +283,13 @@ extension RTMPSocket {
     
     if let videoMessage = message as? VideoMessage {
       logger.info("VideoMessage, message Type:  \(videoMessage.messageType.rawValue)")
-      self.delegate?.socketStreamOutputVideo(self, data: videoMessage.data, timeStamp: Int64(videoMessage.timestamp))
+      await self.delegate?.socketStreamOutputVideo(self, data: videoMessage.data, timeStamp: Int64(videoMessage.timestamp))
       return
     }
     
     if let audioMessage = message as? AudioMessage {
       logger.info("AudioMessage, message Type:  \(audioMessage.messageType.rawValue)")
-      self.delegate?.socketStreamOutputAudio(self, data: audioMessage.data, timeStamp: Int64(audioMessage.timestamp))
+      await self.delegate?.socketStreamOutputAudio(self, data: audioMessage.data, timeStamp: Int64(audioMessage.timestamp))
       return
     }
     
@@ -308,18 +308,18 @@ extension RTMPSocket {
     if commandMessage.commandNameType == .onStatus {
       guard let statusResponse = StatusResponse(info: commandMessage.info) else { return }
       if statusResponse.level == .error {
-        self.delegate?.socketError(self, err: .command(desc: statusResponse.description ?? ""))
+        await self.delegate?.socketError(self, err: .command(desc: statusResponse.description ?? ""))
         return
       }
       switch statusResponse.code {
       case .publishStart:
-        self.delegate?.socketStreamPublishStart(self)
+        await self.delegate?.socketStreamPublishStart(self)
       case .playStart:
-        self.delegate?.socketStreamPlayStart(self)
+        await self.delegate?.socketStreamPlayStart(self)
       case .pauseNotify:
-        self.delegate?.socketStreamPause(self, pause: true)
+        await self.delegate?.socketStreamPause(self, pause: true)
       case .unpauseNotify:
-        self.delegate?.socketStreamPause(self, pause: false)
+        await self.delegate?.socketStreamPause(self, pause: false)
       default:
         break
       }
@@ -329,7 +329,7 @@ extension RTMPSocket {
     // meta data
     if commandMessage.commandNameType == .onMetaData {
       guard let meta = MetaDataResponse(commandObject: commandMessage.commandObject) else { return }
-      self.delegate?.socketGetMeta(self, meta: meta)
+      await self.delegate?.socketGetMeta(self, meta: meta)
       return
     }
     
@@ -341,10 +341,10 @@ extension RTMPSocket {
         let connectResponse = ConnectResponse(info: commandMessage.info)
         if connectResponse?.code == .success {
           logger.info("Connect Success")
-          self.delegate?.socketConnectDone(self)
+          await self.delegate?.socketConnectDone(self)
         } else {
           logger.error("Connect failed")
-          self.delegate?.socketError(self, err: .command(desc: connectResponse?.code.rawValue ?? "Connect error"))
+          await self.delegate?.socketError(self, err: .command(desc: connectResponse?.code.rawValue ?? "Connect error"))
         }
       }
     case is CreateStreamMessage:
@@ -353,10 +353,10 @@ extension RTMPSocket {
         self.status = .connected
         
         let msgStreamId = commandMessage.info as? Double ?? 0
-        self.delegate?.socketCreateStreamDone(self, msgStreamId: Int(msgStreamId))
+        await self.delegate?.socketCreateStreamDone(self, msgStreamId: Int(msgStreamId))
       } else {
         logger.error("Create Stream failed, \(commandMessage.info.debugDescription)")
-        self.delegate?.socketError(self, err: .command(desc: "Create Stream error"))
+        await self.delegate?.socketError(self, err: .command(desc: "Create Stream error"))
       }
     default:
       break
