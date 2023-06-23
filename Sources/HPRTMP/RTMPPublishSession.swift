@@ -32,6 +32,9 @@ public actor RTMPPublishSession {
   }
   
   public weak var delegate: RTMPPublishSessionDelegate?
+  public func setDelegate(_ delegate: RTMPPublishSessionDelegate?) {
+    self.delegate = delegate
+  }
   
   public var publishStatus: Status = .unknown {
     didSet {
