@@ -14,8 +14,9 @@ class ChunkEncoder {
       .map({
         // basic Header
         // Type 0 == first chunk , other use type 3
+        let messageHeader: MessageHeader
+        
         if $0.offset == 0 {
-          let messageHeader: MessageHeader
           if isFirstType0 {
             messageHeader = MessageHeaderType0(timestamp: message.timestamp,
                                                messageLength: payload.count,
@@ -26,30 +27,17 @@ class ChunkEncoder {
                                                messageLength: payload.count,
                                                type: message.messageType)
           }
-          
-          let header = ChunkHeader(streamId: message.streamId,
-                             messageHeader: messageHeader)
-          
-          return Chunk(chunkHeader: header, chunkData: Data($0.element))
+        } else {
+          messageHeader = MessageHeaderType3()
         }
+        
         let header = ChunkHeader(streamId: message.streamId,
-                           messageHeader: MessageHeaderType3())
+                                 messageHeader: messageHeader)
+        
         return Chunk(chunkHeader: header, chunkData: Data($0.element))
+        
       })
-  }
-  
-  func reset() {
-    
   }
 }
 
-public extension Data {
-  func split(size: Int) -> [Data] {
-    guard size != 0 else { return [] }
-    return stride(from: 0, to: count, by: size).map({
-      let end = $0 + size >= count ? count : $0 + size
-      return self.subdata(in: $0 ..< end)
-    })
-  }
-}
 

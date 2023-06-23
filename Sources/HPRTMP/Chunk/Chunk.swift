@@ -42,7 +42,6 @@ struct ChunkHeader: Encodable {
     case _ as MessageHeaderType3:
         basicHeaderType = .type3
     default:
-        // If the message header is not one of the four defined types, set the basic header type to type0
         basicHeaderType = .type0
     }
     
@@ -50,9 +49,7 @@ struct ChunkHeader: Encodable {
     self.basicHeader = BasicHeader(streamId: UInt16(streamId), type: basicHeaderType)
   }
   
-  // Encode the chunk header into a data object
   func encode() -> Data {
-    // Concatenate the encoded basic header, message header, and chunk payload
     return basicHeader.encode() + messageHeader.encode()
   }
 }

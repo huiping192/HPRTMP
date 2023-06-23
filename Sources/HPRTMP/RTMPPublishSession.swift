@@ -108,10 +108,15 @@ public class RTMPPublishSession {
 }
 
 extension RTMPPublishSession: RTMPSocketDelegate {
+  // publisher dont need implement
   func socketGetMeta(_ socket: RTMPSocket, meta: MetaDataResponse) {}
   func socketStreamOutputAudio(_ socket: RTMPSocket, data: Data, timeStamp: Int64) {}
   func socketStreamOutputVideo(_ socket: RTMPSocket, data: Data, timeStamp: Int64) {}
+  func socketStreamRecord(_ socket: RTMPSocket) {}
+  func socketStreamPlayStart(_ socket: RTMPSocket) {}
+  func socketStreamPause(_ socket: RTMPSocket, pause: Bool) {}
   
+    
   func socketStreamPublishStart(_ socket: RTMPSocket) {
     logger.debug("socketStreamPublishStart")
     publishStatus = .publishStart
@@ -120,18 +125,6 @@ extension RTMPPublishSession: RTMPSocketDelegate {
       let metaMessage = MetaMessage(encodeType: encodeType, msgStreamId: connectId, meta: configure.meta)
       await socket.send(message: metaMessage, firstType: true)
     }
-  }
-  
-  func socketStreamRecord(_ socket: RTMPSocket) {
-    // publisher dont need implement
-  }
-  
-  func socketStreamPlayStart(_ socket: RTMPSocket) {
-    // publisher dont need implement
-  }
-  
-  func socketStreamPause(_ socket: RTMPSocket, pause: Bool) {
-    // publisher dont need implement
   }
   
   func socketConnectDone(_ socket: RTMPSocket) {

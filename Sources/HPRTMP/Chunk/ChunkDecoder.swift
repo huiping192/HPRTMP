@@ -33,13 +33,13 @@ actor MessageDecoder {
     guard let message else { return nil }
     data.removeFirst(size)
     isDecoding = false
-//    logger.debug("decode message success: \(message.messageType)")
     logger.debug("MessageDecoder remain data count: \(self.data.count)")
     return message
   }
   
   func reset() {
     data = Data()
+    isDecoding = false
   }
   
   func createMessage(chunkStreamId: UInt16, msgStreamId: Int, messageType: MessageType, timestamp: UInt32, chunkPayload: Data) -> RTMPMessage? {
