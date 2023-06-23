@@ -19,18 +19,8 @@ class RTMPService {
 //    socket.connect(streamURL: url, streamKey: streamKey, port: port)
   }
   
-  func run() {
-    let publishConfig = PublishConfigure(
-      width: 640,
-      height: 480,
-      displayWidth: 640,
-      displayHeight: 480,
-      videocodecid: VideoData.CodecId.avc.rawValue,
-      audiocodecid: AudioData.SoundFormat.aac.rawValue,
-      framerate: 30,
-      videoframerate: 30
-    )
-    
-    session.publish(url: "rtmp://192.168.11.48/live/haha", configure: publishConfig)
+  func run() async {
+    let publishConfig = PublishConfigure(width: 640, height: 480, videocodecid: VideoData.CodecId.avc.rawValue, audiocodecid: AudioData.SoundFormat.aac.rawValue, framerate: 30, videoDatarate: 30, audioDatarate: nil, audioSamplerate: nil)
+    await session.publish(url: "rtmp://192.168.11.23/live/haha", configure: publishConfig)
   }
 }

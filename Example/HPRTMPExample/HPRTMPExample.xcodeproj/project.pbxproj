@@ -17,6 +17,7 @@
 		7DE0F9812903AE4100D08613 /* RTMPService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7DE0F9802903AE4100D08613 /* RTMPService.swift */; };
 		7DE0F9822903AE4100D08613 /* RTMPService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7DE0F9802903AE4100D08613 /* RTMPService.swift */; };
 		7DE0F9862903AF5900D08613 /* HPRTMP in Frameworks */ = {isa = PBXBuildFile; productRef = 7DE0F9852903AF5900D08613 /* HPRTMP */; };
+		DC8708C82A45FE0800F8D483 /* MP4Reader.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC8708C72A45FE0800F8D483 /* MP4Reader.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -29,6 +30,7 @@
 		7DE0F96F2903AD6C00D08613 /* macOS.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = macOS.entitlements; sourceTree = "<group>"; };
 		7DE0F9802903AE4100D08613 /* RTMPService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RTMPService.swift; sourceTree = "<group>"; };
 		7DE0F9842903AF0E00D08613 /* HPRTMP */ = {isa = PBXFileReference; lastKnownFileType = wrapper; name = HPRTMP; path = ../..; sourceTree = "<group>"; };
+		DC8708C72A45FE0800F8D483 /* MP4Reader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MP4Reader.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -68,6 +70,7 @@
 			children = (
 				7DE0F9602903AD6B00D08613 /* HPRTMPExampleApp.swift */,
 				7DE0F9612903AD6B00D08613 /* ContentView.swift */,
+				DC8708C72A45FE0800F8D483 /* MP4Reader.swift */,
 				7DE0F9622903AD6C00D08613 /* Assets.xcassets */,
 				7DE0F9802903AE4100D08613 /* RTMPService.swift */,
 			);
@@ -220,6 +223,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				DC8708C82A45FE0800F8D483 /* MP4Reader.swift in Sources */,
 				7DE0F9822903AE4100D08613 /* RTMPService.swift in Sources */,
 				7DE0F9732903AD6C00D08613 /* ContentView.swift in Sources */,
 				7DE0F9712903AD6C00D08613 /* HPRTMPExampleApp.swift in Sources */,
