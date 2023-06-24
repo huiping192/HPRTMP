@@ -39,8 +39,8 @@ actor RTMPService: RTMPPublishSessionDelegate {
   func run() async {
     
     await session.setDelegate(self)
-    let publishConfig = PublishConfigure(width: 640, height: 480, videocodecid: VideoData.CodecId.avc.rawValue, audiocodecid: AudioData.SoundFormat.aac.rawValue, framerate: 30, videoDatarate: 30, audioDatarate: nil, audioSamplerate: nil)
-    await session.publish(url: "rtmp://192.168.11.23/live/haha", configure: publishConfig)
+    let publishConfig = PublishConfigure(width: 1280, height: 720, videocodecid: VideoData.CodecId.avc.rawValue, audiocodecid: AudioData.SoundFormat.aac.rawValue, framerate: 30, videoDatarate: 30, audioDatarate: nil, audioSamplerate: nil)
+    await session.publish(url: "rtmp://192.168.11.48/live/haha", configure: publishConfig)
     
     
     reader.sendAudioHeader = { data in
@@ -54,30 +54,45 @@ actor RTMPService: RTMPPublishSessionDelegate {
         await self.session.publishVideoHeader(data: data, time: 0)
       }
     }
-    
-    reader.sendAudioBuffer = { data,aacHeader,timestamp in
-      Task {
-        var audioPacketData = Data()
-        audioPacketData.append(aacHeader)
-        audioPacketData.write(AudioData.AACPacketType.raw.rawValue)
-        audioPacketData.append(data)
-        let delta = UInt32(timestamp - self.lastAudioTimestamp)
-        await self.session.publishAudio(data: audioPacketData, delta: delta)
-      }
-    }
+//    
+//    reader.sendAudioBuffer = { data,aacHeader,timestamp in
+//      Task {
+//        var audioPacketData = Data()
+//        audioPacketData.append(aacHeader)
+//        audioPacketData.write(AudioData.AACPacketType.raw.rawValue)
+//        audioPacketData.append(data)
+//        
+//        let delta: UInt32
+//        if self.lastAudioTimestamp == 0 {
+//          delta = 0
+//        } else {
+//          delta = UInt32(timestamp - self.lastAudioTimestamp)
+//        }
+//        await self.session.publishAudio(data: audioPacketData, delta: delta)
+//        self.lastAudioTimestamp = timestamp
+//      }
+//    }
     
     reader.sendVideoBuffer = { data,isKeyFrame,timestamp,compositionTime in
       Task {
+        guard timestamp >= self.lastVideoTimestamp else { return }
         var descData = Data()
         let frameType = isKeyFrame ? VideoData.FrameType.keyframe : VideoData.FrameType.inter
         let frameAndCode:UInt8 = UInt8(frameType.rawValue << 4 | VideoData.CodecId.avc.rawValue)
         descData.append(Data([frameAndCode]))
         descData.append(Data([VideoData.AVCPacketType.nalu.rawValue]))
         
-        let delta = timestamp - self.lastVideoTimestamp
+        let delta: UInt32
+        if self.lastVideoTimestamp == 0 {
+          delta = 0
+        } else {
+          delta = UInt32(timestamp - self.lastVideoTimestamp)
+        }
         // 24bit
         descData.write24(compositionTime, bigEndian: true)
         descData.append(data)
+        
+        print("[debug] delta \(delta)")
         await self.session.publishVideo(data: descData, delta: UInt32(delta))
         self.lastVideoTimestamp = timestamp
       }

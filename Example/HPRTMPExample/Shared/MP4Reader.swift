@@ -9,13 +9,18 @@ import Foundation
 import AVFoundation
 import HPRTMP
 
-struct MP4Reader {
+class MP4Reader {
   
   private let url: URL
   
   private var assetReader: AVAssetReader?
   private var audioReaderOutput: AVAssetReaderTrackOutput?
   private var videoReaderOutput: AVAssetReaderTrackOutput?
+  
+  private var videoTrack: AVAssetTrack?
+  private var audioTrack: AVAssetTrack?
+  
+  private var displayLinkHandler: DisplayLinkHandler?
   
   var sendVideoBuffer: ((Data,Bool,UInt64,Int32) -> Void)?
   var sendAudioBuffer: ((Data,Data,UInt64) -> Void)?
@@ -25,35 +30,57 @@ struct MP4Reader {
   
   var isVideoHeaderSended = false
   var isAudioHeaderSended = false
+  
+  var videoQueue: [CMSampleBuffer] = []
+  var audioQueue: [CMSampleBuffer] = []
 
   init(url: URL) {
     self.url = url
     
     processMP4()
+    
+    displayLinkHandler = DisplayLinkHandler {
+      self.updateFrame()
+    }
   }
   
-  mutating func start() {
+  func start() {
     assetReader?.startReading()
     
-    while let videoSampleBuffer = videoReaderOutput?.copyNextSampleBuffer() {
-      if !isVideoHeaderSended {
-        isVideoHeaderSended = true
-        getVideoHeader(buffer: videoSampleBuffer)
+    (0..<10).forEach { _ in
+      if let videoSampleBuffer = self.videoReaderOutput?.copyNextSampleBuffer() {
+        self.videoQueue.append(videoSampleBuffer)
       }
-      handleVideoBuffer(buffer: videoSampleBuffer)
+      if let audioSampleBuffer = self.audioReaderOutput?.copyNextSampleBuffer() {
+        self.audioQueue.append(audioSampleBuffer)
+      }
     }
     
-    while let audioSampleBuffer = audioReaderOutput?.copyNextSampleBuffer() {
-      if !isAudioHeaderSended {
-        isAudioHeaderSended = true
-        getAudioHeader(buffer: audioSampleBuffer)
-      }
-      handleAudioBuffer(buffer: audioSampleBuffer)
-    }
-    
+    getVideoHeader()
+    getAudioHeader()
+
+    displayLinkHandler?.startUpdates()
   }
   
-  mutating func processMP4() {
+  func updateFrame() {
+    if let videoSampleBuffer = self.videoReaderOutput?.copyNextSampleBuffer() {
+      self.videoQueue.append(videoSampleBuffer)
+    }
+    if let audioSampleBuffer = self.audioReaderOutput?.copyNextSampleBuffer() {
+      self.audioQueue.append(audioSampleBuffer)
+    }
+    if !videoQueue.isEmpty {
+      let videoSampleBuffer = self.videoQueue.removeFirst()
+      self.handleVideoBuffer(buffer: videoSampleBuffer)
+    }
+
+    if !audioQueue.isEmpty {
+      let audioSampleBuffer = self.audioQueue.removeFirst()
+      self.handleAudioBuffer(buffer: audioSampleBuffer)
+    }
+  }
+  
+  func processMP4() {
     let asset = AVURLAsset(url: url)
     guard let assetReader = try? AVAssetReader(asset: asset) else {
       print("Unable to create AVAssetReader")
@@ -72,6 +99,9 @@ struct MP4Reader {
     self.assetReader = assetReader
     self.audioReaderOutput = audioReaderOutput
     self.videoReaderOutput = videoReaderOutput
+    
+    self.videoTrack = videoTrack
+    self.audioTrack = audioTrack
   }
   
   private func handleVideoBuffer(buffer: CMSampleBuffer ) {
@@ -101,7 +131,7 @@ struct MP4Reader {
   private func handleAudioBuffer(buffer: CMSampleBuffer) {
     guard let aacHeader = aacHeader else { return }
     guard let data = getAACData(from: buffer) else { return }
-        
+    
     let timestamp = buffer.presentationTimeStamp.seconds.isFinite ? UInt64(buffer.presentationTimeStamp.seconds * 1000) : 0
     sendAudioBuffer?(data, aacHeader, timestamp)
   }
@@ -125,21 +155,24 @@ struct MP4Reader {
   }
   
   
-  private mutating func getAudioHeader(buffer: CMSampleBuffer) {
-    guard let formatDescription = CMSampleBufferGetFormatDescription(buffer) else {
-        print("Could not get format description")
-        return
-    }
+  private func getAudioHeader() {
+    let formatDescription = audioTrack?.formatDescriptions.first as! CMFormatDescription
 
+    
     // Get the ASBD from the format description
     guard var asbd = CMAudioFormatDescriptionGetStreamBasicDescription(formatDescription)?.pointee else { return }
     var outFormatDescription: CMFormatDescription?
     CMAudioFormatDescriptionCreate(allocator: kCFAllocatorDefault, asbd: &asbd, layoutSize: 0, layout: nil, magicCookieSize: 0, magicCookie: nil, extensions: nil, formatDescriptionOut: &outFormatDescription)
-
-
-    guard let streamBasicDesc = outFormatDescription?.streamBasicDesc,
-          let mp4Id = MPEG4ObjectID(rawValue: Int(streamBasicDesc.mFormatFlags)) else {
+    
+    
+    guard let streamBasicDesc = outFormatDescription?.streamBasicDesc else {
       return
+    }
+    let mp4Id: MPEG4ObjectID
+    if streamBasicDesc.mFormatFlags == 0 { // default lc
+      mp4Id = .AAC_LC
+    } else {
+      mp4Id = MPEG4ObjectID(rawValue: Int(streamBasicDesc.mFormatFlags))!
     }
     var descData = Data()
     let config = AudioSpecificConfig(objectType: mp4Id,
@@ -174,10 +207,10 @@ struct MP4Reader {
     return Data([UInt8(value)])
   }
   
-  private func getVideoHeader(buffer: CMSampleBuffer) {
+  private func getVideoHeader() -> Bool {
     // SPS & PPS data
-    guard let formatDescription = CMSampleBufferGetFormatDescription(buffer) else { return }
-    
+    let formatDescription = videoTrack?.formatDescriptions.first as! CMFormatDescription
+
     
     var pointerSPS: UnsafePointer<UInt8>?
     var pointerPPS: UnsafePointer<UInt8>?
@@ -193,7 +226,7 @@ struct MP4Reader {
     // Now you have your SPS & PPS data:
     let sps = Data(bytes: pointerSPS!, count: sizeSPS)
     let pps = Data(bytes: pointerPPS!, count: sizePPS)
-
+    
     var body = Data()
     body.append(Data([0x17]))
     body.append(Data([0x00]))
@@ -219,6 +252,8 @@ struct MP4Reader {
     body.append(Data(pps))
     
     sendVideoHeader?(body)
+    
+    return true
   }
   
 }
@@ -303,3 +338,45 @@ struct AudioSpecificConfig {
     }
   }
 }
+
+
+class DisplayLinkTarget {
+    let callback: () -> Void
+    
+    init(callback: @escaping () -> Void) {
+        self.callback = callback
+    }
+    
+    @objc func onDisplayLinkUpdate() {
+        callback()
+    }
+}
+
+class DisplayLinkHandler {
+  private var displayLink: CADisplayLink?
+  private var displayLinkTarget: DisplayLinkTarget?
+  
+  init(updateClosure: @escaping () -> Void) {
+    self.displayLinkTarget = DisplayLinkTarget(callback: updateClosure)
+  }
+  
+  func startUpdates() {
+    guard let target = displayLinkTarget else {
+      return
+    }
+    
+    self.displayLink = CADisplayLink(target: target, selector: #selector(DisplayLinkTarget.onDisplayLinkUpdate))
+    self.displayLink?.preferredFramesPerSecond = 30
+    self.displayLink?.add(to: .main, forMode: .default)
+  }
+  
+  func stopUpdates() {
+    self.displayLink?.invalidate()
+    self.displayLink = nil
+  }
+}
+
+
+
+
+
