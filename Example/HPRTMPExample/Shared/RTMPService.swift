@@ -32,7 +32,7 @@ actor RTMPService: RTMPPublishSessionDelegate {
 //    let streamKey = "hello"
 //    let port = 1935
 //    socket.connect(streamURL: url, streamKey: streamKey, port: port)
-    let url = Bundle.main.url(forResource: "720p", withExtension: "mp4")!
+    let url = Bundle.main.url(forResource: "test", withExtension: "mp4")!
     reader = MP4Reader(url: url)
   }
   
@@ -54,24 +54,25 @@ actor RTMPService: RTMPPublishSessionDelegate {
         await self.session.publishVideoHeader(data: data, time: 0)
       }
     }
-//    
-//    reader.sendAudioBuffer = { data,aacHeader,timestamp in
+
+    reader.sendAudioBuffer = { data,aacHeader,timestamp in
 //      Task {
 //        var audioPacketData = Data()
 //        audioPacketData.append(aacHeader)
 //        audioPacketData.write(AudioData.AACPacketType.raw.rawValue)
 //        audioPacketData.append(data)
-//        
+//
 //        let delta: UInt32
 //        if self.lastAudioTimestamp == 0 {
 //          delta = 0
 //        } else {
 //          delta = UInt32(timestamp - self.lastAudioTimestamp)
 //        }
+//        print("[debug] audio delta \(delta)")
 //        await self.session.publishAudio(data: audioPacketData, delta: delta)
 //        self.lastAudioTimestamp = timestamp
 //      }
-//    }
+    }
     
     reader.sendVideoBuffer = { data,isKeyFrame,timestamp,compositionTime in
       Task {
@@ -92,7 +93,7 @@ actor RTMPService: RTMPPublishSessionDelegate {
         descData.write24(compositionTime, bigEndian: true)
         descData.append(data)
         
-        print("[debug] delta \(delta)")
+        print("[debug] video delta \(delta)")
         await self.session.publishVideo(data: descData, delta: UInt32(delta))
         self.lastVideoTimestamp = timestamp
       }

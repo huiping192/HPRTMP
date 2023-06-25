@@ -21,7 +21,8 @@ class MP4Reader {
   private var audioTrack: AVAssetTrack?
   
   private var displayLinkHandler: DisplayLinkHandler?
-  
+  private var audioDisplayLinkHandler: DisplayLinkHandler?
+
   var sendVideoBuffer: ((Data,Bool,UInt64,Int32) -> Void)?
   var sendAudioBuffer: ((Data,Data,UInt64) -> Void)?
   
@@ -42,6 +43,16 @@ class MP4Reader {
     displayLinkHandler = DisplayLinkHandler {
       self.updateFrame()
     }
+    
+    audioDisplayLinkHandler = DisplayLinkHandler(framerate: 43) {
+      if let audioSampleBuffer = self.audioReaderOutput?.copyNextSampleBuffer() {
+        self.audioQueue.append(audioSampleBuffer)
+      }
+      if !self.audioQueue.isEmpty {
+        let audioSampleBuffer = self.audioQueue.removeFirst()
+        self.handleAudioBuffer(buffer: audioSampleBuffer)
+      }
+    }
   }
   
   func start() {
@@ -49,7 +60,20 @@ class MP4Reader {
     
     (0..<10).forEach { _ in
       if let videoSampleBuffer = self.videoReaderOutput?.copyNextSampleBuffer() {
-        self.videoQueue.append(videoSampleBuffer)
+        let videoSampleBufferTimestamp = UInt64(videoSampleBuffer.presentationTimeStamp.seconds * 1000)
+        var insertIndex: Int? = nil
+        for (index,buffer) in videoQueue.enumerated() {
+          let timestamp = UInt64(buffer.presentationTimeStamp.seconds * 1000)
+          if timestamp > videoSampleBufferTimestamp {
+            insertIndex = index
+            break
+          }
+        }
+        if let insertIndex = insertIndex {
+          self.videoQueue.insert(videoSampleBuffer, at: insertIndex)
+        } else {
+          self.videoQueue.append(videoSampleBuffer)
+        }
       }
       if let audioSampleBuffer = self.audioReaderOutput?.copyNextSampleBuffer() {
         self.audioQueue.append(audioSampleBuffer)
@@ -60,23 +84,29 @@ class MP4Reader {
     getAudioHeader()
 
     displayLinkHandler?.startUpdates()
+    audioDisplayLinkHandler?.startUpdates()
   }
   
   func updateFrame() {
     if let videoSampleBuffer = self.videoReaderOutput?.copyNextSampleBuffer() {
-      self.videoQueue.append(videoSampleBuffer)
-    }
-    if let audioSampleBuffer = self.audioReaderOutput?.copyNextSampleBuffer() {
-      self.audioQueue.append(audioSampleBuffer)
+      let videoSampleBufferTimestamp = UInt64(videoSampleBuffer.presentationTimeStamp.seconds * 1000)
+      var insertIndex: Int? = nil
+      for (index,buffer) in videoQueue.enumerated() {
+        let timestamp = UInt64(buffer.presentationTimeStamp.seconds * 1000)
+        if timestamp > videoSampleBufferTimestamp {
+          insertIndex = index
+          break
+        }
+      }
+      if let insertIndex = insertIndex {
+        self.videoQueue.insert(videoSampleBuffer, at: insertIndex)
+      } else {
+        self.videoQueue.append(videoSampleBuffer)
+      }
     }
     if !videoQueue.isEmpty {
       let videoSampleBuffer = self.videoQueue.removeFirst()
       self.handleVideoBuffer(buffer: videoSampleBuffer)
-    }
-
-    if !audioQueue.isEmpty {
-      let audioSampleBuffer = self.audioQueue.removeFirst()
-      self.handleAudioBuffer(buffer: audioSampleBuffer)
     }
   }
   
@@ -356,7 +386,10 @@ class DisplayLinkHandler {
   private var displayLink: CADisplayLink?
   private var displayLinkTarget: DisplayLinkTarget?
   
-  init(updateClosure: @escaping () -> Void) {
+  private let framerate: Int
+  
+  init(framerate: Int = 30, updateClosure: @escaping () -> Void) {
+    self.framerate = framerate
     self.displayLinkTarget = DisplayLinkTarget(callback: updateClosure)
   }
   
@@ -366,7 +399,7 @@ class DisplayLinkHandler {
     }
     
     self.displayLink = CADisplayLink(target: target, selector: #selector(DisplayLinkTarget.onDisplayLinkUpdate))
-    self.displayLink?.preferredFramesPerSecond = 30
+    self.displayLink?.preferredFramesPerSecond = framerate
     self.displayLink?.add(to: .main, forMode: .default)
   }
   
