@@ -21,7 +21,6 @@ class MP4Reader {
   private var audioTrack: AVAssetTrack?
   
   private var displayLinkHandler: DisplayLinkHandler?
-  private var audioDisplayLinkHandler: DisplayLinkHandler?
 
   var sendVideoBuffer: ((Data,Bool,UInt64,Int32) -> Void)?
   var sendAudioBuffer: ((Data,Data,UInt64) -> Void)?
@@ -40,18 +39,8 @@ class MP4Reader {
     
     processMP4()
     
-    displayLinkHandler = DisplayLinkHandler {
+    displayLinkHandler = DisplayLinkHandler(framerate: 44) {
       self.updateFrame()
-    }
-    
-    audioDisplayLinkHandler = DisplayLinkHandler(framerate: 43) {
-      if let audioSampleBuffer = self.audioReaderOutput?.copyNextSampleBuffer() {
-        self.audioQueue.append(audioSampleBuffer)
-      }
-      if !self.audioQueue.isEmpty {
-        let audioSampleBuffer = self.audioQueue.removeFirst()
-        self.handleAudioBuffer(buffer: audioSampleBuffer)
-      }
     }
   }
   
@@ -84,10 +73,37 @@ class MP4Reader {
     getAudioHeader()
 
     displayLinkHandler?.startUpdates()
-    audioDisplayLinkHandler?.startUpdates()
   }
   
   func updateFrame() {
+    var videoBuffer: CMSampleBuffer? = nil
+    if !videoQueue.isEmpty {
+      let videoSampleBuffer = self.videoQueue.first
+      videoBuffer = videoSampleBuffer
+    }
+    
+    var audioBuffer: CMSampleBuffer? = nil
+    if !self.audioQueue.isEmpty {
+      let audioSampleBuffer = self.audioQueue.first
+      audioBuffer = audioSampleBuffer
+    }
+    
+    if videoBuffer?.presentationTimeStamp.seconds ?? 0 < audioBuffer?.presentationTimeStamp.seconds ?? 0 {
+      if let buffer = videoBuffer {
+        self.videoQueue.removeFirst()
+        self.handleVideoBuffer(buffer: buffer)
+      }
+    } else {
+      if let buffer = audioBuffer {
+        self.audioQueue.removeFirst()
+        self.handleAudioBuffer(buffer: buffer)
+      }
+    }
+    
+    
+    if let audioSampleBuffer = self.audioReaderOutput?.copyNextSampleBuffer() {
+      self.audioQueue.append(audioSampleBuffer)
+    }
     if let videoSampleBuffer = self.videoReaderOutput?.copyNextSampleBuffer() {
       let videoSampleBufferTimestamp = UInt64(videoSampleBuffer.presentationTimeStamp.seconds * 1000)
       var insertIndex: Int? = nil
@@ -103,10 +119,6 @@ class MP4Reader {
       } else {
         self.videoQueue.append(videoSampleBuffer)
       }
-    }
-    if !videoQueue.isEmpty {
-      let videoSampleBuffer = self.videoQueue.removeFirst()
-      self.handleVideoBuffer(buffer: videoSampleBuffer)
     }
   }
   
