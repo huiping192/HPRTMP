@@ -28,7 +28,7 @@ actor RTMPService: RTMPPublishSessionDelegate {
   private var lastAudioTimestamp: UInt64 = 0
   
   init() {
-    let url = Bundle.main.url(forResource: "nob", withExtension: "mp4")!
+    let url = Bundle.main.url(forResource: "test", withExtension: "mp4")!
     reader = MP4Reader(url: url)
   }
   
@@ -36,8 +36,7 @@ actor RTMPService: RTMPPublishSessionDelegate {
     
     await session.setDelegate(self)
     let publishConfig = PublishConfigure(width: 1280, height: 720, videocodecid: VideoData.CodecId.avc.rawValue, audiocodecid: AudioData.SoundFormat.aac.rawValue, framerate: 30, videoDatarate: 30, audioDatarate: nil, audioSamplerate: nil)
-    await session.publish(url: "rtmp://192.168.11.23/live/haha", configure: publishConfig)
-    
+    await session.publish(url: "rtmp://192.168.11.48/live/haha", configure: publishConfig)
     
     reader.sendAudioHeader = { data in
       Task {
