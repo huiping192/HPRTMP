@@ -8,8 +8,10 @@
 
 /* Begin PBXBuildFile section */
 		7D1B00EF2903C3CD007FA9F4 /* HPRTMP in Frameworks */ = {isa = PBXBuildFile; productRef = 7D1B00EE2903C3CD007FA9F4 /* HPRTMP */; };
-		7DD35C7E2A48250300608F8A /* nob.mp4 in Resources */ = {isa = PBXBuildFile; fileRef = 7DD35C7D2A48250300608F8A /* nob.mp4 */; };
-		7DD35C7F2A48250300608F8A /* nob.mp4 in Resources */ = {isa = PBXBuildFile; fileRef = 7DD35C7D2A48250300608F8A /* nob.mp4 */; };
+		7D8EE5402A49B7A2008E359E /* Timer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7D8EE53F2A49B7A2008E359E /* Timer.swift */; };
+		7D8EE5412A49B7A2008E359E /* Timer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7D8EE53F2A49B7A2008E359E /* Timer.swift */; };
+		7D8EE5432A49B7D8008E359E /* Help.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7D8EE5422A49B7D8008E359E /* Help.swift */; };
+		7D8EE5442A49B7D8008E359E /* Help.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7D8EE5422A49B7D8008E359E /* Help.swift */; };
 		7DE0F9702903AD6C00D08613 /* HPRTMPExampleApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7DE0F9602903AD6B00D08613 /* HPRTMPExampleApp.swift */; };
 		7DE0F9712903AD6C00D08613 /* HPRTMPExampleApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7DE0F9602903AD6B00D08613 /* HPRTMPExampleApp.swift */; };
 		7DE0F9722903AD6C00D08613 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7DE0F9612903AD6B00D08613 /* ContentView.swift */; };
@@ -21,13 +23,14 @@
 		7DE0F9862903AF5900D08613 /* HPRTMP in Frameworks */ = {isa = PBXBuildFile; productRef = 7DE0F9852903AF5900D08613 /* HPRTMP */; };
 		DC8708C82A45FE0800F8D483 /* MP4Reader.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC8708C72A45FE0800F8D483 /* MP4Reader.swift */; };
 		DC8708CC2A46087700F8D483 /* MP4Reader.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC8708C72A45FE0800F8D483 /* MP4Reader.swift */; };
-		DC8708CE2A4814C900F8D483 /* test.mp4 in Resources */ = {isa = PBXBuildFile; fileRef = DC8708CD2A4814C900F8D483 /* test.mp4 */; };
-		DC8708CF2A4814C900F8D483 /* test.mp4 in Resources */ = {isa = PBXBuildFile; fileRef = DC8708CD2A4814C900F8D483 /* test.mp4 */; };
+		DC8708CE2A4814C900F8D483 /* sample.mp4 in Resources */ = {isa = PBXBuildFile; fileRef = DC8708CD2A4814C900F8D483 /* sample.mp4 */; };
+		DC8708CF2A4814C900F8D483 /* sample.mp4 in Resources */ = {isa = PBXBuildFile; fileRef = DC8708CD2A4814C900F8D483 /* sample.mp4 */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
 		7D1B00F02903C41D007FA9F4 /* HPRTMPExample--iOS--Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = "HPRTMPExample--iOS--Info.plist"; sourceTree = "<group>"; };
-		7DD35C7D2A48250300608F8A /* nob.mp4 */ = {isa = PBXFileReference; lastKnownFileType = file; path = nob.mp4; sourceTree = "<group>"; };
+		7D8EE53F2A49B7A2008E359E /* Timer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Timer.swift; sourceTree = "<group>"; };
+		7D8EE5422A49B7D8008E359E /* Help.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Help.swift; sourceTree = "<group>"; };
 		7DE0F9602903AD6B00D08613 /* HPRTMPExampleApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HPRTMPExampleApp.swift; sourceTree = "<group>"; };
 		7DE0F9612903AD6B00D08613 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		7DE0F9622903AD6C00D08613 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
@@ -37,7 +40,7 @@
 		7DE0F9802903AE4100D08613 /* RTMPService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RTMPService.swift; sourceTree = "<group>"; };
 		7DE0F9842903AF0E00D08613 /* HPRTMP */ = {isa = PBXFileReference; lastKnownFileType = wrapper; name = HPRTMP; path = ../..; sourceTree = "<group>"; };
 		DC8708C72A45FE0800F8D483 /* MP4Reader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MP4Reader.swift; sourceTree = "<group>"; };
-		DC8708CD2A4814C900F8D483 /* test.mp4 */ = {isa = PBXFileReference; lastKnownFileType = file; path = test.mp4; sourceTree = "<group>"; };
+		DC8708CD2A4814C900F8D483 /* sample.mp4 */ = {isa = PBXFileReference; lastKnownFileType = file; path = sample.mp4; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -75,13 +78,14 @@
 		7DE0F95F2903AD6B00D08613 /* Shared */ = {
 			isa = PBXGroup;
 			children = (
-				DC8708CD2A4814C900F8D483 /* test.mp4 */,
-				7DD35C7D2A48250300608F8A /* nob.mp4 */,
+				DC8708CD2A4814C900F8D483 /* sample.mp4 */,
 				7DE0F9602903AD6B00D08613 /* HPRTMPExampleApp.swift */,
 				7DE0F9612903AD6B00D08613 /* ContentView.swift */,
 				DC8708C72A45FE0800F8D483 /* MP4Reader.swift */,
 				7DE0F9802903AE4100D08613 /* RTMPService.swift */,
 				7DE0F9622903AD6C00D08613 /* Assets.xcassets */,
+				7D8EE53F2A49B7A2008E359E /* Timer.swift */,
+				7D8EE5422A49B7D8008E359E /* Help.swift */,
 			);
 			path = Shared;
 			sourceTree = "<group>";
@@ -203,9 +207,8 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				7DD35C7E2A48250300608F8A /* nob.mp4 in Resources */,
 				7DE0F9742903AD6C00D08613 /* Assets.xcassets in Resources */,
-				DC8708CE2A4814C900F8D483 /* test.mp4 in Resources */,
+				DC8708CE2A4814C900F8D483 /* sample.mp4 in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -213,9 +216,8 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				7DD35C7F2A48250300608F8A /* nob.mp4 in Resources */,
 				7DE0F9752903AD6C00D08613 /* Assets.xcassets in Resources */,
-				DC8708CF2A4814C900F8D483 /* test.mp4 in Resources */,
+				DC8708CF2A4814C900F8D483 /* sample.mp4 in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -228,7 +230,9 @@
 			files = (
 				7DE0F9812903AE4100D08613 /* RTMPService.swift in Sources */,
 				7DE0F9722903AD6C00D08613 /* ContentView.swift in Sources */,
+				7D8EE5432A49B7D8008E359E /* Help.swift in Sources */,
 				DC8708CC2A46087700F8D483 /* MP4Reader.swift in Sources */,
+				7D8EE5402A49B7A2008E359E /* Timer.swift in Sources */,
 				7DE0F9702903AD6C00D08613 /* HPRTMPExampleApp.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -239,7 +243,9 @@
 			files = (
 				DC8708C82A45FE0800F8D483 /* MP4Reader.swift in Sources */,
 				7DE0F9822903AE4100D08613 /* RTMPService.swift in Sources */,
+				7D8EE5442A49B7D8008E359E /* Help.swift in Sources */,
 				7DE0F9732903AD6C00D08613 /* ContentView.swift in Sources */,
+				7D8EE5412A49B7A2008E359E /* Timer.swift in Sources */,
 				7DE0F9712903AD6C00D08613 /* HPRTMPExampleApp.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
