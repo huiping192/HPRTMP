@@ -8,6 +8,28 @@
 import Foundation
 import AVFoundation
 import HPRTMP
+ 
+protocol MP4ReaderDelegate: AnyObject {
+  func output(reader: MP4Reader, videoHeader: Data)
+  func output(reader: MP4Reader, audioHeader: Data)
+  
+  func output(reader: MP4Reader, videoFrame: VideoFrame)
+  func output(reader: MP4Reader, audioFrame: AudioFrame)
+}
+
+
+struct VideoFrame {
+  let data: Data
+  let isKeyframe: Bool
+  let pts: UInt64
+  let dts: UInt64
+}
+
+struct AudioFrame {
+  let data: Data
+  let adtsHeader: Data
+  let pts: UInt64
+}
 
 class MP4Reader {
   
@@ -17,19 +39,15 @@ class MP4Reader {
   private var audioReaderOutput: AVAssetReaderTrackOutput?
   private var videoReaderOutput: AVAssetReaderTrackOutput?
   
+   weak var delegate: (any MP4ReaderDelegate)?
+  
   private var videoTrack: AVAssetTrack?
   private var audioTrack: AVAssetTrack?
   
   private var displayLinkHandler: DisplayLinkHandler?
-
-  var sendVideoBuffer: ((Data,Bool,UInt64,Int32) -> Void)?
-  var sendAudioBuffer: ((Data,Data,UInt64) -> Void)?
-  
-  var sendVideoHeader: ((Data) -> Void)?
-  var sendAudioHeader: ((Data) -> Void)?
     
-  var videoQueue: [CMSampleBuffer] = []
-  var audioQueue: [CMSampleBuffer] = []
+  private var videoQueue: [CMSampleBuffer] = []
+  private var audioQueue: [CMSampleBuffer] = []
 
   init(url: URL) {
     self.url = url
@@ -70,29 +88,40 @@ class MP4Reader {
   func updateFrame() {
     var videoBuffer: CMSampleBuffer? = nil
     if !videoQueue.isEmpty {
-      let videoSampleBuffer = self.videoQueue.first
-      videoBuffer = videoSampleBuffer
+      videoBuffer = videoQueue.first
     }
     
     var audioBuffer: CMSampleBuffer? = nil
     if !self.audioQueue.isEmpty {
-      let audioSampleBuffer = self.audioQueue.first
-      audioBuffer = audioSampleBuffer
+      audioBuffer = audioQueue.first
     }
     
-    let videoSampleBufferTimestamp = videoBuffer?.decodeTimeStamp.seconds.isFinite ?? false ? UInt64(videoBuffer!.decodeTimeStamp.seconds * 1000) :  UInt64(videoBuffer!.presentationTimeStamp.seconds * 1000)
-    let audioSampleBufferTimestamp = UInt64((audioBuffer?.presentationTimeStamp.seconds ?? 0) * 1000)
-    
-    if videoSampleBufferTimestamp + 15 < audioSampleBufferTimestamp {
-      if let buffer = videoBuffer {
+    if let videoBuffer = videoBuffer, let audioBuffer = audioBuffer {
+      let videoPTS = videoBuffer.presentationTimeStamp.seconds.isFinite ? UInt64(videoBuffer.presentationTimeStamp.seconds * 1000) : nil
+      let videoSampleBufferTimestamp = videoBuffer.decodeTimeStamp.seconds.isFinite ? UInt64(videoBuffer.decodeTimeStamp.seconds * 1000) : videoPTS
+      let audioSampleBufferTimestamp = audioBuffer.decodeTimeStamp.seconds.isFinite ? UInt64(audioBuffer.decodeTimeStamp.seconds * 1000) : nil
+      
+      if let videoSampleBufferTimestamp  = videoSampleBufferTimestamp, let audioSampleBufferTimestamp = audioSampleBufferTimestamp {
+        if videoSampleBufferTimestamp + 15 < audioSampleBufferTimestamp {
+          self.videoQueue.removeFirst()
+          self.handleVideoBuffer(buffer: videoBuffer)
+        } else {
+          self.audioQueue.removeFirst()
+          self.handleAudioBuffer(buffer: audioBuffer)
+        }
+      } else if videoSampleBufferTimestamp != nil {
         self.videoQueue.removeFirst()
-        self.handleVideoBuffer(buffer: buffer)
-      }
-    } else {
-      if let buffer = audioBuffer {
+        self.handleVideoBuffer(buffer: videoBuffer)
+      } else if audioSampleBufferTimestamp != nil {
         self.audioQueue.removeFirst()
-        self.handleAudioBuffer(buffer: buffer)
+        self.handleAudioBuffer(buffer: audioBuffer)
       }
+    } else if let videoBuffer = videoBuffer {
+      self.videoQueue.removeFirst()
+      self.handleVideoBuffer(buffer: videoBuffer)
+    } else if let audioBuffer = audioBuffer {
+      self.audioQueue.removeFirst()
+      self.handleAudioBuffer(buffer: audioBuffer)
     }
     
     
@@ -136,22 +165,16 @@ class MP4Reader {
     }
     
     guard let attachments = CMSampleBufferGetSampleAttachmentsArray(buffer, createIfNecessary: true) as? NSArray else { return }
-    
     guard let attachment = attachments[0] as? NSDictionary else {
       return
     }
-    
     let isKeyframe = !(attachment[kCMSampleAttachmentKey_DependsOnOthers] as? Bool ?? true)
+  
+    let pts = buffer.presentationTimeStamp.seconds.isFinite ? UInt64(buffer.presentationTimeStamp.seconds * 1000) :  0
+    let dts = buffer.decodeTimeStamp.seconds.isFinite ? UInt64(buffer.decodeTimeStamp.seconds * 1000) :  pts
     
-    let presentationTimeStamp = buffer.presentationTimeStamp
-    var decodeTimeStamp = buffer.decodeTimeStamp
-    if decodeTimeStamp == .invalid {
-      decodeTimeStamp = presentationTimeStamp
-    }
-    let timestamp = buffer.decodeTimeStamp.seconds.isFinite ? UInt64(buffer.decodeTimeStamp.seconds * 1000) :  UInt64(buffer.presentationTimeStamp.seconds * 1000)
-    let compositionTime = Int32((presentationTimeStamp.seconds - decodeTimeStamp.seconds) * 1000)
-    
-    self.sendVideoBuffer?(bufferData,isKeyframe,timestamp,compositionTime)
+    let frame = VideoFrame(data: bufferData, isKeyframe: isKeyframe, pts: pts, dts: dts)
+    delegate?.output(reader: self, videoFrame: frame)
   }
   
   private func handleAudioBuffer(buffer: CMSampleBuffer) {
@@ -161,7 +184,9 @@ class MP4Reader {
     guard let aacHeader = aacHeader else { return }
     guard let aacData = getAACData(from: buffer) else { return }
     let timestamp = buffer.presentationTimeStamp.seconds.isFinite ? UInt64(buffer.presentationTimeStamp.seconds * 1000) : 0
-    sendAudioBuffer?(aacData, aacHeader, timestamp)
+    
+    let audioFrame = AudioFrame(data: aacData, adtsHeader: aacHeader, pts: timestamp)
+    delegate?.output(reader: self, audioFrame: audioFrame)
   }
     
   func getAACData(from sampleBuffer: CMSampleBuffer) -> Data? {
@@ -212,7 +237,8 @@ class MP4Reader {
     descData.append(aacHeader)
     descData.write(AudioData.AACPacketType.header.rawValue)
     descData.append(config.encodeData)
-    self.sendAudioHeader?(descData)
+    
+    delegate?.output(reader: self, audioHeader: descData)
   }
   
   private var aacHeader: Data?
@@ -278,8 +304,8 @@ class MP4Reader {
     body.append(Data([0x01]))
     body.append(Data([(UInt8(ppsSize) >> 8) & 0xff, UInt8(ppsSize) & 0xff]))
     body.append(Data(pps))
-    
-    sendVideoHeader?(body)
+        
+    delegate?.output(reader: self, videoHeader: body)
   }
   
 }
