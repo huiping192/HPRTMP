@@ -27,7 +27,7 @@ actor RTMPService: RTMPPublishSessionDelegate {
   private var lastVideoTimestamp: UInt64 = 0
   private var lastAudioTimestamp: UInt64 = 0
   
-  init() {gi
+  init() {
     let url = Bundle.main.url(forResource: "sample", withExtension: "mp4")!
     reader = MP4Reader(url: url)
   }
