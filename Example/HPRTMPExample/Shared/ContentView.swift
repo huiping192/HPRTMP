@@ -9,20 +9,33 @@ import SwiftUI
 
 struct ContentView: View {
   
-  let rtmpService = RTMPService()
+  private var rtmpService = RTMPService()
+  @State private var buttonState = "Publish"
   
-    var body: some View {
-        Text("Hello, world!")
-        .padding().onAppear(perform: {
-          Task {
+  var body: some View {
+    VStack {
+      Text("Hello, world!")
+        .padding()
+      
+      Button(action: {
+        Task {
+          if buttonState == "Publish" {
             await rtmpService.run()
+            buttonState = "Stop"
+          } else {
+            await rtmpService.stop()
+            buttonState = "Published"
           }
-        })
+        }
+      }) {
+        Text(buttonState)
+      }
     }
+  }
 }
 
 struct ContentView_Previews: PreviewProvider {
-    static var previews: some View {
-        ContentView()
-    }
+  static var previews: some View {
+    ContentView()
+  }
 }

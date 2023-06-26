@@ -66,7 +66,7 @@ actor RTMPService: RTMPPublishSessionDelegate {
     
     reader.sendVideoBuffer = { data,isKeyFrame,timestamp,compositionTime in
       Task {
-        guard timestamp >= self.lastVideoTimestamp else { return }
+//        guard timestamp >= self.lastVideoTimestamp else { return }
         var descData = Data()
         let frameType = isKeyFrame ? VideoData.FrameType.keyframe : VideoData.FrameType.inter
         let frameAndCode:UInt8 = UInt8(frameType.rawValue << 4 | VideoData.CodecId.avc.rawValue)
@@ -83,8 +83,11 @@ actor RTMPService: RTMPPublishSessionDelegate {
         self.lastVideoTimestamp = timestamp
       }
     }
-    
-    
-    
+  }
+  
+  
+  func stop() async {
+    reader.stop()
+    await self.session.invalidate()
   }
 }

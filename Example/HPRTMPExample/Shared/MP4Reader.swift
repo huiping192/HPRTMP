@@ -46,21 +46,7 @@ class MP4Reader {
     
     (0..<10).forEach { _ in
       if let videoSampleBuffer = self.videoReaderOutput?.copyNextSampleBuffer() {
-        let videoSampleBufferTimestamp = videoSampleBuffer.decodeTimeStamp.seconds.isFinite ? UInt64(videoSampleBuffer.decodeTimeStamp.seconds * 1000) :  UInt64(videoSampleBuffer.presentationTimeStamp.seconds * 1000)
-
-        var insertIndex: Int? = nil
-        for (index,buffer) in videoQueue.enumerated() {
-          let timestamp = buffer.decodeTimeStamp.seconds.isFinite ? UInt64(buffer.decodeTimeStamp.seconds * 1000) :  UInt64(buffer.presentationTimeStamp.seconds * 1000)
-          if timestamp > videoSampleBufferTimestamp {
-            insertIndex = index
-            break
-          }
-        }
-        if let insertIndex = insertIndex {
-          self.videoQueue.insert(videoSampleBuffer, at: insertIndex)
-        } else {
-          self.videoQueue.append(videoSampleBuffer)
-        }
+        self.videoQueue.append(videoSampleBuffer)
       }
       if let audioSampleBuffer = self.audioReaderOutput?.copyNextSampleBuffer() {
         self.audioQueue.append(audioSampleBuffer)
@@ -71,6 +57,14 @@ class MP4Reader {
     getAudioHeader()
 
     displayLinkHandler?.startUpdates()
+  }
+  
+  func stop() {
+    assetReader?.cancelReading()
+    displayLinkHandler?.stopUpdates()
+    
+    videoQueue = []
+    audioQueue = []
   }
   
   func updateFrame() {
@@ -86,7 +80,7 @@ class MP4Reader {
       audioBuffer = audioSampleBuffer
     }
     
-    let videoSampleBufferTimestamp = videoBuffer!.decodeTimeStamp.seconds.isFinite ? UInt64(videoBuffer!.decodeTimeStamp.seconds * 1000) :  UInt64(videoBuffer!.presentationTimeStamp.seconds * 1000)
+    let videoSampleBufferTimestamp = videoBuffer?.decodeTimeStamp.seconds.isFinite ?? false ? UInt64(videoBuffer!.decodeTimeStamp.seconds * 1000) :  UInt64(videoBuffer!.presentationTimeStamp.seconds * 1000)
     let audioSampleBufferTimestamp = UInt64((audioBuffer?.presentationTimeStamp.seconds ?? 0) * 1000)
     
     if videoSampleBufferTimestamp + 15 < audioSampleBufferTimestamp {
@@ -106,20 +100,7 @@ class MP4Reader {
       self.audioQueue.append(audioSampleBuffer)
     }
     if let videoSampleBuffer = self.videoReaderOutput?.copyNextSampleBuffer() {
-      let videoSampleBufferTimestamp = videoSampleBuffer.decodeTimeStamp.seconds.isFinite ? UInt64(videoSampleBuffer.decodeTimeStamp.seconds * 1000) :  UInt64(videoSampleBuffer.presentationTimeStamp.seconds * 1000)
-      var insertIndex: Int? = nil
-      for (index,buffer) in videoQueue.enumerated() {
-        let timestamp = buffer.decodeTimeStamp.seconds.isFinite ? UInt64(buffer.decodeTimeStamp.seconds * 1000) :  UInt64(buffer.presentationTimeStamp.seconds * 1000)
-        if timestamp > videoSampleBufferTimestamp {
-          insertIndex = index
-          break
-        }
-      }
-      if let insertIndex = insertIndex {
-        self.videoQueue.insert(videoSampleBuffer, at: insertIndex)
-      } else {
-        self.videoQueue.append(videoSampleBuffer)
-      }
+      self.videoQueue.append(videoSampleBuffer)
     }
   }
   
@@ -133,10 +114,12 @@ class MP4Reader {
     // Get video track
     let videoTrack = asset.tracks(withMediaType: .video).first
     let videoReaderOutput = AVAssetReaderTrackOutput(track: videoTrack!, outputSettings: nil)
+    videoReaderOutput.alwaysCopiesSampleData = false
     assetReader.add(videoReaderOutput)
     
     let audioTrack = asset.tracks(withMediaType: .audio).first
     let audioReaderOutput = AVAssetReaderTrackOutput(track: audioTrack!, outputSettings: nil)
+    audioReaderOutput.alwaysCopiesSampleData = false
     assetReader.add(audioReaderOutput)
     
     self.assetReader = assetReader
@@ -172,13 +155,15 @@ class MP4Reader {
   }
   
   private func handleAudioBuffer(buffer: CMSampleBuffer) {
-    guard let aacHeader = aacHeader else { return }
-    guard let data = getAACData(from: buffer) else { return }
+    let numSamplesInBuffer = CMSampleBufferGetNumSamples(buffer);
+    print("[debug audio] buffer samples: \(numSamplesInBuffer)")
     
+    guard let aacHeader = aacHeader else { return }
+    guard let aacData = getAACData(from: buffer) else { return }
     let timestamp = buffer.presentationTimeStamp.seconds.isFinite ? UInt64(buffer.presentationTimeStamp.seconds * 1000) : 0
-    sendAudioBuffer?(data, aacHeader, timestamp)
+    sendAudioBuffer?(aacData, aacHeader, timestamp)
   }
-  
+    
   func getAACData(from sampleBuffer: CMSampleBuffer) -> Data? {
     guard let blockBuffer = CMSampleBufferGetDataBuffer(sampleBuffer) else {
       print("Could not get block buffer from sample buffer")

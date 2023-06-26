@@ -75,13 +75,13 @@
 		7DE0F95F2903AD6B00D08613 /* Shared */ = {
 			isa = PBXGroup;
 			children = (
-				7DE0F9602903AD6B00D08613 /* HPRTMPExampleApp.swift */,
-				7DD35C7D2A48250300608F8A /* nob.mp4 */,
-				7DE0F9612903AD6B00D08613 /* ContentView.swift */,
 				DC8708CD2A4814C900F8D483 /* test.mp4 */,
+				7DD35C7D2A48250300608F8A /* nob.mp4 */,
+				7DE0F9602903AD6B00D08613 /* HPRTMPExampleApp.swift */,
+				7DE0F9612903AD6B00D08613 /* ContentView.swift */,
 				DC8708C72A45FE0800F8D483 /* MP4Reader.swift */,
-				7DE0F9622903AD6C00D08613 /* Assets.xcassets */,
 				7DE0F9802903AE4100D08613 /* RTMPService.swift */,
+				7DE0F9622903AD6C00D08613 /* Assets.xcassets */,
 			);
 			path = Shared;
 			sourceTree = "<group>";
