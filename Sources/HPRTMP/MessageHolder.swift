@@ -1,5 +1,4 @@
-import os
-
+// cache the sended message for late handling
 actor MessageHolder {
   var raw = [Int: RTMPBaseMessage]()
   
@@ -11,14 +10,5 @@ actor MessageHolder {
     let value = raw[transactionId]
     raw[transactionId] = nil
     return value
-  }
-}
-
-actor TransactionIdGenerator {
-  private var currentId: Int = 1
-  
-  func nextId() -> Int {
-    currentId += 1
-    return currentId
   }
 }

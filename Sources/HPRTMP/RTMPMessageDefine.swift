@@ -116,7 +116,7 @@ enum MessageType: Equatable {
 public enum VideoData {
   public enum FrameType: Int {
     case keyframe = 1
-    case inter = 2
+    case inter = 2 // p frame and b frame
     case disposableInter = 3
     case generated = 4
     case command = 5
@@ -129,7 +129,7 @@ public enum VideoData {
     case vp6 = 4
     case vp6Alpha = 5
     case screen2 = 6
-    case avc = 7
+    case avc = 7  // h264
   }
   
   public enum AVCPacketType: UInt8 {

@@ -12,7 +12,7 @@ public struct PublishConfigure {
   let audioDatarate: Int?
   let audioSamplerate: Int?
 
-  public init(width: Int, height: Int, videocodecid: Int, audiocodecid: Int, framerate: Int, videoDatarate: Int?, audioDatarate: Int?, audioSamplerate: Int?) {
+  public init(width: Int, height: Int, videocodecid: Int, audiocodecid: Int, framerate: Int, videoDatarate: Int? = nil, audioDatarate: Int? = nil, audioSamplerate: Int? = nil) {
     self.width = width
     self.height = height
     self.videocodecid = videocodecid

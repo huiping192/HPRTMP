@@ -1,6 +1,5 @@
 import Foundation
 
-
 actor WindowControl {
   
   let defaultWindowSize: UInt32 = 250000
