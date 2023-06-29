@@ -18,7 +18,7 @@ enum UserControlEventType: Int {
     case none = 0xff
 }
 
-class UserControlMessage: RTMPBaseMessage, Encodable {
+class UserControlMessage: RTMPBaseMessage, RTMPEncodable {
   let type: UserControlEventType
   let data: Data
   

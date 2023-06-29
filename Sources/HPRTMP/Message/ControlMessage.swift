@@ -14,7 +14,7 @@ class ControlMessage: RTMPBaseMessage {
 }
 
 // Set Chunk Size (1)
-class ChunkSizeMessage: ControlMessage, Encodable {
+class ChunkSizeMessage: ControlMessage, RTMPEncodable {
   let size: UInt32
   init(size: UInt32) {
     self.size = size
@@ -30,7 +30,7 @@ class ChunkSizeMessage: ControlMessage, Encodable {
 
 
 // Abort message (2)
-class AbortMessage: ControlMessage, Encodable {
+class AbortMessage: ControlMessage, RTMPEncodable {
   let chunkStreamId: UInt16
   init(chunkStreamId : UInt16) {
     self.chunkStreamId = chunkStreamId
@@ -46,7 +46,7 @@ class AbortMessage: ControlMessage, Encodable {
 
 
 // Acknowledgement (3)
-class AcknowledgementMessage: ControlMessage, Encodable {
+class AcknowledgementMessage: ControlMessage, RTMPEncodable {
   let sequence: UInt32
   init(sequence: UInt32) {
     self.sequence = sequence
@@ -62,7 +62,7 @@ class AcknowledgementMessage: ControlMessage, Encodable {
 
 
 //Window Acknowledgement Size (5)
-class WindowAckMessage: ControlMessage, Encodable {
+class WindowAckMessage: ControlMessage, RTMPEncodable {
   let size: UInt32
   init(size: UInt32) {
     self.size = size
@@ -78,7 +78,7 @@ class WindowAckMessage: ControlMessage, Encodable {
 
 
 //Set Peer Bandwidth (6)
-class PeerBandwidthMessage: ControlMessage, Encodable {
+class PeerBandwidthMessage: ControlMessage, RTMPEncodable {
   
   enum LimitType: UInt8 {
     case hard = 0

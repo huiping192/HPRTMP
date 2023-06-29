@@ -25,5 +25,6 @@ let package = Package(
         .testTarget(
             name: "HPRTMPTests",
             dependencies: ["HPRTMP"]),
-    ]
+    ],
+    swiftLanguageVersions: [.v5]
 )

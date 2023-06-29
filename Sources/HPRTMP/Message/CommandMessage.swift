@@ -75,7 +75,7 @@ class CommandMessage: RTMPBaseMessage, CustomStringConvertible {
 }
 
 
-class ConnectMessage: CommandMessage, Encodable {
+class ConnectMessage: CommandMessage, RTMPEncodable {
   let argument: [String: Any?]?
   init(encodeType: ObjectEncodingType = .amf0,
        tcUrl: String,
@@ -122,7 +122,7 @@ class ConnectMessage: CommandMessage, Encodable {
 }
 
 
-class CreateStreamMessage: CommandMessage, Encodable {
+class CreateStreamMessage: CommandMessage, RTMPEncodable {
   init(encodeType: ObjectEncodingType = .amf0, transactionId: Int, commonObject: [String: Any?]? = nil) {
     super.init(encodeType: encodeType,commandName: "createStream", transactionId: transactionId, commandObject: commonObject)
   }
@@ -142,7 +142,7 @@ class CreateStreamMessage: CommandMessage, Encodable {
   }
 }
 
-class CloseStreamMessage: CommandMessage, Encodable {
+class CloseStreamMessage: CommandMessage, RTMPEncodable {
   init(encodeType: ObjectEncodingType = .amf0, msgStreamId: Int) {
     super.init(encodeType: encodeType,commandName: "closeStream", msgStreamId: msgStreamId, transactionId: 0, commandObject: nil)
   }
@@ -162,7 +162,7 @@ class CloseStreamMessage: CommandMessage, Encodable {
   }
 }
 
-class DeleteStreamMessage: CommandMessage, Encodable {
+class DeleteStreamMessage: CommandMessage, RTMPEncodable {
   init(encodeType: ObjectEncodingType = .amf0, msgStreamId: Int) {
     super.init(encodeType: encodeType,commandName: "deleteStream", msgStreamId: msgStreamId, transactionId: 0, commandObject: nil)
   }
@@ -188,7 +188,7 @@ public enum PubishType: String {
   case append = "append"
 }
 
-class PublishMessage: CommandMessage, Encodable {
+class PublishMessage: CommandMessage, RTMPEncodable {
   let type: PubishType
   let streamName: String
   init(encodeType: ObjectEncodingType = .amf0, streamName: String, type: PubishType) {
@@ -209,7 +209,7 @@ class PublishMessage: CommandMessage, Encodable {
 }
 
 
-class SeekMessage: CommandMessage, Encodable {
+class SeekMessage: CommandMessage, RTMPEncodable {
   let millSecond: Double
   init(encodeType: ObjectEncodingType = .amf0, msgStreamId: Int, millSecond: Double) {
     self.millSecond = millSecond
@@ -227,7 +227,7 @@ class SeekMessage: CommandMessage, Encodable {
 }
 
 
-class PauseMessage: CommandMessage, Encodable {
+class PauseMessage: CommandMessage, RTMPEncodable {
   let isPause: Bool
   let millSecond: Double
   init(encodeType: ObjectEncodingType = .amf0, msgStreamId:Int, isPause: Bool, millSecond: Double) {

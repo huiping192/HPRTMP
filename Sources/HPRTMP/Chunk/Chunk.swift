@@ -1,10 +1,10 @@
 import Foundation
 
-protocol Encodable {
+protocol RTMPEncodable {
   func encode() -> Data
 }
 
-struct Chunk: Encodable, Equatable {
+struct Chunk: RTMPEncodable, Equatable {
   let chunkHeader: ChunkHeader
   var chunkData: Data
   
@@ -17,7 +17,7 @@ struct Chunk: Encodable, Equatable {
   }
 }
 
-struct ChunkHeader: Encodable {
+struct ChunkHeader: RTMPEncodable {
   let basicHeader: BasicHeader
   let messageHeader: MessageHeader
   

@@ -173,7 +173,7 @@ extension RTMPSocket {
 }
 
 extension RTMPSocket {
-  func send(message: RTMPMessage & Encodable, firstType: Bool) async {
+  func send(message: RTMPMessage & RTMPEncodable, firstType: Bool) async {
     logger.debug("send message start: \(type(of: message))")
     
     if let message = message as? ChunkSizeMessage {

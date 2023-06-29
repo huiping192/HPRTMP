@@ -58,7 +58,7 @@ class DataMessage: RTMPBaseMessage {
 }
 
 
-class MetaMessage: DataMessage, Encodable {
+class MetaMessage: DataMessage, RTMPEncodable {
     let meta: [String: Any]
     init(encodeType: ObjectEncodingType, msgStreamId: Int, meta: [String: Any]) {
         self.meta = meta
@@ -75,7 +75,7 @@ class MetaMessage: DataMessage, Encodable {
 }
 
 
-class VideoMessage: RTMPBaseMessage, Encodable {
+class VideoMessage: RTMPBaseMessage, RTMPEncodable {
     let data: Data
     init(msgStreamId: Int, data: Data, timestamp: UInt32) {
         self.data = data
@@ -90,7 +90,7 @@ class VideoMessage: RTMPBaseMessage, Encodable {
 }
 
 
-class AudioMessage: RTMPBaseMessage, Encodable {
+class AudioMessage: RTMPBaseMessage, RTMPEncodable {
     let data: Data
 
     init(msgStreamId: Int, data: Data, timestamp: UInt32) {
@@ -105,7 +105,7 @@ class AudioMessage: RTMPBaseMessage, Encodable {
     }
 }
 
-class SharedObjectMessage: DataMessage, Encodable {
+class SharedObjectMessage: DataMessage, RTMPEncodable {
   let sharedObjectName: String?
   let sharedObject: [String: Any]?
   
