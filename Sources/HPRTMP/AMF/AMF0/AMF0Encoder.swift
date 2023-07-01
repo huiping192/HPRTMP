@@ -7,12 +7,50 @@
 
 import Foundation
 
-struct AMF0Encoder: Encoder {
+struct AMF0CodingKeys: CodingKey {
+   var intValue: Int?
+   var stringValue: String
+
+   init?(intValue: Int) {
+     self.intValue = intValue
+     self.stringValue = "\(intValue)"
+   }
+
+   init?(stringValue: String) {
+     self.stringValue = stringValue
+   }
+ }
+
+final class Storage {
+  private(set) var containers: [Data] = []
+  
+  var count: Int {
+    return containers.count
+  }
+  
+  var last: Any? {
+    return containers.last
+  }
+  
+  func push(container: Data) {
+    containers.append(container)
+  }
+  
+  @discardableResult
+  func popContainer() -> Data {
+    precondition(containers.count > 0, "Empty container stack.")
+    return containers.popLast()!
+  }
+}
+
+class AMF0Encoder: Encoder {
   var codingPath: [CodingKey] = []
   var userInfo: [CodingUserInfoKey : Any] = [:]
   
+  private(set) var storage = Storage()
+
   func container<Key>(keyedBy type: Key.Type) -> KeyedEncodingContainer<Key> where Key : CodingKey {
-    return KeyedEncodingContainer(AMF0KeyedEncodingContainer<Key>(codingPath: codingPath))
+    return KeyedEncodingContainer(AMF0KeyedEncodingContainer<Key>(storage: storage, codingPath: codingPath))
   }
   
   func unkeyedContainer() -> UnkeyedEncodingContainer {
@@ -23,111 +61,121 @@ struct AMF0Encoder: Encoder {
     return AMF0SingleValueEncodingContainer()
   }
   
-  func encode(_ value: [Any]) -> Data? {
+  func encode(_ value: [Any]) throws -> Data? {
     return value.amf0Value
   }
   
-  func encode<T: Encodable>(_ value: T) -> Data? {
+  func encode<T: Encodable>(_ value: T) throws -> Data? {
     if let amf0Encode = value as? AMF0Encode {
       return amf0Encode.amf0Value
     }
-    return nil
+    
+    try value.encode(to: self)
+    return storage.popContainer()
   }
   
-  func encode(_ value: [String: Any]) -> Data? {
+  func encode(_ value: [String: Any]) throws -> Data? {
     return value.amf0Encode
   }
 }
 
-struct AMF0KeyedEncodingContainer<Key: CodingKey>: KeyedEncodingContainerProtocol {
+class AMF0KeyedEncodingContainer<Key: CodingKey>: KeyedEncodingContainerProtocol {
   var codingPath: [CodingKey] = []
   var data = Data()
-  
-  init(codingPath: [CodingKey]) {
+  let storage: Storage
+  init(storage: Storage, codingPath: [CodingKey]) {
     self.codingPath = codingPath
+    self.storage = storage
+    
+    data.write(RTMPAMF0Type.object.rawValue)
   }
   
-  mutating func encodeNil(forKey key: Key) throws {
+  deinit {
+    data.append(contentsOf: [0x00,0x00,RTMPAMF0Type.objectEnd.rawValue])
+    storage.push(container: data)
+  }
+  
+  func encodeNil(forKey key: Key) throws {
     data.append(key.stringValue.amf0KeyEncode)
     data.write(RTMPAMF0Type.null.rawValue)
   }
   
-  mutating func encode(_ value: Bool, forKey key: Key) throws {
+  func encode(_ value: Bool, forKey key: Key) throws {
     data.append(key.stringValue.amf0KeyEncode)
     data.append(value.amf0Value)
   }
   
-  mutating func encode(_ value: String, forKey key: Key) throws {
+  func encode(_ value: String, forKey key: Key) throws {
     data.append(key.stringValue.amf0KeyEncode)
     data.append(value.amf0Value)
   }
   
-  mutating func encode(_ value: Double, forKey key: Key) throws {
+  func encode(_ value: Double, forKey key: Key) throws {
     data.append(key.stringValue.amf0KeyEncode)
     data.append(value.amf0Value)
   }
   
-  mutating func encode(_ value: Int, forKey key: Key) throws {
+  func encode(_ value: Int, forKey key: Key) throws {
     data.append(key.stringValue.amf0KeyEncode)
     data.append(value.amf0Value)
   }
   
-  mutating func encode(_ value: Int8, forKey key: Key) throws {
+  func encode(_ value: Int8, forKey key: Key) throws {
     data.append(key.stringValue.amf0KeyEncode)
     data.append(value.amf0Value)
   }
   
-  mutating func encode(_ value: Int16, forKey key: Key) throws {
+  func encode(_ value: Int16, forKey key: Key) throws {
     data.append(key.stringValue.amf0KeyEncode)
     data.append(value.amf0Value)
   }
   
-  mutating func encode(_ value: Int32, forKey key: Key) throws {
+  func encode(_ value: Int32, forKey key: Key) throws {
     data.append(key.stringValue.amf0KeyEncode)
     data.append(value.amf0Value)
   }
   
-  mutating func encode(_ value: Int64, forKey key: Key) throws {
+  func encode(_ value: Int64, forKey key: Key) throws {
     data.append(key.stringValue.amf0KeyEncode)
     data.append(Double(value).amf0Value) // Encode Int64 as Double
   }
   
-  mutating func encode(_ value: UInt, forKey key: Key) throws {
+  func encode(_ value: UInt, forKey key: Key) throws {
     data.append(key.stringValue.amf0KeyEncode)
     data.append(value.amf0Value)
   }
   
-  mutating func encode(_ value: UInt8, forKey key: Key) throws {
+  func encode(_ value: UInt8, forKey key: Key) throws {
     data.append(key.stringValue.amf0KeyEncode)
     data.append(value.amf0Value)
   }
   
-  mutating func encode(_ value: UInt16, forKey key: Key) throws {
+  func encode(_ value: UInt16, forKey key: Key) throws {
     data.append(key.stringValue.amf0KeyEncode)
     data.append(value.amf0Value)
   }
   
-  mutating func encode(_ value: UInt32, forKey key: Key) throws {
+  func encode(_ value: UInt32, forKey key: Key) throws {
     data.append(key.stringValue.amf0KeyEncode)
     data.append(value.amf0Value)
   }
   
-  mutating func encode(_ value: UInt64, forKey key: Key) throws {
+  func encode(_ value: UInt64, forKey key: Key) throws {
     data.append(key.stringValue.amf0KeyEncode)
     data.append(Double(value).amf0Value) // Encode UInt64 as Double
   }
   
-  mutating func encode(_ value: Float, forKey key: Key) throws {
+  func encode(_ value: Float, forKey key: Key) throws {
     data.append(key.stringValue.amf0KeyEncode)
     data.append(value.amf0Value)
   }
   
-  mutating func encode(_ value: Date, forKey key: Key) throws {
+  func encode(_ value: Date, forKey key: Key) throws {
     data.append(key.stringValue.amf0KeyEncode)
     data.append(value.amf0Value)
   }
   
-  mutating func encode<T>(_ value: T, forKey key: Key) throws where T : Encodable {
+  func encode<T>(_ value: T, forKey key: Key) throws where T : Encodable {
     if let value = value as? AMF0Encode {
       data.append(key.stringValue.amf0KeyEncode)
       data.append(value.amf0Value)
@@ -136,19 +184,19 @@ struct AMF0KeyedEncodingContainer<Key: CodingKey>: KeyedEncodingContainerProtoco
     }
   }
   
-  mutating func nestedContainer<NestedKey>(keyedBy keyType: NestedKey.Type, forKey key: Key) -> KeyedEncodingContainer<NestedKey> where NestedKey : CodingKey {
+  func nestedContainer<NestedKey>(keyedBy keyType: NestedKey.Type, forKey key: Key) -> KeyedEncodingContainer<NestedKey> where NestedKey : CodingKey {
     fatalError("nestedContainer is not supported.")
   }
   
-  mutating func nestedUnkeyedContainer(forKey key: Key) -> UnkeyedEncodingContainer {
+  func nestedUnkeyedContainer(forKey key: Key) -> UnkeyedEncodingContainer {
     fatalError("nestedUnkeyedContainer is not supported.")
   }
   
-  mutating func superEncoder() -> Encoder {
+  func superEncoder() -> Encoder {
     fatalError("superEncoder is not supported.")
   }
   
-  mutating func superEncoder(forKey key: Key) -> Encoder {
+  func superEncoder(forKey key: Key) -> Encoder {
     fatalError("superEncoder(forKey:) is not supported.")
   }
 }

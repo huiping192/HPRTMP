@@ -75,7 +75,7 @@ class CommandMessage: RTMPBaseMessage, CustomStringConvertible {
 }
 
 
-class ConnectMessage: CommandMessage, RTMPEncodable {
+class ConnectMessage: CommandMessage {
   let argument: [String: Any?]?
   init(encodeType: ObjectEncodingType = .amf0,
        tcUrl: String,
@@ -102,7 +102,7 @@ class ConnectMessage: CommandMessage, RTMPEncodable {
     super.init(encodeType: encodeType, commandName: "connect", transactionId: commonTransactionId.connect, commandObject: obj)
   }
   
-  func encode() -> Data {
+  override var payload: Data {
     var amf: AMFProtocol = encodeType == .amf0 ? AMF0Object() : AMF3Object()
     amf.append(commandName)
     amf.append(Double(transactionId))
@@ -122,12 +122,12 @@ class ConnectMessage: CommandMessage, RTMPEncodable {
 }
 
 
-class CreateStreamMessage: CommandMessage, RTMPEncodable {
+class CreateStreamMessage: CommandMessage {
   init(encodeType: ObjectEncodingType = .amf0, transactionId: Int, commonObject: [String: Any?]? = nil) {
     super.init(encodeType: encodeType,commandName: "createStream", transactionId: transactionId, commandObject: commonObject)
   }
   
-  func encode() -> Data {
+  override var payload: Data {
     var amf: AMFProtocol = encodeType == .amf0 ? AMF0Object() : AMF3Object()
     amf.append(commandName)
     amf.append(Double(transactionId))
@@ -142,12 +142,12 @@ class CreateStreamMessage: CommandMessage, RTMPEncodable {
   }
 }
 
-class CloseStreamMessage: CommandMessage, RTMPEncodable {
+class CloseStreamMessage: CommandMessage {
   init(encodeType: ObjectEncodingType = .amf0, msgStreamId: Int) {
     super.init(encodeType: encodeType,commandName: "closeStream", msgStreamId: msgStreamId, transactionId: 0, commandObject: nil)
   }
   
-  func encode() -> Data {
+  override var payload: Data {
     var amf: AMFProtocol = encodeType == .amf0 ? AMF0Object() : AMF3Object()
     amf.append(commandName)
     amf.append(Double(transactionId))
@@ -162,12 +162,12 @@ class CloseStreamMessage: CommandMessage, RTMPEncodable {
   }
 }
 
-class DeleteStreamMessage: CommandMessage, RTMPEncodable {
+class DeleteStreamMessage: CommandMessage {
   init(encodeType: ObjectEncodingType = .amf0, msgStreamId: Int) {
     super.init(encodeType: encodeType,commandName: "deleteStream", msgStreamId: msgStreamId, transactionId: 0, commandObject: nil)
   }
   
-  func encode() -> Data {
+  override var payload: Data {
     var amf: AMFProtocol = encodeType == .amf0 ? AMF0Object() : AMF3Object()
     amf.append(commandName)
     amf.append(Double(transactionId))
@@ -188,7 +188,7 @@ public enum PubishType: String {
   case append = "append"
 }
 
-class PublishMessage: CommandMessage, RTMPEncodable {
+class PublishMessage: CommandMessage {
   let type: PubishType
   let streamName: String
   init(encodeType: ObjectEncodingType = .amf0, streamName: String, type: PubishType) {
@@ -197,7 +197,7 @@ class PublishMessage: CommandMessage, RTMPEncodable {
     super.init(encodeType: encodeType, commandName: "publish", transactionId: commonTransactionId.stream)
   }
   
-  func encode() -> Data {
+  override var payload: Data {
     var amf: AMFProtocol = encodeType == .amf0 ? AMF0Object() : AMF3Object()
     amf.append(commandName)
     amf.append(Double(transactionId))
@@ -209,14 +209,14 @@ class PublishMessage: CommandMessage, RTMPEncodable {
 }
 
 
-class SeekMessage: CommandMessage, RTMPEncodable {
+class SeekMessage: CommandMessage {
   let millSecond: Double
   init(encodeType: ObjectEncodingType = .amf0, msgStreamId: Int, millSecond: Double) {
     self.millSecond = millSecond
     super.init(encodeType: encodeType, commandName: "seek", msgStreamId: msgStreamId, transactionId: commonTransactionId.stream)
   }
   
-  func encode() -> Data {
+  override var payload: Data {
     var amf: AMFProtocol = encodeType == .amf0 ? AMF0Object() : AMF3Object()
     amf.append(commandName)
     amf.append(Double(transactionId))
@@ -227,7 +227,7 @@ class SeekMessage: CommandMessage, RTMPEncodable {
 }
 
 
-class PauseMessage: CommandMessage, RTMPEncodable {
+class PauseMessage: CommandMessage {
   let isPause: Bool
   let millSecond: Double
   init(encodeType: ObjectEncodingType = .amf0, msgStreamId:Int, isPause: Bool, millSecond: Double) {
@@ -236,7 +236,7 @@ class PauseMessage: CommandMessage, RTMPEncodable {
     super.init(encodeType: encodeType, commandName: "pause", msgStreamId: msgStreamId, transactionId: commonTransactionId.stream)
   }
   
-  func encode() -> Data {
+  override var payload: Data {
     var amf: AMFProtocol = encodeType == .amf0 ? AMF0Object() : AMF3Object()
     amf.append(commandName)
     amf.append(Double(transactionId))

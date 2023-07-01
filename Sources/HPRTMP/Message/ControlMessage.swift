@@ -14,14 +14,14 @@ class ControlMessage: RTMPBaseMessage {
 }
 
 // Set Chunk Size (1)
-class ChunkSizeMessage: ControlMessage, RTMPEncodable {
+class ChunkSizeMessage: ControlMessage {
   let size: UInt32
   init(size: UInt32) {
     self.size = size
     super.init(type: .chunkSize)
   }
   
-  func encode() -> Data {
+  override var payload: Data {
     var data = Data()
     data.write(size & 0x7FFFFFFF)
     return data
@@ -30,14 +30,14 @@ class ChunkSizeMessage: ControlMessage, RTMPEncodable {
 
 
 // Abort message (2)
-class AbortMessage: ControlMessage, RTMPEncodable {
+class AbortMessage: ControlMessage {
   let chunkStreamId: UInt16
   init(chunkStreamId : UInt16) {
     self.chunkStreamId = chunkStreamId
     super.init(type: .abort)
   }
   
-  func encode() -> Data {
+  override var payload: Data {
     var data = Data()
     data.write(UInt32(chunkStreamId))
     return data
@@ -46,14 +46,14 @@ class AbortMessage: ControlMessage, RTMPEncodable {
 
 
 // Acknowledgement (3)
-class AcknowledgementMessage: ControlMessage, RTMPEncodable {
+class AcknowledgementMessage: ControlMessage {
   let sequence: UInt32
   init(sequence: UInt32) {
     self.sequence = sequence
     super.init(type: .acknowledgement)
   }
   
-  func encode() -> Data {
+  override var payload: Data {
     var data = Data()
     data.write(sequence)
     return data
@@ -62,14 +62,14 @@ class AcknowledgementMessage: ControlMessage, RTMPEncodable {
 
 
 //Window Acknowledgement Size (5)
-class WindowAckMessage: ControlMessage, RTMPEncodable {
+class WindowAckMessage: ControlMessage {
   let size: UInt32
   init(size: UInt32) {
     self.size = size
     super.init(type: .windowAcknowledgement)
   }
   
-  func encode() -> Data {
+  override var payload: Data {
     var data = Data()
     data.write(size)
     return data
@@ -78,7 +78,7 @@ class WindowAckMessage: ControlMessage, RTMPEncodable {
 
 
 //Set Peer Bandwidth (6)
-class PeerBandwidthMessage: ControlMessage, RTMPEncodable {
+class PeerBandwidthMessage: ControlMessage {
   
   enum LimitType: UInt8 {
     case hard = 0
@@ -94,7 +94,7 @@ class PeerBandwidthMessage: ControlMessage, RTMPEncodable {
     super.init(type: .peerBandwidth)
   }
   
-  func encode() -> Data {
+  override var payload: Data {
     var data = Data()
     data.write(windowSize)
     data.write(limit.rawValue)

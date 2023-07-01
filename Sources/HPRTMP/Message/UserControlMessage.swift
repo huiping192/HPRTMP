@@ -18,7 +18,7 @@ enum UserControlEventType: Int {
     case none = 0xff
 }
 
-class UserControlMessage: RTMPBaseMessage, RTMPEncodable {
+class UserControlMessage: RTMPBaseMessage {
   let type: UserControlEventType
   let data: Data
   
@@ -39,7 +39,7 @@ class UserControlMessage: RTMPBaseMessage, RTMPEncodable {
     self.init(type: .streamBufferLength, data: data, streamId: streamId)
   }
   
-  func encode() -> Data {
+  override var payload: Data {
     var data = Data()
     data.write(UInt16(type.rawValue))
     data.append(data)
