@@ -77,6 +77,10 @@ class AMF0Encoder: Encoder {
   func encode(_ value: [String: Any]) throws -> Data? {
     return value.amf0Encode
   }
+  
+  func encodeNil() throws -> Data? {
+    Data([RTMPAMF0Type.null.rawValue])
+  }
 }
 
 class AMF0KeyedEncodingContainer<Key: CodingKey>: KeyedEncodingContainerProtocol {

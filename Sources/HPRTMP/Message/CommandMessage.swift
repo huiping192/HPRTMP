@@ -42,7 +42,7 @@ class CommandMessage: RTMPBaseMessage, CustomStringConvertible {
     CommandNameType(rawValue: commandName)
   }
   let transactionId: Int
-  let commandObject: [String: Any?]?
+  let commandObject: [String: Any]?
   
   let info: Any?
 
@@ -50,7 +50,7 @@ class CommandMessage: RTMPBaseMessage, CustomStringConvertible {
        commandName: String,
        msgStreamId: Int = 0,
        transactionId: Int,
-       commandObject: [String: Any?]? = nil,
+       commandObject: [String: Any]? = nil,
        info: Any? = nil) {
     self.commandName = commandName
     self.transactionId = transactionId
@@ -58,6 +58,19 @@ class CommandMessage: RTMPBaseMessage, CustomStringConvertible {
     self.info = info
     self.encodeType = encodeType
     super.init(type: .command(type: encodeType),msgStreamId: msgStreamId, streamId: RTMPStreamId.command.rawValue)
+  }
+  
+  override var payload: Data {
+    var data = Data()
+    let encoder = AMF0Encoder()
+    
+    data.append((try? encoder.encode(commandName)) ?? Data())
+    data.append((try? encoder.encode(Double(transactionId))) ?? Data())
+    if let commandObject {
+      data.append((try? encoder.encode(commandObject)) ?? Data())
+    }
+
+    return data
   }
   
   var description: String {
@@ -76,7 +89,7 @@ class CommandMessage: RTMPBaseMessage, CustomStringConvertible {
 
 
 class ConnectMessage: CommandMessage {
-  let argument: [String: Any?]?
+  let argument: [String: Any]?
   init(encodeType: ObjectEncodingType = .amf0,
        tcUrl: String,
        appName: String,
@@ -86,29 +99,23 @@ class ConnectMessage: CommandMessage {
        audio: RTMPAudioCodecsType,
        video: RTMPVideoCodecsType,
        pageURL: URL? = nil,
-       argument: [String: Any?]? = nil) {
+       argument: [String: Any]? = nil) {
     self.argument = argument
-    let obj:[String: Any?] = ["app": appName,
+    let obj:[String: Any] = ["app": appName,
                               "flashver": flashVer,
-                              "swfUrl":swfURL?.absoluteString,
+                              "swfUrl":swfURL?.absoluteString ?? "",
                               "tcUrl":tcUrl,
                               "fpad":fpad,
                               "audioCodecs": audio.rawValue,
                               "videoCodecs":video.rawValue,
                               "videoFunction":RTMPVideoFunction.seek.rawValue,
-                              "pageUrl":pageURL?.absoluteString,
+                              "pageUrl":pageURL?.absoluteString ?? "",
                               "objectEncoding":encodeType.rawValue]
     
     super.init(encodeType: encodeType, commandName: "connect", transactionId: commonTransactionId.connect, commandObject: obj)
   }
   
-  override var payload: Data {
-    var amf: AMFProtocol = encodeType == .amf0 ? AMF0Object() : AMF3Object()
-    amf.append(commandName)
-    amf.append(Double(transactionId))
-    amf.append(commandObject)
-    return amf.data
-  }
+
   
   override var description: String {
       var desc = "ConnectMessage("
@@ -123,16 +130,21 @@ class ConnectMessage: CommandMessage {
 
 
 class CreateStreamMessage: CommandMessage {
-  init(encodeType: ObjectEncodingType = .amf0, transactionId: Int, commonObject: [String: Any?]? = nil) {
+  init(encodeType: ObjectEncodingType = .amf0, transactionId: Int, commonObject: [String: Any]? = nil) {
     super.init(encodeType: encodeType,commandName: "createStream", transactionId: transactionId, commandObject: commonObject)
   }
   
   override var payload: Data {
-    var amf: AMFProtocol = encodeType == .amf0 ? AMF0Object() : AMF3Object()
-    amf.append(commandName)
-    amf.append(Double(transactionId))
-    amf.append(commandObject)
-    return amf.data
+    var data = Data()
+    let encoder = AMF0Encoder()
+    
+    data.append((try? encoder.encode(commandName)) ?? Data())
+    data.append((try? encoder.encode(Double(transactionId))) ?? Data())
+    if let commandObject {
+      data.append((try? encoder.encode(commandObject)) ?? Data())
+    }
+
+    return data
   }
   
   override var description: String {
@@ -147,14 +159,6 @@ class CloseStreamMessage: CommandMessage {
     super.init(encodeType: encodeType,commandName: "closeStream", msgStreamId: msgStreamId, transactionId: 0, commandObject: nil)
   }
   
-  override var payload: Data {
-    var amf: AMFProtocol = encodeType == .amf0 ? AMF0Object() : AMF3Object()
-    amf.append(commandName)
-    amf.append(Double(transactionId))
-    amf.append(commandObject)
-    return amf.data
-  }
-  
   override var description: String {
     let objDesc = commandObject != nil ? "\(commandObject!)" : "nil"
     let infoDesc = info != nil ? "\(info!)" : "nil"
@@ -165,14 +169,6 @@ class CloseStreamMessage: CommandMessage {
 class DeleteStreamMessage: CommandMessage {
   init(encodeType: ObjectEncodingType = .amf0, msgStreamId: Int) {
     super.init(encodeType: encodeType,commandName: "deleteStream", msgStreamId: msgStreamId, transactionId: 0, commandObject: nil)
-  }
-  
-  override var payload: Data {
-    var amf: AMFProtocol = encodeType == .amf0 ? AMF0Object() : AMF3Object()
-    amf.append(commandName)
-    amf.append(Double(transactionId))
-    amf.append(commandObject)
-    return amf.data
   }
   
   override var description: String {
@@ -198,13 +194,16 @@ class PublishMessage: CommandMessage {
   }
   
   override var payload: Data {
-    var amf: AMFProtocol = encodeType == .amf0 ? AMF0Object() : AMF3Object()
-    amf.append(commandName)
-    amf.append(Double(transactionId))
-    amf.appendNil()
-    amf.append(streamName)
-    amf.append(self.type.rawValue)
-    return amf.data
+    var data = Data()
+    let encoder = AMF0Encoder()
+    
+    data.append((try? encoder.encode(commandName)) ?? Data())
+    data.append((try? encoder.encode(Double(transactionId))) ?? Data())
+    data.append((try? encoder.encodeNil()) ?? Data())
+    data.append((try? encoder.encode(streamName)) ?? Data())
+    data.append((try? encoder.encode(self.type.rawValue)) ?? Data())
+
+    return data
   }
 }
 
@@ -217,12 +216,15 @@ class SeekMessage: CommandMessage {
   }
   
   override var payload: Data {
-    var amf: AMFProtocol = encodeType == .amf0 ? AMF0Object() : AMF3Object()
-    amf.append(commandName)
-    amf.append(Double(transactionId))
-    amf.appendNil()
-    amf.append(millSecond)
-    return amf.data
+    var data = Data()
+    let encoder = AMF0Encoder()
+    
+    data.append((try? encoder.encode(commandName)) ?? Data())
+    data.append((try? encoder.encode(Double(transactionId))) ?? Data())
+    data.append((try? encoder.encodeNil()) ?? Data())
+    data.append((try? encoder.encode(millSecond)) ?? Data())
+
+    return data
   }
 }
 
@@ -237,13 +239,16 @@ class PauseMessage: CommandMessage {
   }
   
   override var payload: Data {
-    var amf: AMFProtocol = encodeType == .amf0 ? AMF0Object() : AMF3Object()
-    amf.append(commandName)
-    amf.append(Double(transactionId))
-    amf.appendNil()
-    amf.appned(isPause)
-    amf.append(millSecond)
-    return amf.data
+    var data = Data()
+    let encoder = AMF0Encoder()
+    
+    data.append((try? encoder.encode(commandName)) ?? Data())
+    data.append((try? encoder.encode(Double(transactionId))) ?? Data())
+    data.append((try? encoder.encodeNil()) ?? Data())
+    data.append((try? encoder.encode(isPause)) ?? Data())
+    data.append((try? encoder.encode(millSecond)) ?? Data())
+
+    return data
   }
 }
 
