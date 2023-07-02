@@ -1,9 +1,3 @@
-//
-//  File.swift
-//  
-//
-//  Created by Huiping Guo on 2022/11/02.
-//
 
 import Foundation
 import os
@@ -13,15 +7,6 @@ enum AMF0DecodeError: Error {
   case parseError
 }
 
-
-extension Data {
-  func subdata(safe range: Range<Int>) -> Data? {
-    if range.lowerBound < 0 || range.upperBound > count {
-      return nil
-    }
-    return subdata(in: range)
-  }
-}
 
 // Decode
 extension Data {
@@ -75,14 +60,15 @@ extension Data {
 extension Data {
   func decodeAMF0() -> [Any]? {
     let decoder = AMF0Decoder()
-    return decoder.decodeAMF0(self)
+    return decoder.decode(self)
   }
 }
 
 class AMF0Decoder {
   private var data: Data = Data()
   private let logger = Logger(subsystem: "HPRTMP", category: "AMF0Decoder")
-  func decodeAMF0(_ data: Data) -> [Any]? {
+  
+  func decode(_ data: Data) -> [Any]? {
     self.data = data
     var decodeData = [Any]()
     while let first = self.data.first {
@@ -102,7 +88,7 @@ class AMF0Decoder {
   }
   
   
-  func parseValue(type: RTMPAMF0Type) throws -> Any {
+  private func parseValue(type: RTMPAMF0Type) throws -> Any {
     switch type {
     case .number:
       return try decodeNumber()
@@ -133,7 +119,7 @@ class AMF0Decoder {
     }
   }
   
-  func decodeNumber() throws -> Double {
+  private func decodeNumber() throws -> Double {
     let range = 0..<8
     guard let result = data.subdata(safe: range) else {
       throw AMF0DecodeError.rangeError
@@ -142,14 +128,14 @@ class AMF0Decoder {
     return Data(result.reversed()).double
   }
   
-  func decodeBool() throws -> Bool {
+  private func decodeBool() throws -> Bool {
     guard let result = data.first else {
       throw AMF0DecodeError.rangeError
     }
     data.removeSubrange(0..<1)
     return result == 0x01
   }
-  func decodeString() throws -> String {
+  private func decodeString() throws -> String {
     let range = 0..<2
     guard let rangeBytes = data.subdata(safe: range) else {
       throw AMF0DecodeError.rangeError
@@ -161,7 +147,7 @@ class AMF0Decoder {
     return value
   }
   
-  func decodeLongString() throws -> String {
+  private func decodeLongString() throws -> String {
     let range = 0..<4
     guard let rangeBytes = data.subdata(safe: range) else {
       throw AMF0DecodeError.rangeError
@@ -173,7 +159,7 @@ class AMF0Decoder {
     return value
   }
   
-  func decodeXML() throws -> String {
+  private func decodeXML() throws -> String {
     let range = 0..<4
     guard let rangeBytes = data.subdata(safe: range) else {
       throw AMF0DecodeError.rangeError
@@ -189,7 +175,7 @@ class AMF0Decoder {
     return value
   }
   
-  func decodeDate() throws -> Date {
+  private func decodeDate() throws -> Date {
     guard let value = data.subdata(safe: 0..<8) else {
       throw AMF0DecodeError.rangeError
     }
@@ -199,7 +185,7 @@ class AMF0Decoder {
     return result
   }
   
-  func decodeObj() throws -> [String: Any] {
+  private func decodeObj() throws -> [String: Any] {
     var map = [String: Any]()
     var key = ""
     while let first = data.first, first != RTMPAMF0Type.objectEnd.rawValue {
@@ -237,13 +223,13 @@ class AMF0Decoder {
     return map
   }
   
-  func decodeTypeObject() throws -> [String: Any] {
+  private func decodeTypeObject() throws -> [String: Any] {
     let range = 0..<4
     data.removeSubrange(range)
     return try self.decodeObj()
   }
   
-  func deocdeArray() throws -> [String: Any] {
+  private func deocdeArray() throws -> [String: Any] {
     let entryPoint = 0..<4
     data.removeSubrange(entryPoint)
     let value = try self.decodeObj()
@@ -271,3 +257,11 @@ class AMF0Decoder {
   }
 }
 
+private extension Data {
+  func subdata(safe range: Range<Int>) -> Data? {
+    if range.lowerBound < 0 || range.upperBound > count {
+      return nil
+    }
+    return subdata(in: range)
+  }
+}
