@@ -1,6 +1,33 @@
 import Foundation
 import os
 
+public class AMF3Decoder {
+  var reference: AMF3ReferenceTable
+  
+  init() {
+    self.reference = AMF3ReferenceTable()
+  }
+  
+  func decode(_ data: Data) throws -> [Any] {
+    var localData = data
+    var decodeData = [Any]()
+    while !localData.isEmpty {
+      guard let first = localData.first, let realType = RTMPAMF3Type(rawValue: first) else {
+        throw AMF3DecodeError.rangeError
+      }
+      localData.remove(at: 0)
+      do {
+        let value = try localData.parseValue(type: realType, reference: &reference)
+        decodeData.append(value)
+      } catch let error {
+        print("Decode Error \(error.localizedDescription)")
+        throw error
+      }
+    }
+    return decodeData
+  }
+}
+
 //Note that 3 separate reference tables are used for Strings, Complex Objects and Object Traits respectively.
 public class AMF3ReferenceTable {
     private(set) lazy var string = {
