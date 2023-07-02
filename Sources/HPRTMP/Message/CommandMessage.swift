@@ -64,10 +64,10 @@ class CommandMessage: RTMPBaseMessage, CustomStringConvertible {
     var data = Data()
     let encoder = AMF0Encoder()
     
-    data.append((try? encoder.encode(commandName)) ?? Data())
-    data.append((try? encoder.encode(Double(transactionId))) ?? Data())
+    data.append((encoder.encode(commandName)) ?? Data())
+    data.append((encoder.encode(Double(transactionId))) ?? Data())
     if let commandObject {
-      data.append((try? encoder.encode(commandObject)) ?? Data())
+      data.append((encoder.encode(commandObject)) ?? Data())
     }
 
     return data
@@ -138,10 +138,10 @@ class CreateStreamMessage: CommandMessage {
     var data = Data()
     let encoder = AMF0Encoder()
     
-    data.append((try? encoder.encode(commandName)) ?? Data())
-    data.append((try? encoder.encode(Double(transactionId))) ?? Data())
+    data.append((encoder.encode(commandName)) ?? Data())
+    data.append((encoder.encode(Double(transactionId))) ?? Data())
     if let commandObject {
-      data.append((try? encoder.encode(commandObject)) ?? Data())
+      data.append((encoder.encode(commandObject)) ?? Data())
     }
 
     return data
@@ -197,11 +197,11 @@ class PublishMessage: CommandMessage {
     var data = Data()
     let encoder = AMF0Encoder()
     
-    data.append((try? encoder.encode(commandName)) ?? Data())
-    data.append((try? encoder.encode(Double(transactionId))) ?? Data())
-    data.append((try? encoder.encodeNil()) ?? Data())
-    data.append((try? encoder.encode(streamName)) ?? Data())
-    data.append((try? encoder.encode(self.type.rawValue)) ?? Data())
+    data.append((encoder.encode(commandName)) ?? Data())
+    data.append((encoder.encode(Double(transactionId))) ?? Data())
+    data.append((encoder.encodeNil()) ?? Data())
+    data.append((encoder.encode(streamName)) ?? Data())
+    data.append((encoder.encode(self.type.rawValue)) ?? Data())
 
     return data
   }
@@ -219,10 +219,10 @@ class SeekMessage: CommandMessage {
     var data = Data()
     let encoder = AMF0Encoder()
     
-    data.append((try? encoder.encode(commandName)) ?? Data())
-    data.append((try? encoder.encode(Double(transactionId))) ?? Data())
-    data.append((try? encoder.encodeNil()) ?? Data())
-    data.append((try? encoder.encode(millSecond)) ?? Data())
+    data.append((encoder.encode(commandName)) ?? Data())
+    data.append((encoder.encode(Double(transactionId))) ?? Data())
+    data.append((encoder.encodeNil()) ?? Data())
+    data.append((encoder.encode(millSecond)) ?? Data())
 
     return data
   }
@@ -242,11 +242,11 @@ class PauseMessage: CommandMessage {
     var data = Data()
     let encoder = AMF0Encoder()
     
-    data.append((try? encoder.encode(commandName)) ?? Data())
-    data.append((try? encoder.encode(Double(transactionId))) ?? Data())
-    data.append((try? encoder.encodeNil()) ?? Data())
-    data.append((try? encoder.encode(isPause)) ?? Data())
-    data.append((try? encoder.encode(millSecond)) ?? Data())
+    data.append((encoder.encode(commandName)) ?? Data())
+    data.append((encoder.encode(Double(transactionId))) ?? Data())
+    data.append((encoder.encodeNil()) ?? Data())
+    data.append((encoder.encode(isPause)) ?? Data())
+    data.append((encoder.encode(millSecond)) ?? Data())
 
     return data
   }
