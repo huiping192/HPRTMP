@@ -43,7 +43,7 @@ actor RTMPService: RTMPPublishSessionDelegate {
   func run() async {
     await session.setDelegate(self)
     let publishConfig = PublishConfigure(width: 960, height: 720, videocodecid: VideoData.CodecId.avc.rawValue, audiocodecid: AudioData.SoundFormat.aac.rawValue, framerate: 24, videoDatarate: 24, audioDatarate: nil, audioSamplerate: nil)
-    await session.publish(url: "rtmp://a.rtmp.youtube.com/live2/18jg-kdbm-5zzb-pcjm-7084", configure: publishConfig)
+    await session.publish(url: "rtmp://192.168.11.23/live/haha", configure: publishConfig)
   }
   
   
