@@ -7,36 +7,36 @@
 
 import Foundation
 
-protocol AMF3Encode {
-  var amf3Encode: Data { get }
+protocol AMF3Encodable {
+  var amf3Value: Data { get }
 }
 
-protocol AMF3KeyEncode {
-  var amf3KeyEncode: Data { get }
+protocol AMF3KeyEncodable {
+  var amf3KeyValue: Data { get }
 }
 
-protocol AMF3ByteArrayEncode {
-  var byteEncode: Data { get }
+protocol AMF3ByteArrayEncodable {
+  var amf3ByteValue: Data { get }
 }
 
-protocol AMF3VectorEncode {
-  var amf3VectorEncode: Data { get }
+protocol AMF3VectorEncodable {
+  var amf3VectorValue: Data { get }
 }
 
-protocol AMF3VectorUnitEncode {
-  var vectorData: Data { get }
+protocol AMF3VectorUnitEncodable {
+  var amf3VectorUnitValue: Data { get }
 }
 
 
-extension Bool: AMF3Encode {
-  var amf3Encode: Data {
+extension Bool: AMF3Encodable {
+  var amf3Value: Data {
     return Data([self == false ? 0x02 : 0x03])
   }
 }
 
 
-extension Int: AMF3Encode {
-  var amf3Encode: Data {
+extension Int: AMF3Encodable {
+  var amf3Value: Data {
     var data = Data()
     data.write(RTMPAMF3Type.int.rawValue)
     data.append(amf3LengthConvert)
@@ -62,7 +62,7 @@ extension Int: AMF3Encode {
       let four   = UInt8(self & 0xff)
       return Data([first, second, third, four])
     default: // out of range auto convert to double
-      return Double(self).amf3Encode
+      return Double(self).amf3Value
     }
   }
   
@@ -71,16 +71,16 @@ extension Int: AMF3Encode {
   }
 }
 
-extension Double: AMF3Encode {
-  var amf3Encode: Data {
+extension Double: AMF3Encodable {
+  var amf3Value: Data {
     var data = Data([0x05])
     data.append(Data(self.bitPattern.data.reversed()))
     return data
   }
 }
 
-extension String: AMF3Encode, AMF3KeyEncode {
-  var amf3KeyEncode: Data {
+extension String: AMF3Encodable, AMF3KeyEncodable {
+  var amf3KeyValue: Data {
     let encodeLength = (self.count << 1 | 0x01).amf3LengthConvert
     var data = Data()
     data.append(encodeLength)
@@ -88,16 +88,16 @@ extension String: AMF3Encode, AMF3KeyEncode {
     return data
   }
   
-  var amf3Encode: Data {
+  var amf3Value: Data {
     var data = Data()
     data.write(RTMPAMF3Type.string.rawValue)
-    data.append(self.amf3KeyEncode)
+    data.append(self.amf3KeyValue)
     return data
   }
 }
 
-extension Date: AMF3Encode {
-  var amf3Encode: Data {
+extension Date: AMF3Encodable {
+  var amf3Value: Data {
     let mileSecondSince1970 = Double(self.timeIntervalSince1970 * 1000)
     var data = Data()
     data.write(RTMPAMF3Type.date.rawValue)
@@ -107,19 +107,19 @@ extension Date: AMF3Encode {
   }
 }
 
-extension Dictionary: AMF3Encode where Key: AMF3KeyEncode, Value: AMF3Encode {
-  var amf3Encode: Data {
+extension Dictionary: AMF3Encodable where Key: AMF3KeyEncodable, Value: AMF3Encodable {
+  var amf3Value: Data {
     var data = Data([0x03]) // Object marker
     
     // Write object traits
     data.append(Data([0x0b])) // Trait type (object)
     data.append(Data([0x01])) // Trait count (1)
-    data.append(self.keys.count.amf3Encode) // Write number of keys
+    data.append(self.keys.count.amf3Value) // Write number of keys
     data.append(Data([0x01])) // Trait property name (always an empty string)
     
     for key in self.keys {
-      data.append(key.amf3KeyEncode) // Write the key as a string
-      data.append(self[key]!.amf3Encode) // Write the value
+      data.append(key.amf3KeyValue) // Write the key as a string
+      data.append(self[key]!.amf3Value) // Write the value
     }
     
     return data
@@ -127,13 +127,13 @@ extension Dictionary: AMF3Encode where Key: AMF3KeyEncode, Value: AMF3Encode {
 }
 
 extension Dictionary where Key == String {
-  var amf3Encode: Data {
+  var amf3Value: Data {
     var data = Data()
     data.write([RTMPAMF3Type.object.rawValue,0x0b,RTMPAMF3Type.null.rawValue])
     self.forEach { (key, value) in
-      let keyEncode = key.amf3KeyEncode
+      let keyEncode = key.amf3KeyValue
       data.append(keyEncode)
-      if let value = (value as? AMF3Encode)?.amf3Encode {
+      if let value = (value as? AMF3Encodable)?.amf3Value {
         data.append(value)
       } else {
         data.write(RTMPAMF3Type.null.rawValue)
@@ -144,15 +144,15 @@ extension Dictionary where Key == String {
   }
 }
 
-extension Array: AMF3Encode {
-  var amf3Encode: Data {
+extension Array: AMF3Encodable {
+  var amf3Value: Data {
     let encodeLength = (self.count << 1 | 0x01).amf3LengthConvert
     var data = Data()
     data.write(RTMPAMF3Type.array.rawValue)
     data.append(encodeLength)
     
     self.forEach {
-      if let valueEncode = ($0 as? AMF3Encode)?.amf3Encode {
+      if let valueEncode = ($0 as? AMF3Encodable)?.amf3Value {
         data.append(valueEncode)
       }
     }
@@ -160,8 +160,8 @@ extension Array: AMF3Encode {
   }
 }
 
-extension Array: AMF3VectorEncode {
-  var amf3VectorEncode: Data {
+extension Array: AMF3VectorEncodable {
+  var amf3VectorValue: Data {
     var type: RTMPAMF3Type?
     if Element.self == UInt32.self {
       type = .vectorUInt
@@ -184,18 +184,18 @@ extension Array: AMF3VectorEncode {
     data.write(AMF3EncodeType.Vector.dynamic.rawValue)
     
     if type == .vectorObject {
-      let objectType = "*".amf3Encode
+      let objectType = "*".amf3Value
       let encodeLength = (objectType.count << 1 | 0x01).amf3LengthConvert
       data.append(encodeLength)
       data.append(objectType)
       self.forEach({
-        if let encode = ($0 as? AMF3Encode)?.amf3Encode {
+        if let encode = ($0 as? AMF3Encodable)?.amf3Value {
           data.append(encode)
         }
       })
     } else {
       self.forEach {
-        if let encode = ($0 as? AMF3VectorUnitEncode)?.vectorData {
+        if let encode = ($0 as? AMF3VectorUnitEncodable)?.amf3VectorUnitValue {
           data.append(encode)
         }
       }
@@ -205,8 +205,8 @@ extension Array: AMF3VectorEncode {
   }
 }
 
-extension Data: AMF3ByteArrayEncode {
-  var byteEncode: Data {
+extension Data: AMF3ByteArrayEncodable {
+  var amf3ByteValue: Data {
     let encodeLength = (self.count << 1 | 0x01).amf3LengthConvert
     var data = Data()
     data.write(RTMPAMF3Type.byteArray.rawValue)

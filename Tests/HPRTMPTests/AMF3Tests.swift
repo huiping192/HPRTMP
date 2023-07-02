@@ -21,7 +21,7 @@ final class AMF3Tests: XCTestCase {
     // test amf3 encode
      func testAMF3Encode() throws {
         let value = 123
-        let data = value.amf3Encode
+        let data = value.amf3Value
         XCTAssertEqual(data, Data([0x04, 0x7b]))
     }
 }
