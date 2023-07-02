@@ -7,6 +7,10 @@
 
 import Foundation
 
+protocol AMF0Encode {
+  var amf0Value: Data { get }
+}
+
 enum RTMPAMF0Type: UInt8 {
   case number      = 0x00
   case boolean     = 0x01
