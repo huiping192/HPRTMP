@@ -58,7 +58,7 @@ class AMF0DecoderTests: XCTestCase {
   
   func testEncodeDecodeObject() {
     let object: [String : Any] = ["foo": "bar", "baz": 123]
-    let data = object.amf0Encode
+    let data = object.afm0Value
     let decoder = AMF0Decoder()
     let result = decoder.decode(data)
     

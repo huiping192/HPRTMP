@@ -74,8 +74,8 @@ class MetaMessage: DataMessage {
   override var payload: Data {
     var data = Data()
     let encoder = AMF0Encoder()
-    data.append((try? encoder.encode("onMetaData")) ?? Data())
-    data.append((try? encoder.encode(meta)) ?? Data())
+    data.append((encoder.encode("onMetaData")) ?? Data())
+    data.append((encoder.encode(meta)) ?? Data())
     
     return data
   }
@@ -125,12 +125,12 @@ class SharedObjectMessage: DataMessage {
   override var payload: Data {
     var data = Data()
     let encoder = AMF0Encoder()
-    data.append((try? encoder.encode("onSharedObject")) ?? Data())
+    data.append((encoder.encode("onSharedObject")) ?? Data())
     if let sharedObjectName {
-      data.append((try? encoder.encode(sharedObjectName)) ?? Data())
+      data.append((encoder.encode(sharedObjectName)) ?? Data())
     }
     if let sharedObject {
-      data.append((try? encoder.encode(sharedObject)) ?? Data())
+      data.append((encoder.encode(sharedObject)) ?? Data())
     }
     return data
   }

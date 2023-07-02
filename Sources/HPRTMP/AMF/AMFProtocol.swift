@@ -21,11 +21,6 @@ protocol AMFProtocol {
     static func decode(_ data: Data) -> [Any]?
 }
 
-
-protocol AMF0Protocol: AMFProtocol {
-    mutating func appendEcma(_ value: [String: Any?])
-}
-
 protocol AMF3Protocol: AMFProtocol {
     mutating func appendUndefined()
     mutating func append(_ value: Int)

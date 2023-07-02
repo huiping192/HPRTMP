@@ -7,7 +7,7 @@
 
 import Foundation
 
-protocol AMF0Encode {
+protocol AMF0Encodable {
   var amf0Value: Data { get }
 }
 
@@ -27,62 +27,62 @@ enum RTMPAMF0Type: UInt8 {
   case switchAMF3  = 0x11
 }
 
-extension Int: AMF0Encode {
+extension Int: AMF0Encodable {
   var amf0Value: Data {
     return Double(self).amf0Value
   }
 }
 
-extension Int8: AMF0Encode {
+extension Int8: AMF0Encodable {
   var amf0Value: Data {
     return Double(self).amf0Value
   }
 }
 
-extension Int16: AMF0Encode {
+extension Int16: AMF0Encodable {
   var amf0Value: Data {
     return Double(self).amf0Value
   }
 }
 
-extension Int32: AMF0Encode {
+extension Int32: AMF0Encodable {
   var amf0Value: Data {
     return Double(self).amf0Value
   }
 }
 
-extension UInt: AMF0Encode {
+extension UInt: AMF0Encodable {
   var amf0Value: Data {
     return Double(self).amf0Value
   }
 }
 
-extension UInt8: AMF0Encode {
+extension UInt8: AMF0Encodable {
   var amf0Value: Data {
     return Double(self).amf0Value
   }
 }
 
-extension UInt16: AMF0Encode {
+extension UInt16: AMF0Encodable {
   var amf0Value: Data {
     return Double(self).amf0Value
   }
 }
 
-extension UInt32: AMF0Encode {
+extension UInt32: AMF0Encodable {
   var amf0Value: Data {
     return Double(self).amf0Value
   }
 }
 
-extension Float: AMF0Encode {
+extension Float: AMF0Encodable {
   var amf0Value: Data {
     return Double(self).amf0Value
   }
 }
 
 // Number - 0x00 (Encoded as IEEE 64-bit double-precision floating point number)
-extension Double: AMF0Encode {
+extension Double: AMF0Encodable {
   var amf0Value: Data {
     var data = Data()
     data.write(RTMPAMF0Type.number.rawValue)
@@ -93,7 +93,7 @@ extension Double: AMF0Encode {
 }
 
 // Boolean - 0x01 (Encoded as a single byte of value 0x00 or 0x01)
-extension Bool: AMF0Encode {
+extension Bool: AMF0Encodable {
   var amf0Value: Data {
     var data = Data()
     data.write(RTMPAMF0Type.boolean.rawValue)
@@ -105,7 +105,7 @@ extension Bool: AMF0Encode {
 
 // String - 0x02 (16-bit integer string length with UTF-8 string)
 // Long String - 0x0c (32-bit integer string length with UTF-8 string)
-extension String: AMF0Encode {
+extension String: AMF0Encodable {
   var amf0Value: Data {
     let isLongString = self.count > UInt16.max
     return isLongString ? amf0LongStringValue : amf0StringValue
@@ -148,7 +148,7 @@ extension String: AMF0Encode {
 }
 
 // Date - 0x0b (Encoded as IEEE 64-bit double-precision floating point number with 16-bit integer time zone offset)
-extension Date: AMF0Encode {
+extension Date: AMF0Encodable {
   var amf0Value: Data {
     let mileSecondSince1970 = Double(UInt64(self.timeIntervalSince1970 * 1000))
     var data = Data()
@@ -163,7 +163,7 @@ extension Date: AMF0Encode {
 // Object - 0x03 (Set of key/value pairs)
 // Object End - 0x09 (preceded by an empty 16-bit string length)
 extension Dictionary where Key == String {
-  var amf0Encode: Data {
+  var afm0Value: Data {
     var data = Data()
     data.write(RTMPAMF0Type.object.rawValue)
     data.append(keyValueEncode())
@@ -185,7 +185,7 @@ extension Dictionary where Key == String {
     self.forEach { (key, value) in
       let keyEncode = key.amf0KeyEncode
       data.append(keyEncode)
-      if let valueEncode = (value as? AMF0Encode)?.amf0Value {
+      if let valueEncode = (value as? AMF0Encodable)?.amf0Value {
         data.append(valueEncode)
       } else {
         data.write(RTMPAMF0Type.null.rawValue)
@@ -196,16 +196,16 @@ extension Dictionary where Key == String {
 }
 
 // Strict Array - 0x0a (32-bit entry count)
-extension Array: AMF0Encode {
+extension Array: AMF0Encodable {
   var amf0Value: Data {
     var data = Data()
     data.write(RTMPAMF0Type.strictArray.rawValue)
     data.write(UInt32(self.count))
     self.forEach {
-      if let valueEncode = ($0 as? AMF0Encode)?.amf0Value {
+      if let valueEncode = ($0 as? AMF0Encodable)?.amf0Value {
         data.append(valueEncode)
       } else if let dic = $0 as? [String: Any] {
-        data.append(dic.amf0Encode)
+        data.append(dic.afm0Value)
       }
     }
     return data
@@ -216,10 +216,10 @@ extension Array {
   var amf0GroupEncode: Data {
     var group = Data()
     self.forEach {
-      if let data = ($0 as? AMF0Encode)?.amf0Value {
+      if let data = ($0 as? AMF0Encodable)?.amf0Value {
         group.append(data)
       } else if let dic = $0 as? [String: Any?] {
-        group.append(dic.amf0Encode)
+        group.append(dic.afm0Value)
       }
     }
     return group

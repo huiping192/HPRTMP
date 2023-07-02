@@ -6,12 +6,12 @@ class AMF0Encoder {
     return value.amf0Value
   }
   
-  func encode<T: AMF0Encode>(_ value: T) -> Data? {
+  func encode<T: AMF0Encodable>(_ value: T) -> Data? {
     return value.amf0Value
   }
   
   func encode(_ value: [String: Any]) -> Data? {
-    return value.amf0Encode
+    return value.afm0Value
   }
   
   func encodeNil() -> Data? {
