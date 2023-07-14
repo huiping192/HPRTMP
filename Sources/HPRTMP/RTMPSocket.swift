@@ -228,36 +228,27 @@ extension RTMPSocket {
       return
     }
     
-    if let windowAckMessage = message as? WindowAckMessage {
+    switch message {
+    case let windowAckMessage as WindowAckMessage:
       logger.info("WindowAckMessage, size \(windowAckMessage.size)")
       await windowControl.setWindowSize(windowAckMessage.size)
-      return
-    }
-    
-    if let acknowledgementMessage = message as? AcknowledgementMessage {
+      
+    case let acknowledgementMessage as AcknowledgementMessage:
       logger.info("AcknowledgementMessage, size \(acknowledgementMessage.sequence)")
-      return
-    }
-    
-    if let peerBandwidthMessage = message as? PeerBandwidthMessage {
+      
+    case let peerBandwidthMessage as PeerBandwidthMessage:
       logger.info("PeerBandwidthMessage, size \(peerBandwidthMessage.windowSize)")
       await delegate?.socketPeerBandWidth(self, size: peerBandwidthMessage.windowSize)
-      return
-    }
-    
-    if let chunkSizeMessage = message as? ChunkSizeMessage {
+      
+    case let chunkSizeMessage as ChunkSizeMessage:
       logger.info("chunkSizeMessage, size \(chunkSizeMessage.size)")
       await decoder.setMaxChunkSize(maxChunkSize: Int(chunkSizeMessage.size))
-      return
-    }
-    
-    if let commandMessage = message as? CommandMessage {
+      
+    case let commandMessage as CommandMessage:
       logger.info("CommandMessage, \(commandMessage.description)")
       await handleCommandMessage(commandMessage)
-      return
-    }
-    
-    if let userControlMessage = message as? UserControlMessage {
+      
+    case let userControlMessage as UserControlMessage:
       logger.info("UserControlMessage, message Type:  \(userControlMessage.type.rawValue)")
       switch userControlMessage.type {
       case .pingRequest:
@@ -267,40 +258,29 @@ extension RTMPSocket {
       default:
         break
       }
-    }
-    
-    if let controlMessage = message as? ControlMessage {
+      
+    case let controlMessage as ControlMessage:
       logger.info("ControlMessage, message Type:  \(controlMessage.messageType.rawValue)")
       
-      return
-    }
-    
-    if let dataMessage = message as? DataMessage {
+    case let dataMessage as DataMessage:
       logger.info("DataMessage, message Type:  \(dataMessage.messageType.rawValue)")
       
-      return
-    }
-    
-    if let videoMessage = message as? VideoMessage {
+    case let videoMessage as VideoMessage:
       logger.info("VideoMessage, message Type:  \(videoMessage.messageType.rawValue)")
       await self.delegate?.socketStreamOutputVideo(self, data: videoMessage.data, timeStamp: Int64(videoMessage.timestamp))
-      return
-    }
-    
-    if let audioMessage = message as? AudioMessage {
+      
+    case let audioMessage as AudioMessage:
       logger.info("AudioMessage, message Type:  \(audioMessage.messageType.rawValue)")
       await self.delegate?.socketStreamOutputAudio(self, data: audioMessage.data, timeStamp: Int64(audioMessage.timestamp))
-      return
-    }
-    
-    if let sharedObjectMessage = message as? SharedObjectMessage {
+      
+    case let sharedObjectMessage as SharedObjectMessage:
       logger.info("ShareMessage, message Type:  \(sharedObjectMessage.messageType.rawValue)")
-      return
-    }
-    
-    if let abortMessage = message as? AbortMessage {
+      
+    case let abortMessage as AbortMessage:
       logger.info("AbortMessage, message Type:  \(abortMessage.chunkStreamId)")
-      return
+      
+    default:
+      break
     }
   }
   
