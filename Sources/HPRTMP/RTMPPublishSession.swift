@@ -74,8 +74,8 @@ public actor RTMPPublishSession {
   private var videoHeaderSended = false
   private var audioHeaderSended = false
 
-  public func publishVideoHeader(data: Data, time: UInt32) async {
-    let message = VideoMessage(msgStreamId: connectId, data: data, timestamp: time)
+  public func publishVideoHeader(data: Data) async {
+    let message = VideoMessage(msgStreamId: connectId, data: data, timestamp: 0)
     await socket.send(message: message, firstType: true)
     videoHeaderSended = true
   }
