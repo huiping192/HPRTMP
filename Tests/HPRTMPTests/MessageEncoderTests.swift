@@ -1,5 +1,5 @@
 //
-//  ChunkEncoderTests.swift
+//  MessageEncoderTests.swift
 //  
 //
 //  Created by 郭 輝平 on 2023/03/18.
@@ -8,14 +8,14 @@
 import XCTest
 @testable import HPRTMP
 
-final class ChunkEncoderTests: XCTestCase {
+final class MessageEncoderTests: XCTestCase {
   
   func testSingleChunkFirst() throws {
     let message = AudioMessage(msgStreamId: 10, data: Data([0x01, 0x02, 0x03, 0x04]), timestamp: 1234)
-    let encoder = ChunkEncoder()
+    let encoder = MessageEncoder()
     
     // When
-    let chunks = encoder.chunk(message: message, isFirstType0: true)
+    let chunks = encoder.encode(message: message, isFirstType0: true)
     
     // Then
     XCTAssertEqual(chunks.count, 1)
@@ -33,10 +33,10 @@ final class ChunkEncoderTests: XCTestCase {
   
   func testSingleChunkNotFirst() throws {
     let message = AudioMessage(msgStreamId: 10, data: Data([0x01, 0x02, 0x03, 0x04]), timestamp: 1234)
-    let encoder = ChunkEncoder()
+    let encoder = MessageEncoder()
     
     // When
-    let chunks = encoder.chunk(message: message, isFirstType0: false)
+    let chunks = encoder.encode(message: message, isFirstType0: false)
     
     // Then
     XCTAssertEqual(chunks.count, 1)
@@ -53,11 +53,11 @@ final class ChunkEncoderTests: XCTestCase {
   
   func testChunk_multipleChunks() throws {
     let message = AudioMessage(msgStreamId: 10, data: Data([0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08]), timestamp: 1234)
-    let encoder = ChunkEncoder()
+    let encoder = MessageEncoder()
     encoder.chunkSize = 4
     
     // When
-    let chunks = encoder.chunk(message: message)
+    let chunks = encoder.encode(message: message, isFirstType0: true)
     
     // Then
     XCTAssertEqual(chunks.count, 2)

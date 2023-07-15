@@ -1,12 +1,12 @@
 import Foundation
 
-class ChunkEncoder {
+class MessageEncoder {
   
   static let maxChunkSize: UInt8 = 128
   
-  var chunkSize = UInt32(ChunkEncoder.maxChunkSize)
+  var chunkSize = UInt32(MessageEncoder.maxChunkSize)
   
-  func chunk(message: RTMPMessage, isFirstType0: Bool = true) -> [Chunk] {
+  func encode(message: RTMPMessage, isFirstType0: Bool) -> [Chunk] {
     let payload = message.payload
     
     return payload.split(size: Int(chunkSize))

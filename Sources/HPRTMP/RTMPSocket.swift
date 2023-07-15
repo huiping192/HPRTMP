@@ -72,7 +72,7 @@ public actor RTMPSocket {
   
   let messageHolder = MessageHolder()
   
-  private let encoder = ChunkEncoder()
+  private let encoder = MessageEncoder()
   private let decoder = MessageDecoder()
   
   private var handshake: RTMPHandshake?
@@ -179,11 +179,11 @@ extension RTMPSocket {
     if let message = message as? ChunkSizeMessage {
       encoder.chunkSize = message.size
     }
-    let chunks = encoder.chunk(message: message, isFirstType0: firstType).map({ $0.encode() })
+    let chunkDataList = encoder.encode(message: message, isFirstType0: firstType).map({ $0.encode() })
     do {
-      try await connection?.sendData(chunks)
+      try await connection?.sendData(chunkDataList)
       
-      let bytesCount = chunks.reduce(0, { $0 + $1.count })
+      let bytesCount = chunkDataList.reduce(0, { $0 + $1.count })
       await windowControl.addOutBytesCount(UInt32(bytesCount))
       logger.info("[HPRTMP] send message successd: \(type(of: message))")
     } catch {
