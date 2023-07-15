@@ -179,10 +179,12 @@ extension RTMPSocket {
     if let message = message as? ChunkSizeMessage {
       encoder.chunkSize = message.size
     }
-    let datas = encoder.chunk(message: message, isFirstType0: firstType).map({ $0.encode() })
+    let chunks = encoder.chunk(message: message, isFirstType0: firstType).map({ $0.encode() })
     do {
-      try await connection?.sendData(datas)
-      await windowControl.addOutBytesCount(UInt32(datas.count))
+      try await connection?.sendData(chunks)
+      
+      let bytesCount = chunks.reduce(0, { $0 + $1.count })
+      await windowControl.addOutBytesCount(UInt32(bytesCount))
       logger.info("[HPRTMP] send message successd: \(type(of: message))")
     } catch {
       logger.error("[HPRTMP] send message failed: \(type(of: message)), error: \(error)")
