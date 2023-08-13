@@ -11,17 +11,20 @@ extension NWConnection {
   }
 
   func sendData(_ data: Data) async throws -> Void {
-    try await withCheckedThrowingContinuation {  (continuation: CheckedContinuation<Void, Error>) in
+    try await withCheckedThrowingContinuation {  [weak self](continuation: CheckedContinuation<Void, Error>) in
+      guard let self else {
+        continuation.resume(returning: ())
+        return
+      }
       self.send(content: data, completion: .contentProcessed({error in
         if let error = error {
           continuation.resume(throwing: error)
-          return
+        } else {
+          continuation.resume(returning: ())
         }
-        continuation.resume(returning: ())
       }))
     }
   }
-  
   func receiveData() async throws -> Data {
     try await withCheckedThrowingContinuation { [weak self]continuation in
       guard let self else {
@@ -32,13 +35,9 @@ extension NWConnection {
         if let error {
           continuation.resume(throwing: error)
           return
+        } else {
+          continuation.resume(returning: data ?? Data())
         }
-        
-        guard let data else {
-          continuation.resume(returning: Data())
-          return
-        }
-        continuation.resume(returning: data)
       }
     }
   }

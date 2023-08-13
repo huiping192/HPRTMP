@@ -141,7 +141,7 @@ extension RTMPPublishSession: RTMPSocketDelegate {
       await socket.send(message: message, firstType: true)
       
       // make chunk size more bigger
-      let chunkSize: UInt32 = 65536
+      let chunkSize: UInt32 = 128 * 6
       let size = ChunkSizeMessage(size: chunkSize)
       await socket.send(message: size, firstType: true)
     }
@@ -180,7 +180,7 @@ extension RTMPPublishSession: RTMPSocketDelegate {
   
   func socketPinRequest(_ socket: RTMPSocket, data: Data) {
     Task {
-      let message = UserControlMessage(type: .pingResponse, data: data, streamId: connectId)
+      let message = UserControlMessage(type: .pingResponse, data: data, streamId: UInt16(connectId))
       await socket.send(message: message, firstType: true)
     }
   }

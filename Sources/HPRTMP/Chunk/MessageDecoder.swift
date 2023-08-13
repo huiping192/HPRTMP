@@ -299,7 +299,7 @@ actor ChunkDecoder {
     // first 2 bit is type
     let fmt = byte >> 6
     
-    guard let headerType = MessageHeaderType(rawValue: Int(fmt)) else {
+    guard let headerType = MessageHeaderType(rawValue: fmt) else {
       return (nil,0)
     }
     

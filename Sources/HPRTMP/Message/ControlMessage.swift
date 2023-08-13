@@ -9,7 +9,7 @@ import Foundation
 
 class ControlMessage: RTMPBaseMessage {
   init(type: MessageType) {
-    super.init(type: type, streamId: RTMPStreamId.control.rawValue)
+    super.init(type: type, streamId: RTMPChunkStreamId.control.rawValue)
   }
 }
 

@@ -112,6 +112,7 @@ extension RTMPSocket {
   public func resume() async {
     guard status != .connected else { return }
     guard let urlInfo else { return }
+    
     let port = NWEndpoint.Port(rawValue: UInt16(urlInfo.port))
     let host = NWEndpoint.Host(urlInfo.host)
     let connection = NWConnection(host: host, port: port ?? 1935, using: .tcp)
@@ -135,7 +136,6 @@ extension RTMPSocket {
       }
     }
     NWConnection.maxReadSize = Int((await windowControl.windowSize))
-    
     status = .open
     connection.start(queue: DispatchQueue.global(qos: .default))
   }

@@ -56,7 +56,7 @@ actor RTMPService: RTMPPublishSessionDelegate {
 extension RTMPService: MP4ReaderDelegate {
   nonisolated func output(reader: MP4Reader, videoHeader: Data) {
     Task {
-      await self.session.publishVideoHeader(data: videoHeader, time: 0)
+      await self.session.publishVideoHeader(data: videoHeader)
     }
   }
   

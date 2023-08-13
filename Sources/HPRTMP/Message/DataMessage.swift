@@ -11,7 +11,7 @@ import Foundation
 // max timestamp 0xFFFFFF
 let maxTimestamp: UInt32 = 16777215
 
-enum RTMPStreamId: Int {
+enum RTMPChunkStreamId: UInt16 {
   case control = 2
   case command = 3
   case audio = 4
@@ -22,7 +22,7 @@ protocol RTMPMessage {
   var timestamp: UInt32 { set get }
   var messageType: MessageType { get }
   var msgStreamId: Int  { get set }
-  var streamId: Int  { get }
+  var streamId: UInt16  { get }
   
   var payload: Data { get}
 }
@@ -30,13 +30,13 @@ protocol RTMPMessage {
 public class RTMPBaseMessage: RTMPMessage {
   let messageType: MessageType
   var msgStreamId: Int
-  let streamId: Int
+  let streamId: UInt16
   
   var payload: Data {
     Data()
   }
   
-  init(type: MessageType, msgStreamId: Int = 0, streamId: Int) {
+  init(type: MessageType, msgStreamId: Int = 0, streamId: UInt16) {
     self.messageType = type
     self.msgStreamId = msgStreamId
     self.streamId = streamId
@@ -59,7 +59,7 @@ class DataMessage: RTMPBaseMessage {
     self.encodeType = encodeType
     super.init(type: .data(type: encodeType),
                msgStreamId: msgStreamId,
-               streamId: RTMPStreamId.command.rawValue)
+               streamId: RTMPChunkStreamId.command.rawValue)
   }
 }
 
@@ -88,7 +88,7 @@ class VideoMessage: RTMPBaseMessage {
     self.data = data
     super.init(type: .video,
                msgStreamId: msgStreamId,
-               streamId: RTMPStreamId.video.rawValue)
+               streamId: RTMPChunkStreamId.video.rawValue)
     self.timestamp = timestamp
   }
   override var payload: Data {
@@ -104,7 +104,7 @@ class AudioMessage: RTMPBaseMessage {
     self.data = data
     super.init(type: .audio,
                msgStreamId: msgStreamId,
-               streamId: RTMPStreamId.audio.rawValue)
+               streamId: RTMPChunkStreamId.audio.rawValue)
     self.timestamp = timestamp
   }
   override var payload: Data {

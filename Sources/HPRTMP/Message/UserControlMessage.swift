@@ -22,14 +22,14 @@ class UserControlMessage: RTMPBaseMessage {
   let type: UserControlEventType
   let data: Data
   
-  init(type: UserControlEventType, data: Data, streamId: Int) {
+  init(type: UserControlEventType, data: Data, streamId: UInt16) {
     self.type = type
     self.data = data
     
     super.init(type: .control, streamId: streamId)
   }
   
-  convenience init(streamBufferLength: Int, streamId: Int) {
+  convenience init(streamBufferLength: Int, streamId: UInt16) {
     var data = Data()
     let id = UInt32(streamId).bigEndian.data
     data.append(id)

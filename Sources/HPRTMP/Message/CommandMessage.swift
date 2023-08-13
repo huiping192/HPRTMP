@@ -57,7 +57,7 @@ class CommandMessage: RTMPBaseMessage, CustomStringConvertible {
     self.commandObject = commandObject
     self.info = info
     self.encodeType = encodeType
-    super.init(type: .command(type: encodeType),msgStreamId: msgStreamId, streamId: RTMPStreamId.command.rawValue)
+    super.init(type: .command(type: encodeType),msgStreamId: msgStreamId, streamId: RTMPChunkStreamId.command.rawValue)
   }
   
   override var payload: Data {

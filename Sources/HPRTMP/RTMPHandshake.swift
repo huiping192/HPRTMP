@@ -32,6 +32,8 @@ actor RTMPHandshake {
   
   private let logger = Logger(subsystem: "HPRTMP", category: "Handshake")
   
+  private var handshakeData = Data()
+  
   public func setDelegate(delegate: RTMPHandshakeDelegate?) {
     self.delegate = delegate
   }
@@ -85,46 +87,40 @@ actor RTMPHandshake {
     status = .uninitalized
     
     // send c0c1 packet
-    try await dataSender(c0c1Packet)
-    
-    var handshakeData = Data()
-    
-    var s0s1Packet: Data = Data()
-    while true {
-      // receive s0s1
-      let data = try await dataReceiver()
-      handshakeData.append(data)
-      
-      // first byte is rtmp version, ignore
-      let firstHandlingDataSize = Self.packetSize + 1
-      if handshakeData.count >= firstHandlingDataSize {
-        s0s1Packet = handshakeData.subdata(in: 1..<firstHandlingDataSize)
-        handshakeData.removeSubrange(0..<firstHandlingDataSize)
+    try await sendPacket(c0c1Packet)
+        
+    // receive s0s1, + 1 because first byte is s0(rtmp version)
+    let s0s1Packet = try await receivePacket(expectedSize: Self.packetSize + 1)
+   
+    status = .verSent
 
-        status = .verSent
-        break
-      }
-    }
-    
     // send c2 packet
-    try await dataSender(c2Packet(s0s1Packet: s0s1Packet))
+    try await sendPacket(c2Packet(s0s1Packet: s0s1Packet))
     
     status = .ackSent
     
+    // receive s2 packet
+    _ = try await receivePacket(expectedSize: Self.packetSize)
+    
+    status = .handshakeDone
+  }
+  
+  private func sendPacket(_ packet: Data) async throws {
+    try await dataSender(packet)
+  }
+  
+  private func receivePacket(expectedSize: Int) async throws -> Data {
     while true {
-      if handshakeData.count >= Self.packetSize {
-        // remove s2 packet
-        handshakeData.removeSubrange(0..<Self.packetSize)
-        break
+      if handshakeData.count >= expectedSize {
+        let receivedPacket = handshakeData.subdata(in: 0..<expectedSize)
+        handshakeData.removeSubrange(0..<expectedSize)
+        
+        return receivedPacket
       }
       
-      // receive s2 packet data
       let data = try await dataReceiver()
-      
       handshakeData.append(data)
     }
-
-    status = .handshakeDone
   }
 }
 
