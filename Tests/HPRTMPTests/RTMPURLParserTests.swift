@@ -47,5 +47,4 @@ final class RTMPURLParserTests: XCTestCase {
       XCTAssertEqual(error as? RTMPURLParsingError, RTMPURLParsingError.invalidScheme)
     }
   }
-  
 }

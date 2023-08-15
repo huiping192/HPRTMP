@@ -23,7 +23,7 @@ final class MessageEncoderTests: XCTestCase {
     let header = firstChunk.chunkHeader
     XCTAssertTrue(header.messageHeader is MessageHeaderType0)
     let messageHeader = header.messageHeader as! MessageHeaderType0
-    XCTAssertEqual(header.basicHeader.streamId, UInt16(RTMPStreamId.audio.rawValue))
+    XCTAssertEqual(header.basicHeader.streamId, UInt16(RTMPChunkStreamId.audio.rawValue))
     XCTAssertEqual(messageHeader.messageStreamId, 10)
     XCTAssertEqual(messageHeader.timestamp, 1234)
     XCTAssertEqual(messageHeader.messageLength, 4)
@@ -44,7 +44,7 @@ final class MessageEncoderTests: XCTestCase {
     let header = firstChunk.chunkHeader
     XCTAssertTrue(header.messageHeader is MessageHeaderType1)
     let messageHeader = header.messageHeader as! MessageHeaderType1
-    XCTAssertEqual(header.basicHeader.streamId, UInt16(RTMPStreamId.audio.rawValue))
+    XCTAssertEqual(header.basicHeader.streamId, UInt16(RTMPChunkStreamId.audio.rawValue))
     XCTAssertEqual(messageHeader.timestampDelta, 1234)
     XCTAssertEqual(messageHeader.messageLength, 4)
     XCTAssertEqual(messageHeader.type, .audio)

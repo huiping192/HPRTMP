@@ -11,8 +11,8 @@ import XCTest
 final class ChunkTests: XCTestCase {
 
   func testEncode() {
-    let streamId = 1
-    let messageHeader = MessageHeaderType0(timestamp: 1, messageLength: 1, type: .video, messageStreamId: streamId)
+    let streamId: UInt16 = 1
+    let messageHeader = MessageHeaderType0(timestamp: 1, messageLength: 1, type: .video, messageStreamId: Int(streamId))
     let chunkPayload = Data([0x00, 0x01, 0x02, 0x03])
     let chunkHeader = ChunkHeader(streamId: streamId, messageHeader: messageHeader)
     let chunk = Chunk(chunkHeader: chunkHeader, chunkData: chunkPayload)
@@ -24,7 +24,7 @@ final class ChunkTests: XCTestCase {
   }
 
   func testBasicHeaderType() {
-    let streamId = 2
+    let streamId: UInt16 = 2
     let messageHeaderType1 = MessageHeaderType1(timestampDelta: 1, messageLength: 1, type: .audio)
     let chunkHeader = ChunkHeader(streamId: streamId, messageHeader: messageHeaderType1)
 
