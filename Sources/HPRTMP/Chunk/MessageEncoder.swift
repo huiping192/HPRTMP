@@ -30,12 +30,8 @@ class MessageEncoder {
         } else {
           messageHeader = MessageHeaderType3()
         }
-        
-        let header = ChunkHeader(streamId: message.streamId,
-                                 messageHeader: messageHeader)
-        
+        let header = ChunkHeader(streamId: message.streamId, messageHeader: messageHeader)
         return Chunk(chunkHeader: header, chunkData: Data($0.element))
-        
       })
   }
 }

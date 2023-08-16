@@ -127,29 +127,30 @@ actor MessageDecoder {
                                   timestamp: messageHeaderType0.timestamp,
                                   chunkPayload: firstChunk.chunkData)
       return (message,chunkSize)
-    } else {
-      var remainPayloadSize = messageLength - maxChunkSize
-      var totalPayload = firstChunk.chunkData
-      var allChunkSize = chunkSize
-      while remainPayloadSize > 0 {
-        let (chunk, chunkSize) = await chunkDecoder.decodeChunk(data: data.advanced(by: chunkSize))
-        guard let chunk else { return (nil,0) }
-        
-        // same stream id chunk
-        guard chunk.chunkHeader.basicHeader.streamId == firstChunk.chunkHeader.basicHeader.streamId else {
-          continue
-        }
-        totalPayload.append(chunk.chunkData)
-        allChunkSize += chunkSize
-        remainPayloadSize -= chunk.chunkData.count
-      }
-      let message = createMessage(chunkStreamId: firstChunk.chunkHeader.basicHeader.streamId,
-                                  msgStreamId: messageHeaderType0.messageStreamId,
-                                  messageType: messageHeaderType0.type,
-                                  timestamp: messageHeaderType0.timestamp,
-                                  chunkPayload: totalPayload)
-      return (message, allChunkSize)
     }
+    
+    // has multiple chunks
+    var remainPayloadSize = messageLength - maxChunkSize
+    var totalPayload = firstChunk.chunkData
+    var allChunkSize = chunkSize
+    while remainPayloadSize > 0 {
+      let (chunk, chunkSize) = await chunkDecoder.decodeChunk(data: data.advanced(by: chunkSize))
+      guard let chunk else { return (nil,0) }
+      
+      // same stream id chunk
+      guard chunk.chunkHeader.basicHeader.streamId == firstChunk.chunkHeader.basicHeader.streamId else {
+        continue
+      }
+      totalPayload.append(chunk.chunkData)
+      allChunkSize += chunkSize
+      remainPayloadSize -= chunk.chunkData.count
+    }
+    let message = createMessage(chunkStreamId: firstChunk.chunkHeader.basicHeader.streamId,
+                                msgStreamId: messageHeaderType0.messageStreamId,
+                                messageType: messageHeaderType0.type,
+                                timestamp: messageHeaderType0.timestamp,
+                                chunkPayload: totalPayload)
+    return (message, allChunkSize)
   }
   
   private var previousChunkMessageId: Int?
