@@ -49,6 +49,8 @@ actor RTMPService: RTMPPublishSessionDelegate {
   
   func stop() async {
     reader.stop()
+    lastVideoTimestamp = 0
+    lastAudioTimestamp = 0
     await self.session.invalidate()
   }
 }

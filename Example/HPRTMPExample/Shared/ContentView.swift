@@ -24,7 +24,7 @@ struct ContentView: View {
             buttonState = "Stop"
           } else {
             await rtmpService.stop()
-            buttonState = "Published"
+            buttonState = "Publish"
           }
         }
       }) {

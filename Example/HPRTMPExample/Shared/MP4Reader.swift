@@ -51,15 +51,15 @@ class MP4Reader {
 
   init(url: URL) {
     self.url = url
-    
+  }
+  
+  func start() {
     processMP4()
     
     displayLinkHandler = DisplayLinkHandler(framerate: 44) {
       self.updateFrame()
     }
-  }
-  
-  func start() {
+    
     assetReader?.startReading()
     
     (0..<10).forEach { _ in
