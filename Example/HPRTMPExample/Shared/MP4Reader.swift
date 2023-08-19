@@ -44,11 +44,13 @@ class MP4Reader {
   private var videoTrack: AVAssetTrack?
   private var audioTrack: AVAssetTrack?
   
-  private var displayLinkHandler: DisplayLinkHandler?
     
   private var videoQueue: [CMSampleBuffer] = []
   private var audioQueue: [CMSampleBuffer] = []
-
+  
+  private var videoSendTask: Task<Void,Error>? = nil
+  private var audioSendTask: Task<Void,Error>? = nil
+  
   init(url: URL) {
     self.url = url
   }
@@ -56,9 +58,6 @@ class MP4Reader {
   func start() {
     processMP4()
     
-    displayLinkHandler = DisplayLinkHandler(framerate: 44) {
-      self.updateFrame()
-    }
     
     assetReader?.startReading()
     
@@ -74,63 +73,82 @@ class MP4Reader {
     getVideoHeader()
     getAudioHeader()
 
-    displayLinkHandler?.startUpdates()
+    videoSendTask = Task.detached {
+      while !Task.isCancelled {
+        let delta = self.sendVideoFrame()
+        try? await Task.sleep(nanoseconds:  UInt64(delta * 1000 * 1000))
+      }
+    }
+
+    audioSendTask = Task.detached {
+      while !Task.isCancelled {
+        let delta = self.sendAudioFrame()
+        try? await Task.sleep(nanoseconds: UInt64(delta * 1000 * 1000))
+      }
+    }
   }
   
   func stop() {
+    videoSendTask?.cancel()
+    audioSendTask?.cancel()
     assetReader?.cancelReading()
-    displayLinkHandler?.stopUpdates()
     
     videoQueue = []
     audioQueue = []
   }
   
-  func updateFrame() {
-    var videoBuffer: CMSampleBuffer? = nil
-    if !videoQueue.isEmpty {
-      videoBuffer = videoQueue.first
+  func sendVideoFrame() -> UInt32 {
+    var delta: UInt32 = 0
+    guard let videoBuffer = videoQueue.first else {
+      return delta
     }
     
-    var audioBuffer: CMSampleBuffer? = nil
-    if !self.audioQueue.isEmpty {
-      audioBuffer = audioQueue.first
-    }
-    
-    if let videoBuffer = videoBuffer, let audioBuffer = audioBuffer {
-      let videoPTS = videoBuffer.presentationTimeStamp.seconds.isFinite ? UInt64(videoBuffer.presentationTimeStamp.seconds * 1000) : nil
-      let videoSampleBufferTimestamp = videoBuffer.decodeTimeStamp.seconds.isFinite ? UInt64(videoBuffer.decodeTimeStamp.seconds * 1000) : videoPTS
-      let audioSampleBufferTimestamp = audioBuffer.decodeTimeStamp.seconds.isFinite ? UInt64(audioBuffer.decodeTimeStamp.seconds * 1000) : nil
-      
-      if let videoSampleBufferTimestamp  = videoSampleBufferTimestamp, let audioSampleBufferTimestamp = audioSampleBufferTimestamp {
-        if videoSampleBufferTimestamp + 15 < audioSampleBufferTimestamp {
-          self.videoQueue.removeFirst()
-          self.handleVideoBuffer(buffer: videoBuffer)
-        } else {
-          self.audioQueue.removeFirst()
-          self.handleAudioBuffer(buffer: audioBuffer)
-        }
-      } else if videoSampleBufferTimestamp != nil {
-        self.videoQueue.removeFirst()
-        self.handleVideoBuffer(buffer: videoBuffer)
-      } else if audioSampleBufferTimestamp != nil {
-        self.audioQueue.removeFirst()
-        self.handleAudioBuffer(buffer: audioBuffer)
+    if videoQueue.count >= 2 {
+      let nextVideoBuffer = videoQueue[1]
+      let pts1 = videoBuffer.presentationTimeStamp.seconds.isFinite ? UInt64(videoBuffer.presentationTimeStamp.seconds * 1000) :  0
+      let pts2 = nextVideoBuffer.presentationTimeStamp.seconds.isFinite ? UInt64(nextVideoBuffer.presentationTimeStamp.seconds * 1000) :  0
+
+      let dts1 = videoBuffer.decodeTimeStamp.seconds.isFinite ? UInt64(videoBuffer.decodeTimeStamp.seconds * 1000) : pts1
+      let dts2 = nextVideoBuffer.decodeTimeStamp.seconds.isFinite ? UInt64(nextVideoBuffer.decodeTimeStamp.seconds * 1000) : pts2
+
+      if dts2 > dts1 {
+        delta = UInt32(dts2 - dts1)
       }
-    } else if let videoBuffer = videoBuffer {
-      self.videoQueue.removeFirst()
-      self.handleVideoBuffer(buffer: videoBuffer)
-    } else if let audioBuffer = audioBuffer {
-      self.audioQueue.removeFirst()
-      self.handleAudioBuffer(buffer: audioBuffer)
     }
     
+    self.videoQueue.removeFirst()
+    self.handleVideoBuffer(buffer: videoBuffer)
+    
+    if let videoSampleBuffer = self.videoReaderOutput?.copyNextSampleBuffer() {
+      self.videoQueue.append(videoSampleBuffer)
+    }
+    
+    return delta
+  }
+  
+  func sendAudioFrame() -> UInt32 {
+    var delta: UInt32 = 0
+    guard let buffer = audioQueue.first else {
+      return delta
+    }
+    
+    if audioQueue.count >= 2 {
+      let nextBuffer = audioQueue[1]
+      
+      let pts1 = buffer.presentationTimeStamp.seconds.isFinite ? UInt64(buffer.presentationTimeStamp.seconds * 1000) :  0
+      let pts2 = nextBuffer.presentationTimeStamp.seconds.isFinite ? UInt64(nextBuffer.presentationTimeStamp.seconds * 1000) :  0
+      
+      delta = UInt32(pts2 - pts1)
+    }
+    
+    self.audioQueue.removeFirst()
+    self.handleAudioBuffer(buffer: buffer)
     
     if let audioSampleBuffer = self.audioReaderOutput?.copyNextSampleBuffer() {
       self.audioQueue.append(audioSampleBuffer)
     }
-    if let videoSampleBuffer = self.videoReaderOutput?.copyNextSampleBuffer() {
-      self.videoQueue.append(videoSampleBuffer)
-    }
+    
+    return delta
   }
   
   func processMP4() {

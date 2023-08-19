@@ -8,8 +8,6 @@
 
 /* Begin PBXBuildFile section */
 		7D1B00EF2903C3CD007FA9F4 /* HPRTMP in Frameworks */ = {isa = PBXBuildFile; productRef = 7D1B00EE2903C3CD007FA9F4 /* HPRTMP */; };
-		7D8EE5402A49B7A2008E359E /* Timer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7D8EE53F2A49B7A2008E359E /* Timer.swift */; };
-		7D8EE5412A49B7A2008E359E /* Timer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7D8EE53F2A49B7A2008E359E /* Timer.swift */; };
 		7D8EE5432A49B7D8008E359E /* Help.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7D8EE5422A49B7D8008E359E /* Help.swift */; };
 		7D8EE5442A49B7D8008E359E /* Help.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7D8EE5422A49B7D8008E359E /* Help.swift */; };
 		7DE0F9702903AD6C00D08613 /* HPRTMPExampleApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7DE0F9602903AD6B00D08613 /* HPRTMPExampleApp.swift */; };
@@ -29,7 +27,6 @@
 
 /* Begin PBXFileReference section */
 		7D1B00F02903C41D007FA9F4 /* HPRTMPExample--iOS--Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = "HPRTMPExample--iOS--Info.plist"; sourceTree = "<group>"; };
-		7D8EE53F2A49B7A2008E359E /* Timer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Timer.swift; sourceTree = "<group>"; };
 		7D8EE5422A49B7D8008E359E /* Help.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Help.swift; sourceTree = "<group>"; };
 		7DE0F9602903AD6B00D08613 /* HPRTMPExampleApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HPRTMPExampleApp.swift; sourceTree = "<group>"; };
 		7DE0F9612903AD6B00D08613 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
@@ -84,7 +81,6 @@
 				DC8708C72A45FE0800F8D483 /* MP4Reader.swift */,
 				7DE0F9802903AE4100D08613 /* RTMPService.swift */,
 				7DE0F9622903AD6C00D08613 /* Assets.xcassets */,
-				7D8EE53F2A49B7A2008E359E /* Timer.swift */,
 				7D8EE5422A49B7D8008E359E /* Help.swift */,
 			);
 			path = Shared;
@@ -232,7 +228,6 @@
 				7DE0F9722903AD6C00D08613 /* ContentView.swift in Sources */,
 				7D8EE5432A49B7D8008E359E /* Help.swift in Sources */,
 				DC8708CC2A46087700F8D483 /* MP4Reader.swift in Sources */,
-				7D8EE5402A49B7A2008E359E /* Timer.swift in Sources */,
 				7DE0F9702903AD6C00D08613 /* HPRTMPExampleApp.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -245,7 +240,6 @@
 				7DE0F9822903AE4100D08613 /* RTMPService.swift in Sources */,
 				7D8EE5442A49B7D8008E359E /* Help.swift in Sources */,
 				7DE0F9732903AD6C00D08613 /* ContentView.swift in Sources */,
-				7D8EE5412A49B7A2008E359E /* Timer.swift in Sources */,
 				7DE0F9712903AD6C00D08613 /* HPRTMPExampleApp.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
