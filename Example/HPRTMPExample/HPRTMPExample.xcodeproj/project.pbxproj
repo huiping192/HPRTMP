@@ -19,10 +19,10 @@
 		7DE0F9812903AE4100D08613 /* RTMPService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7DE0F9802903AE4100D08613 /* RTMPService.swift */; };
 		7DE0F9822903AE4100D08613 /* RTMPService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7DE0F9802903AE4100D08613 /* RTMPService.swift */; };
 		7DE0F9862903AF5900D08613 /* HPRTMP in Frameworks */ = {isa = PBXBuildFile; productRef = 7DE0F9852903AF5900D08613 /* HPRTMP */; };
+		DC3CA2602A96370F00A7D558 /* cloud9.mp4 in Resources */ = {isa = PBXBuildFile; fileRef = DC3CA25F2A96370F00A7D558 /* cloud9.mp4 */; };
+		DC3CA2612A96370F00A7D558 /* cloud9.mp4 in Resources */ = {isa = PBXBuildFile; fileRef = DC3CA25F2A96370F00A7D558 /* cloud9.mp4 */; };
 		DC8708C82A45FE0800F8D483 /* MP4Reader.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC8708C72A45FE0800F8D483 /* MP4Reader.swift */; };
 		DC8708CC2A46087700F8D483 /* MP4Reader.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC8708C72A45FE0800F8D483 /* MP4Reader.swift */; };
-		DC8708CE2A4814C900F8D483 /* sample.mp4 in Resources */ = {isa = PBXBuildFile; fileRef = DC8708CD2A4814C900F8D483 /* sample.mp4 */; };
-		DC8708CF2A4814C900F8D483 /* sample.mp4 in Resources */ = {isa = PBXBuildFile; fileRef = DC8708CD2A4814C900F8D483 /* sample.mp4 */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -36,8 +36,8 @@
 		7DE0F96F2903AD6C00D08613 /* macOS.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = macOS.entitlements; sourceTree = "<group>"; };
 		7DE0F9802903AE4100D08613 /* RTMPService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RTMPService.swift; sourceTree = "<group>"; };
 		7DE0F9842903AF0E00D08613 /* HPRTMP */ = {isa = PBXFileReference; lastKnownFileType = wrapper; name = HPRTMP; path = ../..; sourceTree = "<group>"; };
+		DC3CA25F2A96370F00A7D558 /* cloud9.mp4 */ = {isa = PBXFileReference; lastKnownFileType = file; path = cloud9.mp4; sourceTree = "<group>"; };
 		DC8708C72A45FE0800F8D483 /* MP4Reader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MP4Reader.swift; sourceTree = "<group>"; };
-		DC8708CD2A4814C900F8D483 /* sample.mp4 */ = {isa = PBXFileReference; lastKnownFileType = file; path = sample.mp4; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -75,7 +75,7 @@
 		7DE0F95F2903AD6B00D08613 /* Shared */ = {
 			isa = PBXGroup;
 			children = (
-				DC8708CD2A4814C900F8D483 /* sample.mp4 */,
+				DC3CA25F2A96370F00A7D558 /* cloud9.mp4 */,
 				7DE0F9602903AD6B00D08613 /* HPRTMPExampleApp.swift */,
 				7DE0F9612903AD6B00D08613 /* ContentView.swift */,
 				DC8708C72A45FE0800F8D483 /* MP4Reader.swift */,
@@ -204,7 +204,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				7DE0F9742903AD6C00D08613 /* Assets.xcassets in Resources */,
-				DC8708CE2A4814C900F8D483 /* sample.mp4 in Resources */,
+				DC3CA2602A96370F00A7D558 /* cloud9.mp4 in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -213,7 +213,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				7DE0F9752903AD6C00D08613 /* Assets.xcassets in Resources */,
-				DC8708CF2A4814C900F8D483 /* sample.mp4 in Resources */,
+				DC3CA2612A96370F00A7D558 /* cloud9.mp4 in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
