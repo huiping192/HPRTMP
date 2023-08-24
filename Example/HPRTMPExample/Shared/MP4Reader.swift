@@ -18,17 +18,30 @@ protocol MP4ReaderDelegate: AnyObject {
 }
 
 
-struct VideoFrame {
-  let data: Data
+protocol Frame {
+  var data: Data { get }
+  var ts: UInt64 { get }
+}
+
+struct VideoFrame: Frame {
+  var data: Data
   let isKeyframe: Bool
   let pts: UInt64
   let dts: UInt64
+  
+  var ts: UInt64 {
+    dts
+  }
 }
 
-struct AudioFrame {
-  let data: Data
+struct AudioFrame: Frame {
+  var data: Data
   let adtsHeader: Data
   let pts: UInt64
+  
+  var ts: UInt64 {
+    pts
+  }
 }
 
 actor MP4Reader {
@@ -48,123 +61,113 @@ actor MP4Reader {
   
   private var videoTrack: AVAssetTrack?
   private var audioTrack: AVAssetTrack?
-  
     
-  private var videoQueue: [CMSampleBuffer] = []
-  private var audioQueue: [CMSampleBuffer] = []
+  private var frameQueue: [Frame] = []
+  private var frameSendTask: Task<Void,Error>? = nil
+  private let frameConverter = FrameConverter()
   
-  private var videoSendTask: Task<Void,Error>? = nil
-  private var audioSendTask: Task<Void,Error>? = nil
   
   init(url: URL) {
     self.url = url
   }
   
   func start() {
-    processMP4()
-    
-    
-    assetReader?.startReading()
-    
-    (0..<10).forEach { _ in
-      if let videoSampleBuffer = self.videoReaderOutput?.copyNextSampleBuffer() {
-        self.videoQueue.append(videoSampleBuffer)
+    Task {
+      processMP4()
+      assetReader?.startReading()
+      
+      
+      // precache frames
+      (0..<10).forEach { _ in
+        if let videoSampleBuffer = self.videoReaderOutput?.copyNextSampleBuffer() {
+          if let frame = frameConverter.convertVideo(videoSampleBuffer) {
+            self.frameQueue.append(frame)
+            frameQueue.sort { $0.ts < $1.ts }
+          }
+        }
+        if let audioSampleBuffer = self.audioReaderOutput?.copyNextSampleBuffer() {
+          if let frame = frameConverter.convertAudio(audioSampleBuffer, aacHeader: self.aacHeader!) {
+            self.frameQueue.append(contentsOf: frame)
+            frameQueue.sort { $0.ts < $1.ts }
+          }
+        }
       }
-      if let audioSampleBuffer = self.audioReaderOutput?.copyNextSampleBuffer() {
-        self.audioQueue.append(audioSampleBuffer)
-      }
-    }
+      
+      
+      
+      // send video and audio header
+      await self.delegate?.output(reader: self, videoHeader: videoHeader)
+      await delegate?.output(reader: self, audioHeader: audioHeader!)
 
-    videoSendTask = Task {
-      await self.getVideoHeader()
-
-      while !Task.isCancelled {
-        let delta = await self.sendVideoFrame()
-        try? await Task.sleep(nanoseconds:  UInt64(delta * 1000 * 1000))
-      }
-    }
-
-    audioSendTask = Task {
-      await self.getAudioHeader()
-
-      while !Task.isCancelled {
-        let delta = await self.sendAudioFrame()
-        try? await Task.sleep(nanoseconds: UInt64(delta * 1000 * 1000))
+      // start send frames
+      frameSendTask = Task {
+        while !Task.isCancelled {
+          asyncReadBuffer()
+          
+          let delta = await self.sendNextFrame()
+          try? await Task.sleep(nanoseconds:  UInt64(10 * 1000 * 1000))
+        }
       }
     }
   }
   
   func stop() {
-    videoSendTask?.cancel()
-    audioSendTask?.cancel()
+    frameSendTask?.cancel()
     assetReader?.cancelReading()
     
-    videoQueue = []
-    audioQueue = []
+    frameQueue = []
   }
   
-  func sendVideoFrame() async -> UInt32 {
-    var delta: UInt32 = 0
-    guard let videoBuffer = videoQueue.first else {
-      return delta
-    }
-    
-    if videoQueue.count >= 2 {
-      let nextVideoBuffer = videoQueue[1]
-      let pts1 = videoBuffer.presentationTimeStamp.seconds.isFinite ? UInt64(videoBuffer.presentationTimeStamp.seconds * 1000) :  0
-      let pts2 = nextVideoBuffer.presentationTimeStamp.seconds.isFinite ? UInt64(nextVideoBuffer.presentationTimeStamp.seconds * 1000) :  0
-
-      let dts1 = videoBuffer.decodeTimeStamp.seconds.isFinite ? UInt64(videoBuffer.decodeTimeStamp.seconds * 1000) : pts1
-      let dts2 = nextVideoBuffer.decodeTimeStamp.seconds.isFinite ? UInt64(nextVideoBuffer.decodeTimeStamp.seconds * 1000) : pts2
-
-      if dts2 > dts1 {
-        delta = UInt32(dts2 - dts1)
+  func sendNextFrame() async -> UInt64 {
+    guard !frameQueue.isEmpty else { return 0 }
+    print("[debug] queue size: \(frameQueue.count)")
+    var delta: UInt64 = 0
+    let firstFrame = frameQueue.removeFirst()
+    if let nextFrame = frameQueue.first {
+      if nextFrame.ts > firstFrame.ts {
+        delta = nextFrame.ts - firstFrame.ts
       }
     }
     
-    self.videoQueue.removeFirst()
-    await self.handleVideoBuffer(buffer: videoBuffer)
+    await sendFrame(frame: firstFrame)
     
-    asyncReadVideoBuffer()
+    asyncReadBuffer()
     
     return delta
   }
   
-  private func asyncReadVideoBuffer() {
+  func sendFrame(frame: Frame) async {
+    switch frame {
+    case let videoFrame as VideoFrame:
+      await delegate?.output(reader: self, videoFrame: videoFrame)
+    case let audioFrame as AudioFrame:
+      await delegate?.output(reader: self, audioFrame: audioFrame)
+    default:
+      break
+    }
+  }
+    
+  private func asyncReadBuffer() {
     Task {
-      if let videoSampleBuffer = self.videoReaderOutput?.copyNextSampleBuffer() {
-        self.videoQueue.append(videoSampleBuffer)
+      readVideoBuffer()
+      readAudioBuffer()
+    }
+  }
+  
+  private func readVideoBuffer() {
+    if let videoSampleBuffer = self.videoReaderOutput?.copyNextSampleBuffer() {
+      if let frame = frameConverter.convertVideo(videoSampleBuffer) {
+        self.frameQueue.append(frame)
+        frameQueue.sort { $0.ts < $1.ts }
       }
     }
   }
   
-  func sendAudioFrame() async -> UInt32 {
-    var delta: UInt32 = 0
-    guard let buffer = audioQueue.first else {
-      return delta
-    }
-    
-    if audioQueue.count >= 2 {
-      let nextBuffer = audioQueue[1]
-      
-      let pts1 = buffer.presentationTimeStamp.seconds.isFinite ? UInt64(buffer.presentationTimeStamp.seconds * 1000) :  0
-      let pts2 = nextBuffer.presentationTimeStamp.seconds.isFinite ? UInt64(nextBuffer.presentationTimeStamp.seconds * 1000) :  0
-      
-      delta = UInt32(pts2 - pts1)
-    }
-    
-    self.audioQueue.removeFirst()
-    await self.handleAudioBuffer(buffer: buffer)
-    
-    asyncReadAudioBuffer()
-    
-    return delta
-  }
-  
-  private func asyncReadAudioBuffer() {
-    Task {
-      if let audioSampleBuffer = self.audioReaderOutput?.copyNextSampleBuffer() {
-        self.audioQueue.append(audioSampleBuffer)
+  private func readAudioBuffer() {
+    if let audioSampleBuffer = self.audioReaderOutput?.copyNextSampleBuffer() {
+      if let frame = frameConverter.convertAudio(audioSampleBuffer, aacHeader: self.aacHeader!) {
+        self.frameQueue.append(contentsOf: frame)
+        frameQueue.sort { $0.ts < $1.ts }
       }
     }
   }
@@ -195,91 +198,17 @@ actor MP4Reader {
     self.audioTrack = audioTrack
   }
   
-  private func handleVideoBuffer(buffer: CMSampleBuffer ) async {
-    guard let bufferData = CMSampleBufferGetDataBuffer(buffer)?.data else {
-      return
-    }
-    
-    guard let attachments = CMSampleBufferGetSampleAttachmentsArray(buffer, createIfNecessary: true) as? NSArray else { return }
-    guard let attachment = attachments[0] as? NSDictionary else {
-      return
-    }
-    let isKeyframe = !(attachment[kCMSampleAttachmentKey_DependsOnOthers] as? Bool ?? true)
-  
-    let pts = buffer.presentationTimeStamp.seconds.isFinite ? UInt64(buffer.presentationTimeStamp.seconds * 1000) :  0
-    let dts = buffer.decodeTimeStamp.seconds.isFinite ? UInt64(buffer.decodeTimeStamp.seconds * 1000) :  pts
-    
-    let frame = VideoFrame(data: bufferData, isKeyframe: isKeyframe, pts: pts, dts: dts)
-    await delegate?.output(reader: self, videoFrame: frame)
-  }
-  
-  private func handleAudioBuffer(buffer: CMSampleBuffer) async {
-    let numSamplesInBuffer = CMSampleBufferGetNumSamples(buffer);
-    print("[debug audio] buffer samples: \(numSamplesInBuffer)")
-    
-    guard let aacHeader = aacHeader else { return }
-    guard let aacData = getAACData(from: buffer) else { return }
-    let timestamp = buffer.presentationTimeStamp.seconds.isFinite ? UInt64(buffer.presentationTimeStamp.seconds * 1000) : 0
-    
-    if numSamplesInBuffer == 1 {
-      let audioFrame = AudioFrame(data: aacData, adtsHeader: aacHeader, pts: timestamp)
-      await delegate?.output(reader: self, audioFrame: audioFrame)
-    } else {
-      let size1 = CMSampleBufferGetSampleSize(buffer, at: 0)
-      let size2 = CMSampleBufferGetSampleSize(buffer, at: 1)
-
-      let data1 = aacData.subdata(in: 0..<size1)
-      let data2 = aacData.subdata(in: size1..<size1+size2)
-      
-      var timingInfo1: CMSampleTimingInfo = CMSampleTimingInfo()
-      CMSampleBufferGetSampleTimingInfo(buffer, at: 0, timingInfoOut: &timingInfo1)
-      
-      let pts1 = timingInfo1.presentationTimeStamp.seconds.isFinite ? UInt64(timingInfo1.presentationTimeStamp.seconds * 1000) : 0
-
-      let audioFrame = AudioFrame(data: data1, adtsHeader: aacHeader, pts: pts1)
-      await delegate?.output(reader: self, audioFrame: audioFrame)
-      
-      
-      var timingInfo2: CMSampleTimingInfo = CMSampleTimingInfo()
-      CMSampleBufferGetSampleTimingInfo(buffer, at: 1, timingInfoOut: &timingInfo2)
-      
-      let pts2 = timingInfo2.presentationTimeStamp.seconds.isFinite ? UInt64(timingInfo2.presentationTimeStamp.seconds * 1000) : 0
-
-      let audioFrame2 = AudioFrame(data: data2, adtsHeader: aacHeader, pts: pts2)
-      await delegate?.output(reader: self, audioFrame: audioFrame2)
-    }
-  }
-    
-  func getAACData(from sampleBuffer: CMSampleBuffer) -> Data? {
-    guard let blockBuffer = CMSampleBufferGetDataBuffer(sampleBuffer) else {
-      print("Could not get block buffer from sample buffer")
-      return nil
-    }
-    
-    let length = CMBlockBufferGetDataLength(blockBuffer)
-    var dataPointer: UnsafeMutablePointer<Int8>? = nil
-    
-    CMBlockBufferGetDataPointer(blockBuffer, atOffset: 0, lengthAtOffsetOut: nil, totalLengthOut: nil, dataPointerOut: &dataPointer)
-    
-    if let dataPointer = dataPointer {
-      return Data(bytes: dataPointer, count: length)
-    }
-    
-    return nil
-  }
-  
-  
-  private func getAudioHeader() async {
+  private var audioHeader: Data? {
     let formatDescription = audioTrack?.formatDescriptions.first as! CMFormatDescription
     
     // Get the ASBD from the format description
-    guard var asbd = CMAudioFormatDescriptionGetStreamBasicDescription(formatDescription)?.pointee else { return }
+    guard var asbd = CMAudioFormatDescriptionGetStreamBasicDescription(formatDescription)?.pointee else { return nil }
     var outFormatDescription: CMFormatDescription?
     CMAudioFormatDescriptionCreate(allocator: kCFAllocatorDefault, asbd: &asbd, layoutSize: 0, layout: nil, magicCookieSize: 0, magicCookie: nil, extensions: nil, formatDescriptionOut: &outFormatDescription)
     
     
     guard let streamBasicDesc = outFormatDescription?.streamBasicDesc else {
-      return
+      return nil
     }
     let mp4Id: MPEG4ObjectID
     if streamBasicDesc.mFormatFlags == 0 { // default lc
@@ -293,19 +222,27 @@ actor MP4Reader {
                                      channelConfig: ChannelConfigType(rawValue: UInt8(streamBasicDesc.mChannelsPerFrame)),
                                      frequencyType: SampleFrequencyType(value: sampeRate))
     
-    let aacHeader = aacHeader(outFormatDescription: outFormatDescription)
-    self.aacHeader = aacHeader
-    descData.append(aacHeader)
+    descData.append(aacHeader!)
     descData.write(AudioData.AACPacketType.header.rawValue)
     descData.append(config.encodeData)
     (0..<14).forEach { _ in
       descData.write(UInt8(0))
     }
     
-    await delegate?.output(reader: self, audioHeader: descData)
+    return descData
   }
   
-  private var aacHeader: Data?
+  private var aacHeader: Data? {
+    let formatDescription = audioTrack?.formatDescriptions.first as! CMFormatDescription
+    
+    // Get the ASBD from the format description
+    guard var asbd = CMAudioFormatDescriptionGetStreamBasicDescription(formatDescription)?.pointee else { return nil }
+
+    var outFormatDescription: CMFormatDescription?
+    CMAudioFormatDescriptionCreate(allocator: kCFAllocatorDefault, asbd: &asbd, layoutSize: 0, layout: nil, magicCookieSize: 0, magicCookie: nil, extensions: nil, formatDescriptionOut: &outFormatDescription)
+    
+    return aacHeader(outFormatDescription: outFormatDescription)
+  }
   
   /*
    Sound format: a 4-bit field that indicates the audio format, such as AAC or MP3.
@@ -325,7 +262,7 @@ actor MP4Reader {
     return Data([UInt8(value)])
   }
   
-  private func getVideoHeader() async {
+  private var videoHeader: Data {
     // SPS & PPS data
     let formatDescription = videoTrack?.formatDescriptions.first as! CMFormatDescription
 
@@ -369,7 +306,7 @@ actor MP4Reader {
     body.append(Data([(UInt8(ppsSize) >> 8) & 0xff, UInt8(ppsSize) & 0xff]))
     body.append(Data(pps))
         
-    await delegate?.output(reader: self, videoHeader: body)
+    return body
   }
   
 }

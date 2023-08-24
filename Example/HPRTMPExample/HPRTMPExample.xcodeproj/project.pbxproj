@@ -21,6 +21,8 @@
 		7DE0F9862903AF5900D08613 /* HPRTMP in Frameworks */ = {isa = PBXBuildFile; productRef = 7DE0F9852903AF5900D08613 /* HPRTMP */; };
 		DC3CA2602A96370F00A7D558 /* cloud9.mp4 in Resources */ = {isa = PBXBuildFile; fileRef = DC3CA25F2A96370F00A7D558 /* cloud9.mp4 */; };
 		DC3CA2612A96370F00A7D558 /* cloud9.mp4 in Resources */ = {isa = PBXBuildFile; fileRef = DC3CA25F2A96370F00A7D558 /* cloud9.mp4 */; };
+		DC3CA2632A97935200A7D558 /* FrameConverter.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC3CA2622A97935200A7D558 /* FrameConverter.swift */; };
+		DC3CA2642A97935200A7D558 /* FrameConverter.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC3CA2622A97935200A7D558 /* FrameConverter.swift */; };
 		DC8708C82A45FE0800F8D483 /* MP4Reader.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC8708C72A45FE0800F8D483 /* MP4Reader.swift */; };
 		DC8708CC2A46087700F8D483 /* MP4Reader.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC8708C72A45FE0800F8D483 /* MP4Reader.swift */; };
 /* End PBXBuildFile section */
@@ -37,6 +39,7 @@
 		7DE0F9802903AE4100D08613 /* RTMPService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RTMPService.swift; sourceTree = "<group>"; };
 		7DE0F9842903AF0E00D08613 /* HPRTMP */ = {isa = PBXFileReference; lastKnownFileType = wrapper; name = HPRTMP; path = ../..; sourceTree = "<group>"; };
 		DC3CA25F2A96370F00A7D558 /* cloud9.mp4 */ = {isa = PBXFileReference; lastKnownFileType = file; path = cloud9.mp4; sourceTree = "<group>"; };
+		DC3CA2622A97935200A7D558 /* FrameConverter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FrameConverter.swift; sourceTree = "<group>"; };
 		DC8708C72A45FE0800F8D483 /* MP4Reader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MP4Reader.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -82,6 +85,7 @@
 				7DE0F9802903AE4100D08613 /* RTMPService.swift */,
 				7DE0F9622903AD6C00D08613 /* Assets.xcassets */,
 				7D8EE5422A49B7D8008E359E /* Help.swift */,
+				DC3CA2622A97935200A7D558 /* FrameConverter.swift */,
 			);
 			path = Shared;
 			sourceTree = "<group>";
@@ -224,6 +228,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				DC3CA2632A97935200A7D558 /* FrameConverter.swift in Sources */,
 				7DE0F9812903AE4100D08613 /* RTMPService.swift in Sources */,
 				7DE0F9722903AD6C00D08613 /* ContentView.swift in Sources */,
 				7D8EE5432A49B7D8008E359E /* Help.swift in Sources */,
@@ -236,6 +241,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				DC3CA2642A97935200A7D558 /* FrameConverter.swift in Sources */,
 				DC8708C82A45FE0800F8D483 /* MP4Reader.swift in Sources */,
 				7DE0F9822903AE4100D08613 /* RTMPService.swift in Sources */,
 				7D8EE5442A49B7D8008E359E /* Help.swift in Sources */,

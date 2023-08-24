@@ -83,7 +83,7 @@ extension RTMPService: MP4ReaderDelegate {
     descData.write24(compositionTime, bigEndian: true)
     descData.append(videoFrame.data)
     
-    print("[debug] video time:\(videoFrame.pts), delta \(delta)")
+    print("[debug] video time:\(videoFrame.dts), delta \(delta)")
     await self.session.publishVideo(data: descData, delta: UInt32(delta))
     
     self.setLastVideoTimestamp(videoFrame.dts)
