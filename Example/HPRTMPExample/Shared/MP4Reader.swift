@@ -1,6 +1,6 @@
 //
 //  File.swift
-//  
+//
 //
 //  Created by 郭 輝平 on 2023/06/24.
 //
@@ -62,11 +62,16 @@ actor MP4Reader {
   private var videoTrack: AVAssetTrack?
   private var audioTrack: AVAssetTrack?
     
-  private var frameQueue: [Frame] = []
+  private var videoFrameQueue = PriorityQueue()
+  private var audioFrameQueue = PriorityQueue()
+
   private var frameSendTask: Task<Void,Error>? = nil
   private let frameConverter = FrameConverter()
   
+  // 0 is no limit
   private let frameCacheMaxCount = 0
+  
+  private let needLoop = true
   
   init(url: URL) {
     self.url = url
@@ -77,24 +82,19 @@ actor MP4Reader {
       processMP4()
       assetReader?.startReading()
       
-      
       // precache frames
-      (0..<10).forEach { _ in
+      for _ in 0..<10 {
         if let videoSampleBuffer = self.videoReaderOutput?.copyNextSampleBuffer() {
           if let frame = frameConverter.convertVideo(videoSampleBuffer) {
-            self.frameQueue.append(frame)
-            frameQueue.sort { $0.ts < $1.ts }
+            await self.videoFrameQueue.enqueue(frame)
           }
         }
-        if let audioSampleBuffer = self.audioReaderOutput?.copyNextSampleBuffer() {
-          if let frame = frameConverter.convertAudio(audioSampleBuffer, aacHeader: self.aacHeader!) {
-            self.frameQueue.append(contentsOf: frame)
-            frameQueue.sort { $0.ts < $1.ts }
+        if let audioSampleBuffer = self.audioReaderOutput?.copyNextSampleBuffer(), let frames = frameConverter.convertAudio(audioSampleBuffer, aacHeader: self.aacHeader!) {
+          for frame in frames {
+            await self.audioFrameQueue.enqueue(frame)
           }
         }
       }
-      
-      
       
       // send video and audio header
       await self.delegate?.output(reader: self, videoHeader: videoHeader)
@@ -105,36 +105,48 @@ actor MP4Reader {
         while !Task.isCancelled {
           asyncReadBuffer()
           
-          let delta = await self.sendNextFrame()
+          await self.sendNextFrame()
           try? await Task.sleep(nanoseconds:  UInt64(10 * 1000 * 1000))
         }
       }
     }
   }
   
-  func stop() {
+  func stop() async {
     frameSendTask?.cancel()
     assetReader?.cancelReading()
     
-    frameQueue = []
+    await videoFrameQueue.clear()
+    await audioFrameQueue.clear()
   }
   
-  func sendNextFrame() async -> UInt64 {
-    guard !frameQueue.isEmpty else { return 0 }
-    print("[debug] queue size: \(frameQueue.count)")
-    var delta: UInt64 = 0
-    let firstFrame = frameQueue.removeFirst()
-    if let nextFrame = frameQueue.first {
-      if nextFrame.ts > firstFrame.ts {
-        delta = nextFrame.ts - firstFrame.ts
+  func sendNextFrame() async {
+    let videoFrameQueueIsEmpty = await videoFrameQueue.isEmpty
+    let audioFrameQueueIsEmpty = await audioFrameQueue.isEmpty
+    guard !videoFrameQueueIsEmpty && !audioFrameQueueIsEmpty  else { return }
+    
+    var frame: Frame?
+    
+    let firstVideoFrame = await videoFrameQueue.peek()
+    let firstAudioFrame = await audioFrameQueue.peek()
+    
+    if let firstVideoFrame = firstVideoFrame, let firstAudioFrame = firstAudioFrame {
+      if firstVideoFrame.ts < firstAudioFrame.ts {
+        frame = await videoFrameQueue.dequeue()
+      } else {
+        frame = await audioFrameQueue.dequeue()
       }
+    } else if let _ = firstVideoFrame {
+      frame = await videoFrameQueue.dequeue()
+    } else if let _ = firstAudioFrame {
+      frame = await audioFrameQueue.dequeue()
     }
     
-    await sendFrame(frame: firstFrame)
+    if let frame = frame {
+      await sendFrame(frame: frame)
+    }
     
     asyncReadBuffer()
-    
-    return delta
   }
   
   func sendFrame(frame: Frame) async {
@@ -150,26 +162,30 @@ actor MP4Reader {
     
   private func asyncReadBuffer() {
     Task {
-//      guard frameQueue.count < frameCacheMaxCount else { return }
-      readVideoBuffer()
-      readAudioBuffer()
-    }
-  }
-  
-  private func readVideoBuffer() {
-    if let videoSampleBuffer = self.videoReaderOutput?.copyNextSampleBuffer() {
-      if let frame = frameConverter.convertVideo(videoSampleBuffer) {
-        self.frameQueue.append(frame)
-        frameQueue.sort { $0.ts < $1.ts }
+      if await videoFrameQueue.count < frameCacheMaxCount || frameCacheMaxCount <= 0 {
+        await readVideoBuffer()
+      }
+      
+      if await audioFrameQueue.count < frameCacheMaxCount || frameCacheMaxCount <= 0 {
+        await readAudioBuffer()
       }
     }
   }
   
-  private func readAudioBuffer() {
+  private func readVideoBuffer() async {
+    if let videoSampleBuffer = self.videoReaderOutput?.copyNextSampleBuffer() {
+      if let frame = frameConverter.convertVideo(videoSampleBuffer) {
+        await videoFrameQueue.enqueue(frame)
+      }
+    }
+  }
+  
+  private func readAudioBuffer() async {
     if let audioSampleBuffer = self.audioReaderOutput?.copyNextSampleBuffer() {
-      if let frame = frameConverter.convertAudio(audioSampleBuffer, aacHeader: self.aacHeader!) {
-        self.frameQueue.append(contentsOf: frame)
-        frameQueue.sort { $0.ts < $1.ts }
+      if let frames = frameConverter.convertAudio(audioSampleBuffer, aacHeader: self.aacHeader!) {
+        for frame in frames {
+          await audioFrameQueue.enqueue(frame)
+        }
       }
     }
   }
