@@ -16,7 +16,7 @@ struct FrameConverter {
       return nil
     }
     
-    guard let attachments = CMSampleBufferGetSampleAttachmentsArray(buffer, createIfNecessary: true) as? NSArray else { return nil }
+    guard let attachments = CMSampleBufferGetSampleAttachmentsArray(buffer, createIfNecessary: true) as? [Any] else { return nil }
     guard let attachment = attachments[0] as? NSDictionary else {
       return nil
     }
