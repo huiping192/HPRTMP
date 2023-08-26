@@ -7,8 +7,9 @@
 
 import Foundation
 import HPRTMP
+import Combine
 
-actor RTMPService: RTMPPublishSessionDelegate {
+actor RTMPService: ObservableObject, RTMPPublishSessionDelegate {
   func sessionStatusChange(_ session: HPRTMP.RTMPPublishSession, status: HPRTMP.RTMPPublishSession.Status) {
     if status == .publishStart {
       Task {
@@ -25,6 +26,13 @@ actor RTMPService: RTMPPublishSessionDelegate {
   private var session = RTMPPublishSession()
   
   let reader: MP4Reader
+  
+  var isRunning: Bool = false {
+    didSet {
+      isRunningSubject.send(isRunning)
+    }
+  }
+  let isRunningSubject = PassthroughSubject<Bool, Never>()
   
   private var lastVideoTimestamp: UInt64 = 0
   private func setLastVideoTimestamp(_ lastVideoTimestamp: UInt64) {
@@ -48,6 +56,8 @@ actor RTMPService: RTMPPublishSessionDelegate {
     await session.setDelegate(self)
     let publishConfig = PublishConfigure(width: 1280, height: 720, videocodecid: VideoData.CodecId.avc.rawValue, audiocodecid: AudioData.SoundFormat.aac.rawValue, framerate: 30, videoDatarate: 30, audioDatarate: nil, audioSamplerate: nil)
     await session.publish(url: "rtmp://192.168.11.23/live/haha", configure: publishConfig)
+    
+    isRunning = true
   }
   
   private let serialQueue = DispatchQueue(label: "com.example.serialQueue")
@@ -57,10 +67,16 @@ actor RTMPService: RTMPPublishSessionDelegate {
     lastVideoTimestamp = 0
     lastAudioTimestamp = 0
     await self.session.invalidate()
+    
+    isRunning = false
   }
 }
 
 extension RTMPService: MP4ReaderDelegate {
+  func output(stopped reader: MP4Reader) async {
+    await stop()
+  }
+  
   func output(reader: MP4Reader, videoHeader: Data) async {
     await self.session.publishVideoHeader(data: videoHeader)
   }

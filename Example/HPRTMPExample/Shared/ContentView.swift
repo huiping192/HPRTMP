@@ -6,33 +6,48 @@
 //
 
 import SwiftUI
+import Combine
+
+class ViewModel: ObservableObject {
+  @Published var isServiceRunning: Bool = false
+  var cancellables = Set<AnyCancellable>()
+  
+  func subscribeToRTMPService(rtmpService: RTMPService) {
+    rtmpService.isRunningSubject
+      .receive(on: DispatchQueue.main)
+      .sink { [weak self] newValue in
+        self?.isServiceRunning = newValue
+      }
+      .store(in: &cancellables)
+  }
+}
 
 struct ContentView: View {
-  
-  private var rtmpService = RTMPService()
-  @State private var buttonState = "Publish"
+  @StateObject private var rtmpService = RTMPService()
+  @StateObject private var viewModel = ViewModel()
   
   var body: some View {
     VStack {
-      Text("Hello, world!")
+      Text(viewModel.isServiceRunning ? "Broadcast starting" : "Broadcast finished")
         .padding()
       
       Button(action: {
         Task {
-          if buttonState == "Publish" {
-            await rtmpService.run()
-            buttonState = "Stop"
-          } else {
+          if viewModel.isServiceRunning {
             await rtmpService.stop()
-            buttonState = "Publish"
+          } else {
+            await rtmpService.run()
           }
         }
       }) {
-        Text(buttonState)
+        Text(viewModel.isServiceRunning ? "Stop" : "Publish")
       }
+    }.onAppear {
+      viewModel.subscribeToRTMPService(rtmpService: rtmpService)
     }
   }
 }
+
 
 struct ContentView_Previews: PreviewProvider {
   static var previews: some View {

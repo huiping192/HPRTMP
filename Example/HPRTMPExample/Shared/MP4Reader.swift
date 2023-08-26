@@ -15,6 +15,8 @@ protocol MP4ReaderDelegate: AnyObject {
   
   func output(reader: MP4Reader, videoFrame: VideoFrame) async
   func output(reader: MP4Reader, audioFrame: AudioFrame) async
+  
+  func output(stopped reader: MP4Reader) async
 }
 
 
@@ -70,9 +72,7 @@ actor MP4Reader {
   
   // 0 is no limit
   private let frameCacheMaxCount = 300
-  
-  private let needLoop = true
-  
+    
   init(url: URL) {
     self.url = url
   }
@@ -102,16 +102,19 @@ actor MP4Reader {
 
       // start send frames
       frameSendTask = Task {
-        while !Task.isCancelled {
+        while !Task.isCancelled && assetReader?.status == .reading {
           asyncReadBuffer()
           
           await self.sendNextFrame()
           try? await Task.sleep(nanoseconds:  UInt64(10 * 1000 * 1000))
         }
+        
+        await delegate?.output(stopped: self)
+        await self.stop()
       }
     }
   }
-  
+    
   func stop() async {
     frameSendTask?.cancel()
     assetReader?.cancelReading()
