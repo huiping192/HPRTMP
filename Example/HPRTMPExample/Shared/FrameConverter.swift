@@ -21,7 +21,7 @@ struct FrameConverter {
       return nil
     }
     let isKeyframe = !(attachment[kCMSampleAttachmentKey_DependsOnOthers] as? Bool ?? true)
-  
+    
     let pts = buffer.presentationTimeStamp.seconds.isFinite ? UInt64(buffer.presentationTimeStamp.seconds * 1000) :  0
     let dts = buffer.decodeTimeStamp.seconds.isFinite ? UInt64(buffer.decodeTimeStamp.seconds * 1000) :  pts
     
@@ -33,52 +33,43 @@ struct FrameConverter {
     let numSamplesInBuffer = CMSampleBufferGetNumSamples(buffer);
     
     guard let aacData = getAACData(from: buffer) else { return nil}
-    let timestamp = buffer.presentationTimeStamp.seconds.isFinite ? UInt64(buffer.presentationTimeStamp.seconds * 1000) : 0
+        
+    var audioFrames: [AudioFrame] = []
+    var offset = 0
     
-    if numSamplesInBuffer == 1 {
-      let audioFrame = AudioFrame(data: aacData, adtsHeader: aacHeader, pts: timestamp)
-      return [audioFrame]
-    } else {
-      let size1 = CMSampleBufferGetSampleSize(buffer, at: 0)
-      let size2 = CMSampleBufferGetSampleSize(buffer, at: 1)
+    for i in 0..<numSamplesInBuffer {
+      let size = CMSampleBufferGetSampleSize(buffer, at: i)
+      let data = aacData.subdata(in: offset..<offset + size)
       
-      let data1 = aacData.subdata(in: 0..<size1)
-      let data2 = aacData.subdata(in: size1..<size1+size2)
+      var timingInfo: CMSampleTimingInfo = CMSampleTimingInfo()
+      CMSampleBufferGetSampleTimingInfo(buffer, at: i, timingInfoOut: &timingInfo)
       
-      var timingInfo1: CMSampleTimingInfo = CMSampleTimingInfo()
-      CMSampleBufferGetSampleTimingInfo(buffer, at: 0, timingInfoOut: &timingInfo1)
+      let pts = timingInfo.presentationTimeStamp.seconds.isFinite ? UInt64(timingInfo.presentationTimeStamp.seconds * 1000) : 0
       
-      let pts1 = timingInfo1.presentationTimeStamp.seconds.isFinite ? UInt64(timingInfo1.presentationTimeStamp.seconds * 1000) : 0
+      let audioFrame = AudioFrame(data: data, adtsHeader: aacHeader, pts: pts)
+      audioFrames.append(audioFrame)
       
-      let audioFrame = AudioFrame(data: data1, adtsHeader: aacHeader, pts: pts1)
-      
-      
-      var timingInfo2: CMSampleTimingInfo = CMSampleTimingInfo()
-      CMSampleBufferGetSampleTimingInfo(buffer, at: 1, timingInfoOut: &timingInfo2)
-      
-      let pts2 = timingInfo2.presentationTimeStamp.seconds.isFinite ? UInt64(timingInfo2.presentationTimeStamp.seconds * 1000) : 0
-      
-      let audioFrame2 = AudioFrame(data: data2, adtsHeader: aacHeader, pts: pts2)
-      return [audioFrame,audioFrame2]
+      offset += size
     }
     
-    func getAACData(from sampleBuffer: CMSampleBuffer) -> Data? {
-      guard let blockBuffer = CMSampleBufferGetDataBuffer(sampleBuffer) else {
-        print("Could not get block buffer from sample buffer")
-        return nil
-      }
-      
-      let length = CMBlockBufferGetDataLength(blockBuffer)
-      var dataPointer: UnsafeMutablePointer<Int8>? = nil
-      
-      CMBlockBufferGetDataPointer(blockBuffer, atOffset: 0, lengthAtOffsetOut: nil, totalLengthOut: nil, dataPointerOut: &dataPointer)
-      
-      if let dataPointer = dataPointer {
-        return Data(bytes: dataPointer, count: length)
-      }
-      
+    return audioFrames
+  }
+  
+  func getAACData(from sampleBuffer: CMSampleBuffer) -> Data? {
+    guard let blockBuffer = CMSampleBufferGetDataBuffer(sampleBuffer) else {
+      print("Could not get block buffer from sample buffer")
       return nil
     }
     
+    let length = CMBlockBufferGetDataLength(blockBuffer)
+    var dataPointer: UnsafeMutablePointer<Int8>? = nil
+    
+    CMBlockBufferGetDataPointer(blockBuffer, atOffset: 0, lengthAtOffsetOut: nil, totalLengthOut: nil, dataPointerOut: &dataPointer)
+    
+    if let dataPointer = dataPointer {
+      return Data(bytes: dataPointer, count: length)
+    }
+    
+    return nil
   }
 }

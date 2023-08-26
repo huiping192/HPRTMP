@@ -66,6 +66,7 @@ actor MP4Reader {
   private var frameSendTask: Task<Void,Error>? = nil
   private let frameConverter = FrameConverter()
   
+  private let frameCacheMaxCount = 0
   
   init(url: URL) {
     self.url = url
@@ -149,6 +150,7 @@ actor MP4Reader {
     
   private func asyncReadBuffer() {
     Task {
+//      guard frameQueue.count < frameCacheMaxCount else { return }
       readVideoBuffer()
       readAudioBuffer()
     }

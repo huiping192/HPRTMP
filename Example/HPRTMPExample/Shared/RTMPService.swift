@@ -98,7 +98,7 @@ extension RTMPService: MP4ReaderDelegate {
     let lastAudioTimestamp = self.lastAudioTimestamp
     let delta: UInt32 = UInt32(audioFrame.pts - lastAudioTimestamp)
     print("[debug] audio time:\(audioFrame.pts) , delta \(delta)")
-    await self.session.publishAudio(data: audioPacketData, delta: 23)
+    await self.session.publishAudio(data: audioPacketData, delta: delta)
     
     self.setLastAudioTimestamp(audioFrame.pts)
   }
