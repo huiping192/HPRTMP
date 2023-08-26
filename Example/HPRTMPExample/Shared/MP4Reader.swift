@@ -69,7 +69,7 @@ actor MP4Reader {
   private let frameConverter = FrameConverter()
   
   // 0 is no limit
-  private let frameCacheMaxCount = 0
+  private let frameCacheMaxCount = 300
   
   private let needLoop = true
   
