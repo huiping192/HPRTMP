@@ -134,8 +134,6 @@ extension RTMPPublishSession: RTMPSocketDelegate {
   
   func socketConnectDone(_ socket: RTMPSocket) {
     Task {
-      
-      publishStatus = .connect
       let message = CreateStreamMessage(encodeType: encodeType, transactionId: await transactionIdGenerator.nextId())
       await self.socket.messageHolder.register(transactionId: message.transactionId, message: message)
       await socket.send(message: message, firstType: true)
@@ -149,7 +147,6 @@ extension RTMPPublishSession: RTMPSocketDelegate {
   
   func socketHandShakeDone(_ socket: RTMPSocket) {
     Task {
-      
       publishStatus = .handShakeDone
       
       guard let urlInfo = await socket.urlInfo else { return }
@@ -167,7 +164,6 @@ extension RTMPPublishSession: RTMPSocketDelegate {
   
   func socketCreateStreamDone(_ socket: RTMPSocket, msgStreamId: Int) {
     Task {
-      
       publishStatus = .connect
       
       let message = await PublishMessage(encodeType: encodeType, streamName: socket.urlInfo?.key ?? "", type: .live)

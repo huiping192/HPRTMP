@@ -79,6 +79,8 @@ public actor RTMPSocket {
   
   private let windowControl = WindowControl()
   
+  private let urlParser = RTMPURLParser()
+  
   private let logger = Logger(subsystem: "HPRTMP", category: "RTMPSocket")
   
   public init() async {
@@ -94,7 +96,6 @@ public actor RTMPSocket {
   
   
   public func connect(url: String) async {
-    let urlParser = RTMPURLParser()
     guard let urlInfo = try? urlParser.parse(url: url) else { return }
     self.urlInfo = urlInfo
     
