@@ -87,7 +87,8 @@ actor MessageDecoder {
     case .abort:
       return AbortMessage(chunkStreamId: chunkStreamId)
     case .acknowledgement:
-      return AcknowledgementMessage(sequence: timestamp)
+      let size = Data(chunkPayload.reversed()).uint32
+      return AcknowledgementMessage(sequence: size)
     case .windowAcknowledgement:
       guard let windowAckSize = chunkPayload[safe: 0..<4]?.reversed() else {
         return nil

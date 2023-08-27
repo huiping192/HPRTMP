@@ -1,6 +1,6 @@
 //
 //  RTMPSocket.swift
-//  
+//
 //
 //  Created by Huiping Guo on 2022/09/19.
 //
@@ -143,7 +143,7 @@ extension RTMPSocket {
   
   private func startShakeHands() async {
     guard let connection = self.connection else { return }
-    self.handshake = RTMPHandshake(dataSender: connection.sendData, dataReceiver: connection.receiveData)
+    self.handshake = RTMPHandshake(dataSender: self.sendData, dataReceiver: connection.receiveData)
     await self.handshake?.setDelegate(delegate: self)
     do {
       try await self.handshake?.start()
@@ -174,7 +174,25 @@ extension RTMPSocket {
 }
 
 extension RTMPSocket {
+  private func sendData(_ data: Data) async throws {
+    try await sendDataList([data])
+  }
+  
+  private func sendDataList(_ data: [Data]) async throws {
+    try await connection?.sendData(data)
+    
+    let bytesCount = data.reduce(0, { $0 + $1.count })
+    await windowControl.addOutBytesCount(UInt32(bytesCount))
+  }
   func send(message: RTMPMessage, firstType: Bool) async {
+    // windows sizeが超えた場合acknowledgementまち
+    if await windowControl.shouldWaitAcknowledgement {
+      logger.info("[HPRTMP] Window size reached, waiting for acknowledgement...")
+      
+      // todo: messageをbufferにはいるようにする
+      return
+    }
+    
     logger.debug("send message start: \(type(of: message))")
     
     if let message = message as? ChunkSizeMessage {
@@ -182,10 +200,7 @@ extension RTMPSocket {
     }
     let chunkDataList = encoder.encode(message: message, isFirstType0: firstType).map({ $0.encode() })
     do {
-      try await connection?.sendData(chunkDataList)
-      
-      let bytesCount = chunkDataList.reduce(0, { $0 + $1.count })
-      await windowControl.addOutBytesCount(UInt32(bytesCount))
+      try await sendDataList(chunkDataList)
       logger.info("[HPRTMP] send message successd: \(type(of: message))")
     } catch {
       logger.error("[HPRTMP] send message failed: \(type(of: message)), error: \(error)")
@@ -238,6 +253,7 @@ extension RTMPSocket {
       
     case let acknowledgementMessage as AcknowledgementMessage:
       logger.info("AcknowledgementMessage, size \(acknowledgementMessage.sequence)")
+      await windowControl.updateReceivedAcknowledgement(acknowledgementMessage.sequence)
       
     case let peerBandwidthMessage as PeerBandwidthMessage:
       logger.info("PeerBandwidthMessage, size \(peerBandwidthMessage.windowSize)")

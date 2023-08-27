@@ -13,13 +13,19 @@ actor WindowControl {
   var totalOutBytesSeq: UInt32 = 1
 
   var inBytesWindowEvent: ((UInt32) async -> Void)? = nil
-
+  
+  var receivedAcknowledgement: UInt32 = 0
+  
   func setInBytesWindowEvent(_ inBytesWindowEvent:((UInt32) async -> Void)?) {
     self.inBytesWindowEvent = inBytesWindowEvent
   }
   
   func setWindowSize(_ size: UInt32) {
     self.windowSize = size
+  }
+  
+  func updateReceivedAcknowledgement(_ size: UInt32) {
+    receivedAcknowledgement = size
   }
   
   init() {
@@ -39,5 +45,9 @@ actor WindowControl {
     if totalOutBytesCount >= windowSize * totalOutBytesSeq {
       totalOutBytesSeq += 1
     }
+  }
+  
+  var shouldWaitAcknowledgement: Bool {
+    Int64(totalOutBytesCount) - Int64(receivedAcknowledgement) >= windowSize
   }
 }
