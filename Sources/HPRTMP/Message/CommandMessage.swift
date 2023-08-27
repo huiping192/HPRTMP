@@ -142,6 +142,8 @@ class CreateStreamMessage: CommandMessage {
     data.append((encoder.encode(Double(transactionId))) ?? Data())
     if let commandObject {
       data.append((encoder.encode(commandObject)) ?? Data())
+    } else {
+      data.append(encoder.encodeNil())
     }
 
     return data
@@ -199,7 +201,7 @@ class PublishMessage: CommandMessage {
     
     data.append((encoder.encode(commandName)) ?? Data())
     data.append((encoder.encode(Double(transactionId))) ?? Data())
-    data.append((encoder.encodeNil()) ?? Data())
+    data.append((encoder.encodeNil()))
     data.append((encoder.encode(streamName)) ?? Data())
     data.append((encoder.encode(self.type.rawValue)) ?? Data())
 
@@ -221,7 +223,7 @@ class SeekMessage: CommandMessage {
     
     data.append((encoder.encode(commandName)) ?? Data())
     data.append((encoder.encode(Double(transactionId))) ?? Data())
-    data.append((encoder.encodeNil()) ?? Data())
+    data.append((encoder.encodeNil()))
     data.append((encoder.encode(millSecond)) ?? Data())
 
     return data
@@ -244,7 +246,7 @@ class PauseMessage: CommandMessage {
     
     data.append((encoder.encode(commandName)) ?? Data())
     data.append((encoder.encode(Double(transactionId))) ?? Data())
-    data.append((encoder.encodeNil()) ?? Data())
+    data.append((encoder.encodeNil()))
     data.append((encoder.encode(isPause)) ?? Data())
     data.append((encoder.encode(millSecond)) ?? Data())
 

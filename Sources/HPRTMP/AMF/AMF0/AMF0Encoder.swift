@@ -14,7 +14,7 @@ class AMF0Encoder {
     return value.afm0Value
   }
   
-  func encodeNil() -> Data? {
+  func encodeNil() -> Data {
     Data([RTMPAMF0Type.null.rawValue])
   }
 }
