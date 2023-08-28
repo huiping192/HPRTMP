@@ -173,7 +173,9 @@ extension RTMPSocket {
   private func startSendMessages() {
     sendMessagesTask = Task {
       while !Task.isCancelled {
-        guard let (message, isFirstType) = await messagePriorityQueue.dequeue() else { continue }
+        guard let messageContainer = await messagePriorityQueue.dequeue() else { continue }
+        let message = messageContainer.message
+        let isFirstType = messageContainer.isFirstType
         // windows sizeが超えた場合acknowledgementまち
         if await windowControl.shouldWaitAcknowledgement {
           logger.info("[HPRTMP] Window size reached, waiting for acknowledgement...")
