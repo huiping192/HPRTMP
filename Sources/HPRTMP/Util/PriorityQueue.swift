@@ -8,22 +8,22 @@ enum MessagePriority {
 }
 
 actor PriorityQueue {
-  private var highPriorityQueue: [RTMPMessage] = []
-  private var mediumPriorityQueue: [RTMPMessage] = []
-  private var lowPriorityQueue: [RTMPMessage] = []
+  private var highPriorityQueue: [(RTMPMessage,Bool)] = []
+  private var mediumPriorityQueue: [(RTMPMessage,Bool)] = []
+  private var lowPriorityQueue: [(RTMPMessage,Bool)] = []
   
-  func enqueue(_ message: RTMPMessage) {
+  func enqueue(_ message: RTMPMessage, firstType: Bool) {
     switch message.priority {
     case .high:
-      highPriorityQueue.append(message)
+      highPriorityQueue.append((message,firstType))
     case .medium:
-      mediumPriorityQueue.append(message)
+      mediumPriorityQueue.append((message,firstType))
     case .low:
-      lowPriorityQueue.append(message)
+      lowPriorityQueue.append((message,firstType))
     }
   }
   
-  func dequeue() -> RTMPMessage? {
+  func dequeue() -> (RTMPMessage,Bool)? {
     if !highPriorityQueue.isEmpty {
       return highPriorityQueue.removeFirst()
     } else if !mediumPriorityQueue.isEmpty {
