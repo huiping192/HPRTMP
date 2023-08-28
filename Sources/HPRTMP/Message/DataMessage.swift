@@ -1,6 +1,6 @@
 //
 //  DataMessage.swift
-//  
+//
 //
 //  Created by Huiping Guo on 2022/11/03.
 //
@@ -25,6 +25,14 @@ protocol RTMPMessage {
   var streamId: UInt16  { get }
   
   var payload: Data { get}
+  
+  var priority: MessagePriority { get }
+}
+
+extension RTMPMessage {
+  var priority: MessagePriority {
+    .high
+  }
 }
 
 public class RTMPBaseMessage: RTMPMessage {
@@ -94,6 +102,10 @@ class VideoMessage: RTMPBaseMessage {
   override var payload: Data {
     return data
   }
+  
+  var priority: MessagePriority {
+    .low
+  }
 }
 
 
@@ -109,6 +121,10 @@ class AudioMessage: RTMPBaseMessage {
   }
   override var payload: Data {
     return data
+  }
+  
+  var priority: MessagePriority {
+    .medium
   }
 }
 
