@@ -46,4 +46,20 @@ final class WindowControlTests: XCTestCase {
     XCTAssertEqual(count2, 500000)
     XCTAssertEqual(seq2, 3)
   }
+  
+  func testShouldWaitAcknowledgement() async {
+    let windowControl = WindowControl()
+
+    await windowControl.setWindowSize(240000)
+    
+    for _ in 0..<5 {
+      await windowControl.addOutBytesCount(50000)
+    }
+    var shouldWaitAcknowledgement = await windowControl.shouldWaitAcknowledgement
+    XCTAssertTrue(shouldWaitAcknowledgement)
+    
+    await windowControl.updateReceivedAcknowledgement(250000)
+    shouldWaitAcknowledgement = await windowControl.shouldWaitAcknowledgement
+    XCTAssertFalse(shouldWaitAcknowledgement)
+  }
 }
