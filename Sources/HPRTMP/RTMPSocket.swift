@@ -80,6 +80,7 @@ public actor RTMPSocket {
   private let windowControl = WindowControl()
   
   private let messagePriorityQueue = PriorityQueue()
+  private let tokenBucket: TokenBucket = TokenBucket()
   
   private let urlParser = RTMPURLParser()
   
@@ -147,8 +148,7 @@ extension RTMPSocket {
   }
   
   private func startShakeHands() async {
-    guard let connection = self.connection else { return }
-    self.handshake = RTMPHandshake(dataSender: self.sendData, dataReceiver: connection.receiveData)
+    self.handshake = RTMPHandshake(dataSender: self.sendData, dataReceiver: receiveData)
     await self.handshake?.setDelegate(delegate: self)
     do {
       try await self.handshake?.start()
@@ -188,12 +188,22 @@ extension RTMPSocket {
           encoder.chunkSize = message.size
         }
         let chunkDataList = encoder.encode(message: message, isFirstType0: isFirstType).map({ $0.encode() })
-        do {
-          try await sendDataList(chunkDataList)
-          logger.info("[HPRTMP] send message successd: \(type(of: message))")
-        } catch {
-          logger.error("[HPRTMP] send message failed: \(type(of: message)), error: \(error)")
-          await delegate?.socketError(self, err: .stream(desc: error.localizedDescription))
+        
+        for chunkData in chunkDataList {
+          if await tokenBucket.consume(tokensNeeded: chunkData.count) {
+            logger.debug("[HPRTMP] token bucket consume: \(chunkData.count)")
+            do {
+              try await sendData(chunkData)
+              logger.info("[HPRTMP] send message successd: \(type(of: message))")
+            } catch {
+              logger.error("[HPRTMP] send message failed: \(type(of: message)), error: \(error)")
+              await delegate?.socketError(self, err: .stream(desc: error.localizedDescription))
+            }
+          } else {
+            logger.info("[HPRTMP] token bucket is empty, waiting...")
+            // wait 10ms
+            try? await Task.sleep(nanoseconds:  UInt64(10 * 1000 * 1000))
+          }
         }
       }
     }
@@ -201,10 +211,9 @@ extension RTMPSocket {
   
   private func startReceiveData() {
     receiveMessagesTask = Task {
-      guard let connection else { return }
       while !Task.isCancelled {
         do {
-          let data = try await connection.receiveData()
+          let data = try await receiveData()
           logger.debug("receive data count: \(data.count)")
           await self.handleOutputData(data: data)
         } catch {
@@ -230,6 +239,11 @@ extension RTMPSocket {
   }
   func send(message: RTMPMessage, firstType: Bool) async {
     await messagePriorityQueue.enqueue(message, firstType: firstType)
+  }
+  
+  private func receiveData() async throws -> Data {
+    guard let connection = self.connection else { return Data() }
+    return try await connection.receiveData()
   }
 }
 
@@ -281,6 +295,7 @@ extension RTMPSocket {
       
     case let peerBandwidthMessage as PeerBandwidthMessage:
       logger.info("PeerBandwidthMessage, size \(peerBandwidthMessage.windowSize)")
+      await tokenBucket.update(rate: Int(peerBandwidthMessage.windowSize), capacity: Int(peerBandwidthMessage.windowSize))
       await delegate?.socketPeerBandWidth(self, size: peerBandwidthMessage.windowSize)
       
     case let chunkSizeMessage as ChunkSizeMessage:
