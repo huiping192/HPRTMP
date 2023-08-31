@@ -8,6 +8,7 @@ final class WindowControlTests: XCTestCase {
     var inbytesCount: UInt32 = 0
     let windowControl = WindowControl()
     
+    await windowControl.setWindowSize(250000)
     await windowControl.setInBytesWindowEvent { totalInBytes in
       inbytesCount = totalInBytes
     }
@@ -31,7 +32,8 @@ final class WindowControlTests: XCTestCase {
   
   func testAddOutBytesCount() async {
     let windowControl = WindowControl()
-        
+    await windowControl.setWindowSize(250000)
+
     await windowControl.addOutBytesCount(250000)
     
     let count = await windowControl.totalOutBytesCount
