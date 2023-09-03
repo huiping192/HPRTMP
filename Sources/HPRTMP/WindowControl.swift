@@ -32,9 +32,21 @@ actor WindowControl {
     self.windowSize = size
   }
   
+  private var lastReceivedAcknowledgement: UInt32 = 0
+  
   // Updates the last acknowledged byte count, usually set by a peer.
   func updateReceivedAcknowledgement(_ size: UInt32) {
-    receivedAcknowledgement = size
+    // Absorb differences in server specifications
+
+    // YouTube sends the same size every time
+    if lastReceivedAcknowledgement == size {
+        receivedAcknowledgement += size
+    } else {
+        // SRS, NDS send the data after adding the size each time
+        receivedAcknowledgement = size
+    }
+    
+    lastReceivedAcknowledgement = size
   }
   
   // Adds to the total count of incoming bytes and triggers the window event if necessary.

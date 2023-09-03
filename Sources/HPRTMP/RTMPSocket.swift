@@ -148,7 +148,8 @@ extension RTMPSocket {
   }
   
   private func startShakeHands() async {
-    self.handshake = RTMPHandshake(dataSender: self.sendData, dataReceiver: receiveData)
+    guard let connection = connection else { return }
+    self.handshake = RTMPHandshake(dataSender: connection.sendData(_:), dataReceiver: receiveData)
     await self.handshake?.setDelegate(delegate: self)
     do {
       try await self.handshake?.start()
@@ -280,7 +281,7 @@ extension RTMPSocket {
   
   private func decode(data: Data) async {
     guard let message = await decoder.decode() else {
-      logger.info("[HPRTMP] decode message need more data.")
+      logger.info("[HPRTMP] decode message need more data. \(data)")
       return
     }
     

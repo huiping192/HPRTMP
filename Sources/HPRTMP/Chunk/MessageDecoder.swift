@@ -12,6 +12,9 @@ actor MessageDecoder {
   
   private let logger = Logger(subsystem: "HPRTMP", category: "MessageDecoder")
   
+  // for header type2 decode
+  private var lastChunk: Chunk?
+  
   func setMaxChunkSize(maxChunkSize: Int) async {
     self.maxChunkSize = maxChunkSize
     await chunkDecoder.setMaxChunkSize(maxChunkSize: maxChunkSize)
@@ -102,21 +105,87 @@ actor MessageDecoder {
   
   func decodeMessage(data: Data) async -> (RTMPMessage?,Int) {
     let (firstChunk, chunkSize) = await chunkDecoder.decodeChunk(data: data)
-    guard let firstChunk = firstChunk else { return (nil,0) }
+    guard let firstChunk = firstChunk else {
+      return (nil,0)
+    }
     
     if let messageHeaderType0 = firstChunk.chunkHeader.messageHeader as? MessageHeaderType0 {
       previousChunkMessageId = messageHeaderType0.messageStreamId
+      lastChunk = firstChunk
       return await handleMessageHeaderType0(firstChunk: firstChunk, chunkSize: chunkSize, messageHeaderType0: messageHeaderType0, data: data)
     }
     
     if let messageHeaderType1 = firstChunk.chunkHeader.messageHeader as? MessageHeaderType1 {
       let (message,size) = await handleMessageHeaderType1(firstChunk: firstChunk, chunkSize: chunkSize, messageHeaderType1: messageHeaderType1)
+      lastChunk = firstChunk
       previousChunkMessageId = message?.msgStreamId
       return (message,size)
     }
     
+    if let messageHeaderType2 = firstChunk.chunkHeader.messageHeader as? MessageHeaderType2 {
+        let (message,size) = await handleMessageHeaderType2(firstChunk: firstChunk, chunkSize: chunkSize, messageHeaderType2: messageHeaderType2)
+        previousChunkMessageId = message?.msgStreamId
+        return (message,size)
+    }
+
     return (nil,0)
   }
+  
+  private func handleMessageHeaderType2(firstChunk: Chunk, chunkSize: Int, messageHeaderType2: MessageHeaderType2) async -> (RTMPMessage?,Int) {
+    guard let lastChunk = lastChunk else {
+      return (nil,0)
+    }
+    
+    var chunkStreamId: UInt16 = 0
+    var messageLength: Int = 0
+    var msgStreamId: Int = 0
+    var messageType: MessageType!
+    let timestamp = messageHeaderType2.timestampDelta
+    
+    if let lastMessageHeader = lastChunk.chunkHeader.messageHeader as? MessageHeaderType0 {
+      chunkStreamId = lastChunk.chunkHeader.basicHeader.streamId
+      messageLength = lastMessageHeader.messageLength
+      msgStreamId = lastMessageHeader.messageStreamId
+      messageType = lastMessageHeader.type
+    }
+    
+    if let lastMessageHeader = lastChunk.chunkHeader.messageHeader as? MessageHeaderType1 {
+      chunkStreamId = lastChunk.chunkHeader.basicHeader.streamId
+      messageLength = lastMessageHeader.messageLength
+      msgStreamId = previousChunkMessageId!
+      messageType = lastMessageHeader.type
+    }
+    
+    // one chunk = one message
+    if messageLength <= maxChunkSize {
+      let message = createMessage(chunkStreamId: chunkStreamId,
+                                  msgStreamId: msgStreamId,
+                                  messageType: messageType,
+                                  timestamp: timestamp,
+                                  chunkPayload: lastChunk.chunkData)
+      return (message,chunkSize)
+    }
+    
+    // has multiple chunks
+    var remainPayloadSize = messageLength - maxChunkSize
+    var totalPayload = lastChunk.chunkData
+    var allChunkSize = chunkSize
+    while remainPayloadSize > 0 {
+      let (chunk, chunkSize) = await chunkDecoder.decodeChunk(data: data.advanced(by: allChunkSize))
+      guard let chunk else { return (nil,0) }
+      remainPayloadSize -= chunk.chunkData.count
+      totalPayload.append(chunk.chunkData)
+      allChunkSize += chunkSize
+    }
+    
+    let message = createMessage(chunkStreamId: firstChunk.chunkHeader.basicHeader.streamId,
+                                msgStreamId: msgStreamId,
+                                messageType: messageType,
+                                timestamp: timestamp,
+                                chunkPayload: totalPayload)
+    return (message,allChunkSize)
+  }
+  
   
   private func handleMessageHeaderType0(firstChunk: Chunk, chunkSize: Int, messageHeaderType0: MessageHeaderType0, data: Data) async -> (RTMPMessage?,Int) {
     let messageLength = messageHeaderType0.messageLength
