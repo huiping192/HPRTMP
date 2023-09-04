@@ -45,7 +45,7 @@ actor RTMPService: ObservableObject, RTMPPublishSessionDelegate {
   }
   
   init() {
-    let url = Bundle.main.url(forResource: "cloud9", withExtension: "mp4")!
+    let url = Bundle.main.url(forResource: "BigBuckBunny", withExtension: "mp4")!
     reader = MP4Reader(url: url)
     Task {
       await reader.setDelegate(self)
