@@ -191,19 +191,24 @@ extension RTMPSocket {
         let chunkDataList = encoder.encode(message: message, isFirstType0: isFirstType).map({ $0.encode() })
         
         for chunkData in chunkDataList {
-          if await tokenBucket.consume(tokensNeeded: chunkData.count) {
-            logger.debug("[HPRTMP] token bucket consume: \(chunkData.count)")
-            do {
-              try await sendData(chunkData)
-              logger.info("[HPRTMP] send message successd: \(type(of: message))")
-            } catch {
-              logger.error("[HPRTMP] send message failed: \(type(of: message)), error: \(error)")
-              await delegate?.socketError(self, err: .stream(desc: error.localizedDescription))
+          var successfullySent = false
+          while !successfullySent {
+            if await tokenBucket.consume(tokensNeeded: chunkData.count) {
+              logger.debug("[HPRTMP] token bucket consume: \(chunkData.count)")
+              do {
+                try await sendData(chunkData)
+                logger.info("[HPRTMP] send message successd: \(type(of: message))")
+                successfullySent = true
+              } catch {
+                logger.error("[HPRTMP] send message failed: \(type(of: message)), error: \(error)")
+                await delegate?.socketError(self, err: .stream(desc: error.localizedDescription))
+                return
+              }
+            } else {
+              logger.info("[HPRTMP] token bucket is empty, waiting...")
+              // wait 10ms
+              try? await Task.sleep(nanoseconds:  UInt64(10 * 1000 * 1000))
             }
-          } else {
-            logger.info("[HPRTMP] token bucket is empty, waiting...")
-            // wait 10ms
-            try? await Task.sleep(nanoseconds:  UInt64(10 * 1000 * 1000))
           }
         }
       }
