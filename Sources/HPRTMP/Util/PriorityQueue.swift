@@ -45,4 +45,8 @@ actor PriorityQueue {
   var isEmpty: Bool {
     highPriorityQueue.isEmpty && mediumPriorityQueue.isEmpty && lowPriorityQueue.isEmpty
   }
+  
+  var pendingMessageCount: Int {
+    highPriorityQueue.count + mediumPriorityQueue.count + lowPriorityQueue.count
+  }
 }
