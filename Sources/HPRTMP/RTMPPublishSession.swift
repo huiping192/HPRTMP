@@ -4,6 +4,9 @@ import os
 public protocol RTMPPublishSessionDelegate: Actor {
   func sessionStatusChange(_ session: RTMPPublishSession,  status: RTMPPublishSession.Status)
   func sessionError(_ session: RTMPPublishSession,  error: RTMPError)
+  
+  // transmission statistics
+  func sessionTransmissionStatisticsChanged(_ session: RTMPPublishSession,  statistics: TransmissionStatistics)
 }
 
 public actor RTMPPublishSession {
@@ -113,6 +116,8 @@ public actor RTMPPublishSession {
 }
 
 extension RTMPPublishSession: RTMPSocketDelegate {
+  
+  
   // publisher dont need implement
   func socketGetMeta(_ socket: RTMPSocket, meta: MetaDataResponse) {}
   func socketStreamOutputAudio(_ socket: RTMPSocket, data: Data, timeStamp: Int64) {}
@@ -196,6 +201,12 @@ extension RTMPPublishSession: RTMPSocketDelegate {
   
   func socketDisconnected(_ socket: RTMPSocket) {
     publishStatus = .disconnected
+  }
+  
+  func socketStreamStatistics(_ socket: RTMPSocket, statistics: TransmissionStatistics) {
+    Task {
+      await delegate?.sessionTransmissionStatisticsChanged(self, statistics: statistics)
+    }
   }
 }
 

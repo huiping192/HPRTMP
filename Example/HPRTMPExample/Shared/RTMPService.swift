@@ -10,6 +10,10 @@ import HPRTMP
 import Combine
 
 actor RTMPService: ObservableObject, RTMPPublishSessionDelegate {
+  func sessionTransmissionStatisticsChanged(_ session: HPRTMP.RTMPPublishSession, statistics: HPRTMP.TransmissionStatistics) {
+    print("[test] \(statistics)")
+  }
+  
   func sessionStatusChange(_ session: HPRTMP.RTMPPublishSession, status: HPRTMP.RTMPPublishSession.Status) {
     if status == .publishStart {
       Task {
@@ -55,7 +59,7 @@ actor RTMPService: ObservableObject, RTMPPublishSessionDelegate {
   func run() async {
     await session.setDelegate(self)
     let publishConfig = PublishConfigure(width: 1280, height: 720, videocodecid: VideoData.CodecId.avc.rawValue, audiocodecid: AudioData.SoundFormat.aac.rawValue, framerate: 30, videoDatarate: 30, audioDatarate: nil, audioSamplerate: nil)
-    await session.publish(url: "rtmp://192.168.11.23/live/haha", configure: publishConfig)
+    await session.publish(url: "rtmp://192.168.11.3/live/haha", configure: publishConfig)
     
     isRunning = true
   }

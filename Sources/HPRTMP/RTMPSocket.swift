@@ -37,6 +37,13 @@ public enum RTMPError: Error {
   }
 }
 
+public struct TransmissionStatistics {
+  // todo
+//  let rtt: Int
+  
+  let pendingMessageCount: Int
+}
+
 protocol RTMPSocketDelegate: Actor {
   func socketHandShakeDone(_ socket: RTMPSocket)
   func socketPinRequest(_ socket: RTMPSocket, data: Data)
@@ -54,6 +61,8 @@ protocol RTMPSocketDelegate: Actor {
   func socketStreamRecord(_ socket: RTMPSocket)
   func socketStreamPlayStart(_ socket: RTMPSocket)
   func socketStreamPause(_ socket: RTMPSocket, pause: Bool)
+  
+  func socketStreamStatistics(_ socket: RTMPSocket, statistics: TransmissionStatistics)
 }
 
 public actor RTMPSocket {
@@ -86,9 +95,8 @@ public actor RTMPSocket {
   
   private let logger = Logger(subsystem: "HPRTMP", category: "RTMPSocket")
   
-  private var sendMessagesTask: Task<Void, Never>?
-  private var receiveMessagesTask: Task<Void, Never>?
-  
+  private var tasks: [Task<Void, Never>] = []
+    
   public init() async {
     await windowControl.setInBytesWindowEvent { [weak self]inbytesCount in
       await self?.sendAcknowledgementMessage(sequence: inbytesCount)
@@ -160,8 +168,9 @@ extension RTMPSocket {
   
   public func invalidate() async {
     guard status != .closed && status != .none else { return }
-    sendMessagesTask?.cancel()
-    receiveMessagesTask?.cancel()
+    tasks.forEach {
+      $0.cancel()
+    }
     await handshake?.reset()
     await decoder.reset()
     connection?.cancel()
@@ -172,7 +181,7 @@ extension RTMPSocket {
   }
   
   private func startSendMessages() {
-    sendMessagesTask = Task {
+    let task = Task {
       while !Task.isCancelled {
         guard let messageContainer = await messagePriorityQueue.dequeue() else { continue }
         let message = messageContainer.message
@@ -213,10 +222,12 @@ extension RTMPSocket {
         }
       }
     }
+    
+    tasks.append(task)
   }
   
   private func startReceiveData() {
-    receiveMessagesTask = Task {
+    let task = Task {
       while !Task.isCancelled {
         do {
           let data = try await receiveData()
@@ -229,19 +240,30 @@ extension RTMPSocket {
         }
       }
     }
+    
+    tasks.append(task)
+  }
+  
+  private func startUpdateTransmissionStatistics() {
+    let task = Task {
+      while !Task.isCancelled {
+        // 1 second
+        try? await Task.sleep(nanoseconds:  UInt64(1000 * 1000 * 1000))
+        
+        let pendingMessageCount = await messagePriorityQueue.pendingMessageCount
+        let statistics = TransmissionStatistics(pendingMessageCount: pendingMessageCount)
+        await delegate?.socketStreamStatistics(self, statistics: statistics)
+      }
+    }
+    
+    tasks.append(task)
   }
 }
 
 extension RTMPSocket {
   private func sendData(_ data: Data) async throws {
-    try await sendDataList([data])
-  }
-  
-  private func sendDataList(_ data: [Data]) async throws {
     try await connection?.sendData(data)
-    
-    let bytesCount = data.reduce(0, { $0 + $1.count })
-    await windowControl.addOutBytesCount(UInt32(bytesCount))
+    await windowControl.addOutBytesCount(UInt32(data.count))
   }
   func send(message: RTMPMessage, firstType: Bool) async {
     await messagePriorityQueue.enqueue(message, firstType: firstType)
@@ -264,6 +286,8 @@ extension RTMPSocket: RTMPHandshakeDelegate {
       
       // start receive data
       await startReceiveData()
+      
+      await startUpdateTransmissionStatistics()
     }
   }
 }
