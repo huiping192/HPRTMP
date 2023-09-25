@@ -12,6 +12,8 @@ public protocol RTMPPlayerSessionDelegate: Actor {
   func sessionStatusChange(_ session: RTMPPlayerSession,  status: RTMPPlayerSession.Status)
   func sessionError(_ session: RTMPPlayerSession,  error: RTMPError)
   
+  func sessionVideo(_ session: RTMPPlayerSession,  data: Data, timestamp: Int64)
+  func sessionAudio(_ session: RTMPPlayerSession,  data: Data, timestamp: Int64)
 }
 
 public actor RTMPPlayerSession {
@@ -57,9 +59,7 @@ public actor RTMPPlayerSession {
   private var socket: RTMPSocket!
   
   private let transactionIdGenerator = TransactionIdGenerator()
-  
-  private var configure: PublishConfigure?
-  
+    
   private var connectId: Int = 0
   
   private let logger = Logger(subsystem: "HPRTMP", category: "Player")
@@ -67,8 +67,7 @@ public actor RTMPPlayerSession {
   
   public init() {}
   
-  public func publish(url: String, configure: PublishConfigure) async {
-    self.configure = configure
+  public func play(url: String) async {
     if socket != nil {
       await socket.invalidate()
     }
@@ -103,10 +102,14 @@ extension RTMPPlayerSession: RTMPSocketDelegate {
   }
   
   func socketStreamOutputAudio(_ socket: RTMPSocket, data: Data, timeStamp: Int64) {
-    
+    Task {
+      await delegate?.sessionAudio(self, data: data, timestamp: timeStamp)
+    }
   }
   func socketStreamOutputVideo(_ socket: RTMPSocket, data: Data, timeStamp: Int64) {
-    
+    Task {
+      await delegate?.sessionVideo(self, data: data, timestamp: timeStamp)
+    }
   }
   func socketStreamRecord(_ socket: RTMPSocket) {}
   
