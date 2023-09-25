@@ -254,3 +254,26 @@ class PauseMessage: CommandMessage {
   }
 }
 
+class PlayMessage: CommandMessage {
+  let streamName: String
+  init(encodeType: ObjectEncodingType = .amf0, streamName: String) {
+    self.streamName = streamName
+    super.init(encodeType: encodeType, commandName: "play", transactionId: commonTransactionId.stream)
+  }
+  
+  override var payload: Data {
+    var data = Data()
+    let encoder = AMF0Encoder()
+    
+    data.append((encoder.encode(commandName)) ?? Data())
+    data.append((encoder.encode(Double(transactionId))) ?? Data())
+    data.append((encoder.encodeNil()))
+    data.append((encoder.encode(streamName)) ?? Data())
+
+    data.append((encoder.encode(Double(-1))) ?? Data())
+    data.append((encoder.encode(Double(-1))) ?? Data())
+    data.append((encoder.encode(false)) ?? Data())
+
+    return data
+  }
+}
