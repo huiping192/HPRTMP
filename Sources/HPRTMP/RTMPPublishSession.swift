@@ -144,7 +144,7 @@ extension RTMPPublishSession: RTMPSocketDelegate {
       await socket.send(message: message, firstType: true)
       
       // make chunk size more bigger
-      let chunkSize: UInt32 = 128 * 6
+      let chunkSize: UInt32 = 128 * 60
       let size = ChunkSizeMessage(size: chunkSize)
       await socket.send(message: size, firstType: true)
     }
