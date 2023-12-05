@@ -9,9 +9,22 @@ on:
       - main
 
 env:
-  DEVELOPER_DIR: /Applications/Xcode-14.3.1.app
+  DEVELOPER_DIR: /Applications/Xcode-15.0.0.app
   
 jobs:
+  reviewGPT:
+    runs-on: self-hosted
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        fetch-depth: 0
+          
+    - name: Code Review GPT
+      uses: mattzcarey/code-review-gpt@v0.1.5
+      with:
+        OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        MODEL: 'gpt-3.5-turbo'
+        GITHUB_TOKEN: ${{ github.token }}
   build:
     runs-on: self-hosted
     steps:
