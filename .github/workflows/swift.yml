@@ -15,16 +15,17 @@ jobs:
   reviewGPT:
     runs-on: self-hosted
     steps:
-    - uses: actions/checkout@v3
-      with:
-        fetch-depth: 0
-          
-    - name: Code Review GPT
-      uses: mattzcarey/code-review-gpt@v0.1.5
-      with:
-        OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-        MODEL: 'gpt-3.5-turbo'
-        GITHUB_TOKEN: ${{ github.token }}
+      - uses: anc95/ChatGPT-CodeReview@main
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          LANGUAGE: English
+          OPENAI_API_ENDPOINT: https://api.openai.com/v1
+          #OPENAI_API_ENDPOINT: http://127.0.0.1:8000
+          MODEL: gpt-3.5-turbo # https://platform.openai.com/docs/models
+          PROMPT: # example: Please check if there are any confusions or irregularities in the following code diff:
+          top_p: 1 # https://platform.openai.com/docs/api-reference/chat/create#chat/create-top_p
+          temperature: 1 # https://platform.openai.com/docs/api-reference/chat/create#chat/create-temperature
   build:
     runs-on: self-hosted
     steps:
