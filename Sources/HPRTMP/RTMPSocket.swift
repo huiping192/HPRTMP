@@ -6,7 +6,6 @@
 //
 
 import Foundation
-import Network
 import os
 
 public enum RTMPStatus {
@@ -67,7 +66,7 @@ protocol RTMPSocketDelegate: Actor {
 
 public actor RTMPSocket {
   
-  private var connection: NWConnection?
+  private let connection: NetworkConnectable = NetworkClient()
   
   private var status: RTMPStatus = .none
   
@@ -127,36 +126,20 @@ extension RTMPSocket {
   public func resume() async {
     guard status != .connected else { return }
     guard let urlInfo else { return }
-    
-    let port = NWEndpoint.Port(rawValue: UInt16(urlInfo.port))
-    let host = NWEndpoint.Host(urlInfo.host)
-    let connection = NWConnection(host: host, port: port ?? 1935, using: .tcp)
-    self.connection = connection
-    connection.stateUpdateHandler = { [weak self]newState in
-      guard let self else { return }
+    do {
+      try await connection.connect(host: urlInfo.host, port: urlInfo.port)
+      status = .open
       Task {
-        switch newState {
-        case .ready:
-          self.logger.info("connection state: ready")
-          guard await self.status == .open else { return }
-          await self.startShakeHands()
-        case .failed(let error):
-          self.logger.error("[HPRTMP] connection error: \(error.localizedDescription)")
-          await self.delegate?.socketError(self, err: .uknown(desc: error.localizedDescription))
-          await self.invalidate()
-        default:
-          self.logger.info("connection state: other")
-          break
-        }
+        await self.startShakeHands()
       }
+    } catch {
+      self.logger.error("[HPRTMP] connection error: \(error.localizedDescription)")
+      await self.delegate?.socketError(self, err: .uknown(desc: error.localizedDescription))
+      await self.invalidate()
     }
-    NWConnection.maxReadSize = Int((await windowControl.windowSize))
-    status = .open
-    connection.start(queue: DispatchQueue.global(qos: .default))
   }
   
   private func startShakeHands() async {
-    guard let connection = connection else { return }
     self.handshake = RTMPHandshake(dataSender: connection.sendData(_:), dataReceiver: receiveData)
     await self.handshake?.setDelegate(delegate: self)
     do {
@@ -173,8 +156,7 @@ extension RTMPSocket {
     }
     await handshake?.reset()
     await decoder.reset()
-    connection?.cancel()
-    connection = nil
+    try? await connection.close()
     urlInfo = nil
     status = .closed
     await delegate?.socketDisconnected(self)
@@ -262,7 +244,7 @@ extension RTMPSocket {
 
 extension RTMPSocket {
   private func sendData(_ data: Data) async throws {
-    try await connection?.sendData(data)
+    try await connection.sendData(data)
     await windowControl.addOutBytesCount(UInt32(data.count))
   }
   func send(message: RTMPMessage, firstType: Bool) async {
@@ -270,7 +252,6 @@ extension RTMPSocket {
   }
   
   private func receiveData() async throws -> Data {
-    guard let connection = self.connection else { return Data() }
     return try await connection.receiveData()
   }
 }
