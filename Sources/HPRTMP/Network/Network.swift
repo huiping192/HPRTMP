@@ -21,14 +21,14 @@ actor NWConnecter: RTMPConnectable {
         switch newState {
         case .ready:
           break
-        case .failed(let error):
+        case .failed(_):
           break
         default:
           break
         }
       }
     }
-//    NWConnection.maxReadSize = Int((await windowControl.windowSize))
+    //    NWConnection.maxReadSize = Int((await windowControl.windowSize))
     connection.start(queue: DispatchQueue.global(qos: .default))
   }
   
