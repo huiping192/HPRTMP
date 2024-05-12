@@ -1,21 +1,28 @@
+//
+//  RTMPPlayerSession.swift
+//  
+//
+//  Created by 郭 輝平 on 2023/09/25.
+//
+
 import Foundation
 import os
 
-public protocol RTMPPublishSessionDelegate: Actor {
-  func sessionStatusChange(_ session: RTMPPublishSession,  status: RTMPPublishSession.Status)
-  func sessionError(_ session: RTMPPublishSession,  error: RTMPError)
+public protocol RTMPPlayerSessionDelegate: Actor {
+  func sessionStatusChange(_ session: RTMPPlayerSession,  status: RTMPPlayerSession.Status)
+  func sessionError(_ session: RTMPPlayerSession,  error: RTMPError)
   
-  // transmission statistics
-  func sessionTransmissionStatisticsChanged(_ session: RTMPPublishSession,  statistics: TransmissionStatistics)
+  func sessionVideo(_ session: RTMPPlayerSession,  data: Data, timestamp: Int64)
+  func sessionAudio(_ session: RTMPPlayerSession,  data: Data, timestamp: Int64)
 }
 
-public actor RTMPPublishSession {
+public actor RTMPPlayerSession {
   public enum Status: Equatable {
     case unknown
     case handShakeStart
     case handShakeDone
     case connect
-    case publishStart
+    case playStart
     case failed(err: RTMPError)
     case disconnected
     
@@ -23,7 +30,7 @@ public actor RTMPPublishSession {
       switch (lhs, rhs) {
       case (.unknown, .unknown),
         (.connect, .connect),
-        (.publishStart, .publishStart),
+        (.playStart, .playStart),
         (.disconnected, .disconnected):
         return true
       case let (.failed(err1), .failed(err2)):
@@ -34,15 +41,15 @@ public actor RTMPPublishSession {
     }
   }
   
-  public weak var delegate: RTMPPublishSessionDelegate?
-  public func setDelegate(_ delegate: RTMPPublishSessionDelegate?) {
+  public weak var delegate: RTMPPlayerSessionDelegate?
+  public func setDelegate(_ delegate: RTMPPlayerSessionDelegate?) {
     self.delegate = delegate
   }
   
-  public var publishStatus: Status = .unknown {
+  public var status: Status = .unknown {
     didSet {
       Task {
-        await delegate?.sessionStatusChange(self, status: publishStatus)
+        await delegate?.sessionStatusChange(self, status: status)
       }
     }
   }
@@ -52,18 +59,15 @@ public actor RTMPPublishSession {
   private var socket: RTMPSocket!
   
   private let transactionIdGenerator = TransactionIdGenerator()
-  
-  private var configure: PublishConfigure?
-  
+    
   private var connectId: Int = 0
   
-  private let logger = Logger(subsystem: "HPRTMP", category: "Publish")
+  private let logger = Logger(subsystem: "HPRTMP", category: "Player")
 
   
   public init() {}
   
-  public func publish(url: String, configure: PublishConfigure) async {
-    self.configure = configure
+  public func play(url: String) async {
     if socket != nil {
       await socket.invalidate()
     }
@@ -71,36 +75,10 @@ public actor RTMPPublishSession {
     await socket.setDelegate(delegate: self)
     await socket.connect(url: url)
     
-    publishStatus = .handShakeStart
+    status = .handShakeStart
   }
   
-  private var videoHeaderSended = false
-  private var audioHeaderSended = false
-
-  public func publishVideoHeader(data: Data) async {
-    let message = VideoMessage(msgStreamId: connectId, data: data, timestamp: 0)
-    await socket.send(message: message, firstType: true)
-    videoHeaderSended = true
-  }
-  
-  public func publishVideo(data: Data, delta: UInt32) async {
-    guard videoHeaderSended else { return }
-    let message = VideoMessage(msgStreamId: connectId, data: data, timestamp: delta)
-    await socket.send(message: message, firstType: false)
-  }
-  
-  public func publishAudioHeader(data: Data) async {
-    let message = AudioMessage(msgStreamId: connectId, data: data, timestamp: 0)
-    await socket.send(message: message, firstType: true)
-    audioHeaderSended = true
-  }
-  
-  public func publishAudio(data: Data, delta: UInt32) async {
-    guard audioHeaderSended else { return }
-    let message = AudioMessage(msgStreamId: connectId, data: data, timestamp: delta)
-    await socket.send(message: message, firstType: false)
-  }
-  
+ 
   public func invalidate() async {
     // send closeStream
     let closeStreamMessage = CloseStreamMessage(msgStreamId: connectId)
@@ -111,31 +89,41 @@ public actor RTMPPublishSession {
     await socket.send(message: deleteStreamMessage, firstType: true)
     
     await self.socket.invalidate()
-    self.publishStatus = .disconnected
+    self.status = .disconnected
   }
 }
 
-extension RTMPPublishSession: RTMPSocketDelegate {
+extension RTMPPlayerSession: RTMPSocketDelegate {
   
   
   // publisher dont need implement
-  func socketGetMeta(_ socket: RTMPSocket, meta: MetaDataResponse) {}
-  func socketStreamOutputAudio(_ socket: RTMPSocket, data: Data, timeStamp: Int64) {}
-  func socketStreamOutputVideo(_ socket: RTMPSocket, data: Data, timeStamp: Int64) {}
-  func socketStreamRecord(_ socket: RTMPSocket) {}
-  func socketStreamPlayStart(_ socket: RTMPSocket) {}
-  func socketStreamPause(_ socket: RTMPSocket, pause: Bool) {}
+  func socketGetMeta(_ socket: RTMPSocket, meta: MetaDataResponse) {
+    
+  }
   
-  
-  func socketStreamPublishStart(_ socket: RTMPSocket) {
+  func socketStreamOutputAudio(_ socket: RTMPSocket, data: Data, timeStamp: Int64) {
     Task {
-      logger.debug("socketStreamPublishStart")
-      publishStatus = .publishStart
-      guard let configure = configure else { return }
-      let metaMessage = MetaMessage(encodeType: encodeType, msgStreamId: connectId, meta: configure.meta)
-      await socket.send(message: metaMessage, firstType: true)
+      await delegate?.sessionAudio(self, data: data, timestamp: timeStamp)
     }
   }
+  func socketStreamOutputVideo(_ socket: RTMPSocket, data: Data, timeStamp: Int64) {
+    Task {
+      await delegate?.sessionVideo(self, data: data, timestamp: timeStamp)
+    }
+  }
+  func socketStreamRecord(_ socket: RTMPSocket) {}
+  
+  func socketStreamPlayStart(_ socket: RTMPSocket) {
+    
+    
+  }
+  func socketStreamPause(_ socket: RTMPSocket, pause: Bool) {
+    
+    
+  }
+  
+  
+  func socketStreamPublishStart(_ socket: RTMPSocket) {}
   
   func socketConnectDone(_ socket: RTMPSocket) {
     Task {
@@ -144,7 +132,7 @@ extension RTMPPublishSession: RTMPSocketDelegate {
       await socket.send(message: message, firstType: true)
       
       // make chunk size more bigger
-      let chunkSize: UInt32 = 128 * 60
+      let chunkSize: UInt32 = 128 * 6
       let size = ChunkSizeMessage(size: chunkSize)
       await socket.send(message: size, firstType: true)
     }
@@ -152,7 +140,7 @@ extension RTMPPublishSession: RTMPSocketDelegate {
   
   func socketHandShakeDone(_ socket: RTMPSocket) {
     Task {
-      publishStatus = .handShakeDone
+      status = .handShakeDone
       
       guard let urlInfo = await socket.urlInfo else { return }
       let connect = ConnectMessage(encodeType: encodeType,
@@ -169,9 +157,9 @@ extension RTMPPublishSession: RTMPSocketDelegate {
   
   func socketCreateStreamDone(_ socket: RTMPSocket, msgStreamId: Int) {
     Task {
-      publishStatus = .connect
+      status = .connect
       
-      let message = await PublishMessage(encodeType: encodeType, streamName: socket.urlInfo?.key ?? "", type: .live)
+      let message = await PlayMessage(streamName: socket.urlInfo?.key ?? "")
       
       message.msgStreamId = msgStreamId
       self.connectId = msgStreamId
@@ -200,13 +188,10 @@ extension RTMPPublishSession: RTMPSocketDelegate {
   }
   
   func socketDisconnected(_ socket: RTMPSocket) {
-    publishStatus = .disconnected
+    status = .disconnected
   }
   
   func socketStreamStatistics(_ socket: RTMPSocket, statistics: TransmissionStatistics) {
-    Task {
-      await delegate?.sessionTransmissionStatisticsChanged(self, statistics: statistics)
-    }
   }
 }
 
