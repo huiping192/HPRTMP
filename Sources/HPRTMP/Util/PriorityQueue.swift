@@ -34,8 +34,8 @@ actor PriorityQueue {
     waitMessageContinuation = nil
   }
   
-  func dequeue() async -> MessageContainer {
-    while true {
+  func dequeue() async -> MessageContainer? {
+    while !Task.isCancelled {
       if !highPriorityQueue.isEmpty {
         return highPriorityQueue.removeFirst()
       } else if !mediumPriorityQueue.isEmpty {
@@ -43,11 +43,15 @@ actor PriorityQueue {
       } else if !lowPriorityQueue.isEmpty {
         return lowPriorityQueue.removeFirst()
       } else {
-        await withCheckedContinuation { cont in
-          self.waitMessageContinuation = cont
+        await withTaskCancellationHandler {
+          await withCheckedContinuation { cont in
+            self.waitMessageContinuation = cont
+          }
+        } onCancel: {
         }
       }
     }
+    return nil
   }
   
   var isEmpty: Bool {

@@ -165,7 +165,8 @@ extension RTMPSocket {
   private func startSendMessages() {
     let task = Task {
       while !Task.isCancelled {
-        let messageContainer = await messagePriorityQueue.dequeue()
+        guard let messageContainer = await messagePriorityQueue.dequeue() else { break }
+
         let message = messageContainer.message
         let isFirstType = messageContainer.isFirstType
         // windows sizeが超えた場合acknowledgementまち
