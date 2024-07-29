@@ -36,14 +36,64 @@ final class RTMPClientHandler: ChannelInboundHandler {
   }
 }
 
+/**
+ Data Reserver. If data is avaialable, use that data exactly once.
+ If data is not available, wait data is comming with promise.
+ When data is comming, client must call dataArrived.
+ */
+actor DataReserver {
+  private var cachedData: Data = .init()
+  private var dataPromise: EventLoopPromise<Data>?
+  
+  /**
+   return cached data if it's not empty.
+   Or return nil if it's empty.
+   after calling this method, cachedData is renewed.
+   */
+  func tryRetrieveCache() -> Data? {
+    if cachedData.isEmpty {
+      return nil
+    } else {
+      let data = cachedData
+      cachedData = Data()
+      return data
+    }
+  }
+  
+  func waitData(with promise: EventLoopPromise<Data>) async throws -> Data {
+    self.dataPromise = promise
+    return try await promise.futureResult.get()
+  }
+  
+  private func dataArrivedInner(data: Data) {
+    cachedData.append(data)
+    if let promise = dataPromise {
+      self.dataPromise = nil
+      let current = tryRetrieveCache()!
+      promise.succeed(current)
+    }
+  }
+  
+  nonisolated func dataArrived(data: Data) {
+    Task {
+      await dataArrivedInner(data: data)
+    }
+  }
+  
+  func close() {
+    dataPromise?.fail(NSError(domain: "RTMPClientError", code: -2, userInfo: [NSLocalizedDescriptionKey: "Connection invalidated"]))
+    dataPromise = nil
+    cachedData = Data()
+  }
+}
+
 class NetworkClient: NetworkConnectable {
   private let group: EventLoopGroup = MultiThreadedEventLoopGroup(numberOfThreads: 1)
   private var channel: Channel?
   private var host: String?
   private var port: Int?
   
-  private var cachedReceivedData: Data = .init()
-  private var dataPromise: EventLoopPromise<Data>?
+  private let dataReserver = DataReserver()
   
   private let logger = Logger(subsystem: "HPRTMP", category: "NetworkClient")
 
@@ -91,29 +141,21 @@ class NetworkClient: NetworkConnectable {
     guard let channel = self.channel else {
       throw NSError(domain: "RTMPClientError", code: -1, userInfo: [NSLocalizedDescriptionKey: "Connection not established"])
     }
-    if !cachedReceivedData.isEmpty {
-      let data = cachedReceivedData
-      cachedReceivedData = Data()
-      return data
+    if let cache = await dataReserver.tryRetrieveCache() {
+      return cache
     }
     
-    self.dataPromise = channel.eventLoop.makePromise(of: Data.self)
-    return try await dataPromise!.futureResult.get()
+    let waitPromise = channel.eventLoop.makePromise(of: Data.self)
+    return try await dataReserver.waitData(with:waitPromise)
   }
   
   private func responseReceived(data: Data) {
-    cachedReceivedData.append(data)
-    if let dataPromise {
-      dataPromise.succeed(cachedReceivedData)
-      cachedReceivedData = Data()
-      self.dataPromise = nil
-    }
+    dataReserver.dataArrived(data: data)
   }
   
   func close() async throws {
-    dataPromise?.fail(NSError(domain: "RTMPClientError", code: -2, userInfo: [NSLocalizedDescriptionKey: "Connection invalidated"]))
+    await dataReserver.close()
     let channel = self.channel
-    dataPromise = nil
     self.channel = nil
     try await channel?.close()
   }
