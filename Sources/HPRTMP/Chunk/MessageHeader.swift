@@ -4,7 +4,7 @@ protocol MessageHeader: RTMPEncodable {
 }
 
 extension MessageHeader where Self: Equatable {
-  static func == (lhs: MessageHeader, rhs: MessageHeader) -> Bool {
+  static func == (lhs: Self, rhs: Self) -> Bool {
     lhs.encode() == rhs.encode()
   }
 }
