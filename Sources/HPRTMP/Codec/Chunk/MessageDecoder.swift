@@ -32,10 +32,11 @@ actor MessageDecoder {
     guard !isDecoding else { return nil }
     logger.debug("decode message start")
     isDecoding = true
+    defer { isDecoding = false }
+
     let (message,size) = await decodeMessage(data: data)
     guard let message else { return nil }
     data.removeFirst(size)
-    isDecoding = false
     logger.debug("MessageDecoder remain data count: \(self.data.count)")
     return message
   }
