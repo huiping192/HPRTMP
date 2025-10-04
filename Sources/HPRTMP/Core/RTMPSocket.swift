@@ -155,9 +155,14 @@ extension RTMPSocket {
       return
     }
     self.handshake = RTMPHandshake(client: client)
-    await self.handshake?.setDelegate(delegate: self)
     do {
       try await self.handshake?.start()
+
+      // 握手成功，执行后续逻辑
+      await self.delegate?.socketHandShakeDone(self)
+      await startSendMessages()
+      await startReceiveData()
+      await startUpdateTransmissionStatistics()
     } catch {
       await self.delegate?.socketError(self, err: .handShake(desc: error.localizedDescription))
     }
@@ -268,23 +273,6 @@ extension RTMPSocket {
   
   private func receiveData() async throws -> Data {
     return try await connection.receiveData()
-  }
-}
-
-extension RTMPSocket: RTMPHandshakeDelegate {
-  nonisolated func rtmpHandshakeDidChange(status: RTMPHandshake.Status) {
-    Task {
-      guard status == .handshakeDone else { return }
-      await self.delegate?.socketHandShakeDone(self)
-      
-      // start sending messages
-      await startSendMessages()
-      
-      // start receive data
-      await startReceiveData()
-      
-      await startUpdateTransmissionStatistics()
-    }
   }
 }
 

@@ -8,10 +8,6 @@
 import Foundation
 import os
 
-protocol RTMPHandshakeDelegate: AnyObject {
-  func rtmpHandshakeDidChange(status: RTMPHandshake.Status)
-}
-
 actor RTMPHandshake {
   enum Status: String {
     case uninitalized
@@ -27,15 +23,9 @@ actor RTMPHandshake {
 
   private var client: (any NetworkConnectable)?
 
-  weak var delegate: RTMPHandshakeDelegate?
-
   private let logger = Logger(subsystem: "HPRTMP", category: "Handshake")
 
   private var handshakeData = Data()
-
-  public func setDelegate(delegate: RTMPHandshakeDelegate?) {
-    self.delegate = delegate
-  }
 
   public init(client: any NetworkConnectable) {
     self.client = client
@@ -44,7 +34,6 @@ actor RTMPHandshake {
   private(set) var status = Status.none {
     didSet {
       logger.info("handshake status changed to \(self.status.rawValue) ")
-      delegate?.rtmpHandshakeDidChange(status: status)
     }
   }
   
