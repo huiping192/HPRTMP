@@ -1,55 +1,95 @@
 import Foundation
+import os
 
-// WindowControl actor manages the flow control in RTMP communication
 actor WindowControl {
-    
-  // The window size for flow control, usually set by a peer. default: 2.4mb
-  private(set) var windowSize: UInt32 = 2500000
-  
-  // Total number of incoming bytes, updated as data is received.
+
+  private let logger = Logger(subsystem: "HPRTMP", category: "WindowControl")
+
+  private(set) var windowSize: UInt32 = 2500000  // default: 2.4mb
+
   private(set) var totalInBytesCount: UInt32 = 0
-  // Sequence number for tracking incoming bytes, incremented after each window.
   private(set) var totalInBytesSeq: UInt32 = 1
 
-  // Total number of outgoing bytes, updated as data is sent.
   private(set) var totalOutBytesCount: UInt32 = 0
-  // Sequence number for tracking outgoing bytes, incremented after each window.
   private(set) var totalOutBytesSeq: UInt32 = 1
 
-  // Callback function triggered when incoming bytes reach the window limit.
   private(set) var inBytesWindowEvent: (@Sendable (UInt32) async -> Void)? = nil
-
-  // The last byte count acknowledged by a peer.
   private(set) var receivedAcknowledgement: UInt32 = 0
 
-  // Sets the callback function for incoming byte window events.
   func setInBytesWindowEvent(_ inBytesWindowEvent: (@Sendable (UInt32) async -> Void)?) {
     self.inBytesWindowEvent = inBytesWindowEvent
   }
-  
-  // Sets the window size for flow control, usually updated from a peer.
+
   func setWindowSize(_ size: UInt32) {
     self.windowSize = size
   }
-  
-  private var lastReceivedAcknowledgement: UInt32 = 0
-  
-  // Updates the last acknowledged byte count, usually set by a peer.
-  func updateReceivedAcknowledgement(_ size: UInt32) {
-    // Absorb differences in server specifications
 
-    // YouTube sends the same size every time
-    if lastReceivedAcknowledgement == size {
-        receivedAcknowledgement += size
-    } else {
-        // SRS, NDS send the data after adding the size each time
-        receivedAcknowledgement = size
+  private var lastReceivedAcknowledgement: UInt32 = 0
+  private var ackCount: Int = 0
+  private var ackMode: AckMode = .detecting
+
+  private enum AckMode {
+    case detecting      // First 2 ACKs to determine server behavior
+    case incremental    // YouTube: sends fixed increment value
+    case cumulative     // SRS/NDS: sends cumulative byte count
+  }
+
+  func updateReceivedAcknowledgement(_ size: UInt32) {
+    ackCount += 1
+
+    switch ackMode {
+    case .detecting:
+      handleDetection(size)
+    case .incremental:
+      handleIncrementalMode(size)
+    case .cumulative:
+      handleCumulativeMode(size)
     }
-    
+
     lastReceivedAcknowledgement = size
   }
-  
-  // Adds to the total count of incoming bytes and triggers the window event if necessary.
+
+  // MARK: - Private Methods
+
+  private func handleDetection(_ size: UInt32) {
+    if ackCount == 1 {
+      receivedAcknowledgement = size
+      return
+    }
+
+    // Second ACK determines the mode
+    if size == lastReceivedAcknowledgement {
+      ackMode = .incremental
+      receivedAcknowledgement += size
+      logger.info("[WindowControl] Detected incremental ACK mode (YouTube)")
+    } else if size > lastReceivedAcknowledgement {
+      ackMode = .cumulative
+      receivedAcknowledgement = size
+      logger.info("[WindowControl] Detected cumulative ACK mode (SRS/NDS)")
+    } else {
+      ackMode = .cumulative
+      receivedAcknowledgement = size
+      logger.warning("[WindowControl] ACK decreased, defaulting to cumulative mode")
+    }
+  }
+
+  private func handleIncrementalMode(_ size: UInt32) {
+    receivedAcknowledgement += size
+
+    if size != lastReceivedAcknowledgement {
+      logger.warning("[WindowControl] Increment value changed: \(self.lastReceivedAcknowledgement) → \(size)")
+    }
+  }
+
+  private func handleCumulativeMode(_ size: UInt32) {
+    if size < receivedAcknowledgement {
+      logger.warning("[WindowControl] ACK decreased, ignoring: \(size) < \(self.receivedAcknowledgement)")
+      return
+    }
+
+    receivedAcknowledgement = size
+  }
+
   func addInBytesCount(_ count: UInt32) async {
     totalInBytesCount += count
     if totalInBytesCount >= windowSize * totalInBytesSeq {
@@ -57,16 +97,14 @@ actor WindowControl {
       totalInBytesSeq += 1
     }
   }
-  
-  // Adds to the total count of outgoing bytes and updates the sequence number if necessary.
+
   func addOutBytesCount(_ count: UInt32) {
     totalOutBytesCount += count
     if totalOutBytesCount >= windowSize * totalOutBytesSeq {
       totalOutBytesSeq += 1
     }
   }
-  
-  // Determines whether the actor should wait for an acknowledgement from a peer.
+
   var shouldWaitAcknowledgement: Bool {
     Int64(totalOutBytesCount) - Int64(receivedAcknowledgement) >= windowSize
   }
