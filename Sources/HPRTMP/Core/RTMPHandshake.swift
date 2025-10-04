@@ -20,27 +20,25 @@ actor RTMPHandshake {
     case handshakeDone
     case none
   }
-  
+
   // const 1536 byte
   static let packetSize = 1536
   private static let rtmpVersion: UInt8 = 3
-  
-  private let dataSender: (Data) async throws -> Void
-  private let dataReceiver: () async throws -> Data
-  
+
+  private var client: (any NetworkConnectable)?
+
   weak var delegate: RTMPHandshakeDelegate?
-  
+
   private let logger = Logger(subsystem: "HPRTMP", category: "Handshake")
-  
+
   private var handshakeData = Data()
-  
+
   public func setDelegate(delegate: RTMPHandshakeDelegate?) {
     self.delegate = delegate
   }
-  
-  public init(dataSender: @escaping (Data) async throws -> Void, dataReceiver: @escaping () async throws -> Data) {
-    self.dataSender = dataSender
-    self.dataReceiver = dataReceiver
+
+  public init(client: any NetworkConnectable) {
+    self.client = client
   }
   
   private(set) var status = Status.none {
@@ -106,19 +104,26 @@ actor RTMPHandshake {
   }
   
   private func sendPacket(_ packet: Data) async throws {
-    try await dataSender(packet)
+    guard let client = client else {
+      throw RTMPError.connectionNotEstablished
+    }
+    try await client.sendData(packet)
   }
-  
+
   private func receivePacket(expectedSize: Int) async throws -> Data {
+    guard let client = client else {
+      throw RTMPError.connectionNotEstablished
+    }
+
     while true {
       if handshakeData.count >= expectedSize {
         let receivedPacket = handshakeData.subdata(in: 0..<expectedSize)
         handshakeData.removeSubrange(0..<expectedSize)
-        
+
         return receivedPacket
       }
-      
-      let data = try await dataReceiver()
+
+      let data = try await client.receiveData()
       handshakeData.append(data)
     }
   }

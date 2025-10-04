@@ -20,6 +20,10 @@ public enum RTMPError: Error, Sendable {
   case stream(desc: String)
   case command(desc: String)
   case uknown(desc: String)
+  case connectionNotEstablished
+  case connectionInvalidated
+  case dataRetrievalFailed
+
   var localizedDescription: String {
     get {
       switch self {
@@ -31,6 +35,12 @@ public enum RTMPError: Error, Sendable {
         return desc
       case .uknown(let desc):
         return desc
+      case .connectionNotEstablished:
+        return "Connection not established"
+      case .connectionInvalidated:
+        return "Connection invalidated"
+      case .dataRetrievalFailed:
+        return "Data retrieval failed unexpectedly"
       }
     }
   }
@@ -140,7 +150,11 @@ extension RTMPSocket {
   }
   
   private func startShakeHands() async {
-    self.handshake = RTMPHandshake(dataSender: connection.sendData(_:), dataReceiver: receiveData)
+    guard let client = connection as? NetworkClient else {
+      await self.delegate?.socketError(self, err: .handShake(desc: "Invalid connection type"))
+      return
+    }
+    self.handshake = RTMPHandshake(client: client)
     await self.handshake?.setDelegate(delegate: self)
     do {
       try await self.handshake?.start()
