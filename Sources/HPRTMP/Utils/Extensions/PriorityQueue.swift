@@ -7,7 +7,7 @@ public enum MessagePriority {
   case low
 }
 
-actor PriorityQueue {
+actor MessagePriorityQueue {
   
   struct MessageContainer {
     let message: RTMPMessage
@@ -30,27 +30,34 @@ actor PriorityQueue {
       lowPriorityQueue.append(container)
     }
     
-    waitMessageContinuation?.resume()
-    waitMessageContinuation = nil
+    resumeWaitContinuationIfNeeded()
   }
   
   func dequeue() async -> MessageContainer? {
     while !Task.isCancelled {
       if !highPriorityQueue.isEmpty {
         return highPriorityQueue.removeFirst()
-      } else if !mediumPriorityQueue.isEmpty {
+      }
+      
+      if !mediumPriorityQueue.isEmpty {
         return mediumPriorityQueue.removeFirst()
-      } else if !lowPriorityQueue.isEmpty {
+      }
+      
+      if !lowPriorityQueue.isEmpty {
         return lowPriorityQueue.removeFirst()
-      } else {
-        await withTaskCancellationHandler {
-          await withCheckedContinuation { cont in
-            self.waitMessageContinuation = cont
-          }
-        } onCancel: {
+      }
+
+      await withTaskCancellationHandler {
+        await withCheckedContinuation { (cont: CheckedContinuation<Void, Never>) in
+          self.waitMessageContinuation = cont
+        }
+      } onCancel: {
+        Task { [weak self] in
+          await self?.resumeWaitContinuationIfNeeded()
         }
       }
     }
+    
     return nil
   }
   
@@ -60,5 +67,11 @@ actor PriorityQueue {
   
   var pendingMessageCount: Int {
     highPriorityQueue.count + mediumPriorityQueue.count + lowPriorityQueue.count
+  }
+
+  private func resumeWaitContinuationIfNeeded() {
+    guard let waitMessageContinuation else { return }
+    waitMessageContinuation.resume()
+    self.waitMessageContinuation = nil
   }
 }
