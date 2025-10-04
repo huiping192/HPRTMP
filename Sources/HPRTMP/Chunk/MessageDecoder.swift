@@ -60,19 +60,19 @@ actor MessageDecoder {
       return PeerBandwidthMessage(windowSize: peer, limit: .dynamic)
     case .command(type: let type):
       let data = type == .amf0 ? chunkPayload.decodeAMF0() : chunkPayload.decodeAMF3()
-      
+
       // first is command name
-      guard let commandName = data?.first as? String else { return nil }
-      
+      guard let commandName = data?.first?.stringValue else { return nil }
+
       // second is Transaction ID, number
-      let transactionId = data?[safe: 1] as? Double
-      
+      let transactionId = data?[safe: 1]?.doubleValue
+
       // third is command object
-      let objcet = data?[safe: 2] as? [String: Any]
-      
+      let objcet = data?[safe: 2]?.toAny() as? [String: Any]
+
       // fourth is info, maybe object([String: Any?]) or Number(connect messsage)
-      let info = data?[safe: 3]
-      
+      let info = data?[safe: 3]?.toAny()
+
       return CommandMessage(encodeType: type, commandName: commandName, msgStreamId: msgStreamId, transactionId: Int(transactionId ?? 0), commandObject: objcet, info: info)
     case .data(type: let type):
       return AnyDataMessage(encodeType: type, msgStreamId: msgStreamId)

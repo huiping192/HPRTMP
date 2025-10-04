@@ -14,45 +14,45 @@ class AMF0DecoderTests: XCTestCase {
     let data = 123.amf0Value
     let decoder = AMF0Decoder()
     let result = decoder.decode(data)
-    XCTAssertEqual(result?.first as? Double, 123)
+    XCTAssertEqual(result?.first?.doubleValue, 123)
   }
   func testEncodeDecodeNumber() {
     let number = 123.45
     let data = number.amf0Value
     let decoder = AMF0Decoder()
     let result = decoder.decode(data)
-    XCTAssertEqual(result?.first as? Double, number)
+    XCTAssertEqual(result?.first?.doubleValue, number)
   }
-  
+
   func testEncodeDecodeString() {
     let string = "Hello, world!"
     let data = string.amf0Value
     let decoder = AMF0Decoder()
     let result = decoder.decode(data)
-    XCTAssertEqual(result?.first as? String, string)
+    XCTAssertEqual(result?.first?.stringValue, string)
   }
-  
+
   func testEncodeDecodeLongString() {
     let longString = "This is a long string that exceeds the maximum size of a regular string in AMF0, which is 65535 bytes."
     let data = longString.amf0Value
     let decoder = AMF0Decoder()
     let result = decoder.decode(data)
-    XCTAssertEqual(result?.first as? String, longString)
+    XCTAssertEqual(result?.first?.stringValue, longString)
   }
-  
+
   func testEncodeDecodeBoolean() {
     let boolean = true
     let data = boolean.amf0Value
     let decoder = AMF0Decoder()
     let result = decoder.decode(data)
-    XCTAssertEqual(result?.first as? Bool, boolean)
+    XCTAssertEqual(result?.first?.boolValue, boolean)
   }
-  
+
   func testEncodeDecodeNull() {
     let data = Data([0x05])
     let decoder = AMF0Decoder()
     let result = decoder.decode(data)
-    XCTAssertEqual(result?.first as? String, "null")
+    XCTAssertEqual(result?.first?.stringValue, "null")
   }
   
   
@@ -61,37 +61,37 @@ class AMF0DecoderTests: XCTestCase {
     let data = object.afm0Value
     let decoder = AMF0Decoder()
     let result = decoder.decode(data)
-    
-    let dic = result?.first as? [String: Any]
+
+    let dic = result?.first?.toAny() as? [String: Any]
     XCTAssertEqual(dic?["foo"] as! String, "bar")
     XCTAssertEqual(dic?["baz"] as! Double, 123)
   }
-  
+
   func testEncodeDecodeArray() {
     let array = ["foo", "bar", 123] as [Any]
     let data = array.amf0Value
     let decoder = AMF0Decoder()
     let result = decoder.decode(data)
-    let resultArray = result?.first as? [Any]
+    let resultArray = result?.first?.toAny() as? [Any]
     XCTAssertEqual(resultArray?.first as? String, "foo")
     XCTAssertEqual(resultArray?[1] as? String, "bar")
     XCTAssertEqual(resultArray?[2] as? Double, 123)
   }
-  
+
   func testEncodeDecodeDate() {
     let date = Date(timeIntervalSince1970: 1234567890)
     let data = date.amf0Value
     let decoder = AMF0Decoder()
     let result = decoder.decode(data)
-    XCTAssertEqual(result?.first as? Date, date)
+    XCTAssertEqual(result?.first?.dateValue, date)
   }
-  
+
   func testEncodeDecodeXML() {
     let xml = "<foo>bar</foo>"
     let data = xml.amf0Value
     let decoder = AMF0Decoder()
     let result = decoder.decode(data)
-    XCTAssertEqual(result?.first as? String, xml)
+    XCTAssertEqual(result?.first?.stringValue, xml)
   }
   
 }
