@@ -35,6 +35,7 @@ actor NetworkClient: NetworkConnectable {
 
       streamConsumerTask = Task { [weak self] in
         for await data in handler.stream {
+          if Task.isCancelled { return }
           await self?.dataReservoir.dataArrived(data: data)
         }
       }
@@ -66,17 +67,22 @@ actor NetworkClient: NetworkConnectable {
   }
 
   func close() async throws {
+    // Cancel stream consumer first to stop processing new data
     streamConsumerTask?.cancel()
     streamConsumerTask = nil
 
-    await dataReservoir.close()
+    // Close channel before cleaning up other resources
     let channel = self.channel
     self.channel = nil
     try await channel?.close()
 
+    // Close data reservoir after channel is closed
+    await dataReservoir.close()
+
+    // Shutdown group only if not already done, and set flag AFTER success
     if !isGroupShutdown {
-      isGroupShutdown = true
       try await group.shutdownGracefully()
+      isGroupShutdown = true
     }
   }
 }

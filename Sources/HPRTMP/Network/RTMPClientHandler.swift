@@ -30,4 +30,8 @@ final class RTMPClientHandler: ChannelInboundHandler, Sendable {
     continuation.finish()
     context.close(promise: nil)
   }
+
+  func channelInactive(context: ChannelHandlerContext) {
+    continuation.finish()
+  }
 }
