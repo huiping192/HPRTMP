@@ -82,9 +82,9 @@ actor MessageDecoder {
       let sharedObject = data?[safe: 1] as? [String: Any]
       return SharedObjectMessage(encodeType: type, msgStreamId: msgStreamId, sharedObjectName: sharedObjectName, sharedObject: sharedObject)
     case .audio:
-      return AudioMessage(msgStreamId: msgStreamId, data: chunkPayload, timestamp: timestamp)
+      return AudioMessage(data: chunkPayload, msgStreamId: msgStreamId, timestamp: timestamp)
     case .video:
-      return VideoMessage(msgStreamId: msgStreamId, data: chunkPayload, timestamp: timestamp)
+      return VideoMessage(data: chunkPayload, msgStreamId: msgStreamId, timestamp: timestamp)
     case .aggreate:
       return nil
     case .abort:

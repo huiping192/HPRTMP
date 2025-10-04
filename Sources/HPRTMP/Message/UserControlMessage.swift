@@ -18,18 +18,28 @@ enum UserControlEventType: Int {
     case none = 0xff
 }
 
-class UserControlMessage: RTMPBaseMessage {
+struct UserControlMessage: RTMPBaseMessage {
   let type: UserControlEventType
   let data: Data
-  
+  let streamId: UInt16
+
+  var msgStreamId: Int { 0 }
+  var timestamp: UInt32 { 0 }
+  var messageType: MessageType { .control }
+  var payload: Data {
+    var data = Data()
+    data.write(UInt16(type.rawValue))
+    data.append(self.data)
+    return data
+  }
+
   init(type: UserControlEventType, data: Data, streamId: UInt16) {
     self.type = type
     self.data = data
-    
-    super.init(type: .control, streamId: streamId)
+    self.streamId = streamId
   }
-  
-  convenience init(streamBufferLength: Int, streamId: UInt16) {
+
+  init(streamBufferLength: Int, streamId: UInt16) {
     var data = Data()
     let id = UInt32(streamId).bigEndian.data
     data.append(id)
@@ -38,13 +48,4 @@ class UserControlMessage: RTMPBaseMessage {
 
     self.init(type: .streamBufferLength, data: data, streamId: streamId)
   }
-  
-  override var payload: Data {
-    var data = Data()
-    data.write(UInt16(type.rawValue))
-    data.append(data)
-    return data
-  }
-  
-  
 }

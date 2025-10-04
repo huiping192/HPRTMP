@@ -7,21 +7,30 @@
 
 import Foundation
 
-class ControlMessage: RTMPBaseMessage {
-  init(type: MessageType) {
-    super.init(type: type, streamId: RTMPChunkStreamId.control.rawValue)
+class ControlMessage: RTMPBaseMessage, @unchecked Sendable {
+  let msgStreamId: Int
+  let timestamp: UInt32
+  let messageType: MessageType
+
+  var streamId: UInt16 { RTMPChunkStreamId.control.rawValue }
+  var payload: Data { Data() }
+
+  init(type: MessageType, msgStreamId: Int = 0, timestamp: UInt32 = 0) {
+    self.messageType = type
+    self.msgStreamId = msgStreamId
+    self.timestamp = timestamp
   }
 }
 
 // Set Chunk Size (1)
-class ChunkSizeMessage: ControlMessage {
+struct ChunkSizeMessage: RTMPBaseMessage {
   let size: UInt32
-  init(size: UInt32) {
-    self.size = size
-    super.init(type: .chunkSize)
-  }
-  
-  override var payload: Data {
+
+  var msgStreamId: Int { 0 }
+  var timestamp: UInt32 { 0 }
+  var messageType: MessageType { .chunkSize }
+  var streamId: UInt16 { RTMPChunkStreamId.control.rawValue }
+  var payload: Data {
     var data = Data()
     data.write(size & 0x7FFFFFFF)
     return data
@@ -30,14 +39,14 @@ class ChunkSizeMessage: ControlMessage {
 
 
 // Abort message (2)
-class AbortMessage: ControlMessage {
+struct AbortMessage: RTMPBaseMessage {
   let chunkStreamId: UInt16
-  init(chunkStreamId : UInt16) {
-    self.chunkStreamId = chunkStreamId
-    super.init(type: .abort)
-  }
-  
-  override var payload: Data {
+
+  var msgStreamId: Int { 0 }
+  var timestamp: UInt32 { 0 }
+  var messageType: MessageType { .abort }
+  var streamId: UInt16 { RTMPChunkStreamId.control.rawValue }
+  var payload: Data {
     var data = Data()
     data.write(UInt32(chunkStreamId))
     return data
@@ -46,14 +55,14 @@ class AbortMessage: ControlMessage {
 
 
 // Acknowledgement (3)
-class AcknowledgementMessage: ControlMessage {
+struct AcknowledgementMessage: RTMPBaseMessage {
   let sequence: UInt32
-  init(sequence: UInt32) {
-    self.sequence = sequence
-    super.init(type: .acknowledgement)
-  }
-  
-  override var payload: Data {
+
+  var msgStreamId: Int { 0 }
+  var timestamp: UInt32 { 0 }
+  var messageType: MessageType { .acknowledgement }
+  var streamId: UInt16 { RTMPChunkStreamId.control.rawValue }
+  var payload: Data {
     var data = Data()
     data.write(sequence)
     return data
@@ -62,14 +71,14 @@ class AcknowledgementMessage: ControlMessage {
 
 
 //Window Acknowledgement Size (5)
-class WindowAckMessage: ControlMessage {
+struct WindowAckMessage: RTMPBaseMessage {
   let size: UInt32
-  init(size: UInt32) {
-    self.size = size
-    super.init(type: .windowAcknowledgement)
-  }
-  
-  override var payload: Data {
+
+  var msgStreamId: Int { 0 }
+  var timestamp: UInt32 { 0 }
+  var messageType: MessageType { .windowAcknowledgement }
+  var streamId: UInt16 { RTMPChunkStreamId.control.rawValue }
+  var payload: Data {
     var data = Data()
     data.write(size)
     return data
@@ -78,23 +87,22 @@ class WindowAckMessage: ControlMessage {
 
 
 //Set Peer Bandwidth (6)
-class PeerBandwidthMessage: ControlMessage {
-  
+struct PeerBandwidthMessage: RTMPBaseMessage {
+
   enum LimitType: UInt8 {
     case hard = 0
     case soft = 1
     case dynamic = 2
   }
-  
+
   let windowSize: UInt32
   let limit: LimitType
-  init(windowSize: UInt32, limit: LimitType) {
-    self.windowSize = windowSize
-    self.limit = limit
-    super.init(type: .peerBandwidth)
-  }
-  
-  override var payload: Data {
+
+  var msgStreamId: Int { 0 }
+  var timestamp: UInt32 { 0 }
+  var messageType: MessageType { .peerBandwidth }
+  var streamId: UInt16 { RTMPChunkStreamId.control.rawValue }
+  var payload: Data {
     var data = Data()
     data.write(windowSize)
     data.write(limit.rawValue)

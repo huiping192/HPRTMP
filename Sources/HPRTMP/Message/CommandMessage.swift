@@ -35,7 +35,7 @@ enum CommandNameType: String {
   case error     = "_error"
 }
 
-class CommandMessage: RTMPBaseMessage, CustomStringConvertible {
+class CommandMessage: RTMPBaseMessage, @unchecked Sendable, CustomStringConvertible {
   let encodeType: ObjectEncodingType
   let commandName: String
   var commandNameType: CommandNameType? {
@@ -43,8 +43,13 @@ class CommandMessage: RTMPBaseMessage, CustomStringConvertible {
   }
   let transactionId: Int
   let commandObject: [String: Any]?
-  
+
   let info: Any?
+  let msgStreamId: Int
+  let timestamp: UInt32
+
+  var messageType: MessageType { .command(type: encodeType) }
+  var streamId: UInt16 { RTMPChunkStreamId.command.rawValue }
 
   init(encodeType: ObjectEncodingType,
        commandName: String,
@@ -57,13 +62,14 @@ class CommandMessage: RTMPBaseMessage, CustomStringConvertible {
     self.commandObject = commandObject
     self.info = info
     self.encodeType = encodeType
-    super.init(type: .command(type: encodeType),msgStreamId: msgStreamId, streamId: RTMPChunkStreamId.command.rawValue)
+    self.msgStreamId = msgStreamId
+    self.timestamp = 0
   }
-  
-  override var payload: Data {
+
+  var payload: Data {
     var data = Data()
     let encoder = AMF0Encoder()
-    
+
     data.append((encoder.encode(commandName)) ?? Data())
     data.append((encoder.encode(Double(transactionId))) ?? Data())
     if let commandObject {
@@ -88,7 +94,7 @@ class CommandMessage: RTMPBaseMessage, CustomStringConvertible {
 }
 
 
-class ConnectMessage: CommandMessage {
+final class ConnectMessage: CommandMessage, @unchecked Sendable {
   let argument: [String: Any]?
   init(encodeType: ObjectEncodingType = .amf0,
        tcUrl: String,
@@ -129,7 +135,7 @@ class ConnectMessage: CommandMessage {
 }
 
 
-class CreateStreamMessage: CommandMessage {
+final class CreateStreamMessage: CommandMessage, @unchecked Sendable {
   init(encodeType: ObjectEncodingType = .amf0, transactionId: Int, commonObject: [String: Any]? = nil) {
     super.init(encodeType: encodeType,commandName: "createStream", transactionId: transactionId, commandObject: commonObject)
   }
@@ -156,7 +162,7 @@ class CreateStreamMessage: CommandMessage {
   }
 }
 
-class CloseStreamMessage: CommandMessage {
+final class CloseStreamMessage: CommandMessage, @unchecked Sendable {
   init(encodeType: ObjectEncodingType = .amf0, msgStreamId: Int) {
     super.init(encodeType: encodeType,commandName: "closeStream", msgStreamId: msgStreamId, transactionId: 0, commandObject: nil)
   }
@@ -168,7 +174,7 @@ class CloseStreamMessage: CommandMessage {
   }
 }
 
-class DeleteStreamMessage: CommandMessage {
+final class DeleteStreamMessage: CommandMessage, @unchecked Sendable {
   init(encodeType: ObjectEncodingType = .amf0, msgStreamId: Int) {
     super.init(encodeType: encodeType,commandName: "deleteStream", msgStreamId: msgStreamId, transactionId: 0, commandObject: nil)
   }
@@ -186,13 +192,13 @@ public enum PubishType: String {
   case append = "append"
 }
 
-class PublishMessage: CommandMessage {
+final class PublishMessage: CommandMessage, @unchecked Sendable {
   let type: PubishType
   let streamName: String
-  init(encodeType: ObjectEncodingType = .amf0, streamName: String, type: PubishType) {
+  init(encodeType: ObjectEncodingType = .amf0, streamName: String, type: PubishType, msgStreamId: Int = 0) {
     self.streamName = streamName
     self.type = type
-    super.init(encodeType: encodeType, commandName: "publish", transactionId: commonTransactionId.stream)
+    super.init(encodeType: encodeType, commandName: "publish", msgStreamId: msgStreamId, transactionId: commonTransactionId.stream)
   }
   
   override var payload: Data {
@@ -210,7 +216,7 @@ class PublishMessage: CommandMessage {
 }
 
 
-class SeekMessage: CommandMessage {
+final class SeekMessage: CommandMessage, @unchecked Sendable {
   let millSecond: Double
   init(encodeType: ObjectEncodingType = .amf0, msgStreamId: Int, millSecond: Double) {
     self.millSecond = millSecond
@@ -231,7 +237,7 @@ class SeekMessage: CommandMessage {
 }
 
 
-class PauseMessage: CommandMessage {
+final class PauseMessage: CommandMessage, @unchecked Sendable {
   let isPause: Bool
   let millSecond: Double
   init(encodeType: ObjectEncodingType = .amf0, msgStreamId:Int, isPause: Bool, millSecond: Double) {

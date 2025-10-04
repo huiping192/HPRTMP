@@ -1,4 +1,4 @@
-// swift-tools-version: 5.6
+// swift-tools-version: 6.0
 // The swift-tools-version declares the minimum version of Swift required to build this package.
 
 import PackageDescription
@@ -20,10 +20,13 @@ let package = Package(
             name: "HPRTMP",
             dependencies: [
                 .product(name: "NIO", package: "swift-nio")
+            ],
+            swiftSettings: [
+                .enableUpcomingFeature("StrictConcurrency")
             ]),
         .testTarget(
             name: "HPRTMPTests",
             dependencies: ["HPRTMP"]),
     ],
-    swiftLanguageVersions: [.v5]
+    swiftLanguageModes: [.version("6")]
 )

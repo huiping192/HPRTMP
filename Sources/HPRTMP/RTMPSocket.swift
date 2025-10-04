@@ -15,7 +15,7 @@ public enum RTMPStatus {
   case closed
 }
 
-public enum RTMPError: Error {
+public enum RTMPError: Error, Sendable {
   case handShake(desc: String)
   case stream(desc: String)
   case command(desc: String)

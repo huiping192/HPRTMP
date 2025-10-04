@@ -10,7 +10,7 @@ public protocol RTMPPublishSessionDelegate: Actor {
 }
 
 public actor RTMPPublishSession {
-  public enum Status: Equatable {
+  public enum Status: Equatable, Sendable {
     case unknown
     case handShakeStart
     case handShakeDone
@@ -78,26 +78,26 @@ public actor RTMPPublishSession {
   private var audioHeaderSended = false
 
   public func publishVideoHeader(data: Data) async {
-    let message = VideoMessage(msgStreamId: connectId, data: data, timestamp: 0)
+    let message = VideoMessage(data: data, msgStreamId: connectId, timestamp: 0)
     await socket.send(message: message, firstType: true)
     videoHeaderSended = true
   }
-  
+
   public func publishVideo(data: Data, delta: UInt32) async {
     guard videoHeaderSended else { return }
-    let message = VideoMessage(msgStreamId: connectId, data: data, timestamp: delta)
+    let message = VideoMessage(data: data, msgStreamId: connectId, timestamp: delta)
     await socket.send(message: message, firstType: false)
   }
-  
+
   public func publishAudioHeader(data: Data) async {
-    let message = AudioMessage(msgStreamId: connectId, data: data, timestamp: 0)
+    let message = AudioMessage(data: data, msgStreamId: connectId, timestamp: 0)
     await socket.send(message: message, firstType: true)
     audioHeaderSended = true
   }
-  
+
   public func publishAudio(data: Data, delta: UInt32) async {
     guard audioHeaderSended else { return }
-    let message = AudioMessage(msgStreamId: connectId, data: data, timestamp: delta)
+    let message = AudioMessage(data: data, msgStreamId: connectId, timestamp: delta)
     await socket.send(message: message, firstType: false)
   }
   
@@ -170,10 +170,9 @@ extension RTMPPublishSession: RTMPSocketDelegate {
   func socketCreateStreamDone(_ socket: RTMPSocket, msgStreamId: Int) {
     Task {
       publishStatus = .connect
-      
-      let message = await PublishMessage(encodeType: encodeType, streamName: socket.urlInfo?.key ?? "", type: .live)
-      
-      message.msgStreamId = msgStreamId
+
+      let message = await PublishMessage(encodeType: encodeType, streamName: socket.urlInfo?.key ?? "", type: .live, msgStreamId: msgStreamId)
+
       self.connectId = msgStreamId
       await socket.send(message: message, firstType: true)
     }

@@ -5,29 +5,35 @@ import XCTest
 final class WindowControlTests: XCTestCase {
       
   func testAddInBytesCount() async {
-    var inbytesCount: UInt32 = 0
+    actor Counter {
+      var value: UInt32 = 0
+      func update(_ newValue: UInt32) { value = newValue }
+    }
+    let counter = Counter()
     let windowControl = WindowControl()
-    
+
     await windowControl.setWindowSize(250000)
     await windowControl.setInBytesWindowEvent { totalInBytes in
-      inbytesCount = totalInBytes
+      await counter.update(totalInBytes)
     }
         
     await windowControl.addInBytesCount(250000)
-    
+
     let count = await windowControl.totalInBytesCount
     let seq = await windowControl.totalInBytesSeq
+    let inbytesCount = await counter.value
     XCTAssertEqual(count, 250000)
     XCTAssertEqual(seq, 2)
     XCTAssertEqual(inbytesCount, 250000)
 
-    
+
     await windowControl.addInBytesCount(250000)
     let count2 = await windowControl.totalInBytesCount
     let seq2 = await windowControl.totalInBytesSeq
+    let inbytesCount2 = await counter.value
     XCTAssertEqual(count2, 500000)
     XCTAssertEqual(seq2, 3)
-    XCTAssertEqual(inbytesCount, 500000)
+    XCTAssertEqual(inbytesCount2, 500000)
   }
   
   func testAddOutBytesCount() async {

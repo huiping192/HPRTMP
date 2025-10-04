@@ -18,60 +18,48 @@ enum RTMPChunkStreamId: UInt16 {
   case video = 5
 }
 
-protocol RTMPMessage {
-  var timestamp: UInt32 { set get }
+public protocol RTMPMessage: Sendable {
+  var timestamp: UInt32 { get }
   var messageType: MessageType { get }
-  var msgStreamId: Int  { get set }
+  var msgStreamId: Int  { get }
   var streamId: UInt16  { get }
-  
+
   var payload: Data { get}
-  
+
   var priority: MessagePriority { get }
 }
 
-extension RTMPMessage {
+public extension RTMPMessage {
   var priority: MessagePriority {
     .high
   }
 }
 
-public class RTMPBaseMessage: RTMPMessage {
-  let messageType: MessageType
-  var msgStreamId: Int
-  let streamId: UInt16
-  
-  var payload: Data {
-    Data()
-  }
-  
-  init(type: MessageType, msgStreamId: Int = 0, streamId: UInt16) {
-    self.messageType = type
-    self.msgStreamId = msgStreamId
-    self.streamId = streamId
-  }
-  
-  private var _timeInterval: UInt32 = 0
-  public var timestamp:UInt32  {
-    set {
-      _timeInterval = newValue >= maxTimestamp ? maxTimestamp : newValue
-    } get {
-      return _timeInterval
-    }
-  }
+public protocol RTMPBaseMessage: RTMPMessage {
+  var messageType: MessageType { get }
+  var msgStreamId: Int { get }
+  var streamId: UInt16 { get }
+  var timestamp: UInt32 { get }
 }
 
 
-class DataMessage: RTMPBaseMessage {
-  var encodeType: ObjectEncodingType
-  init(encodeType: ObjectEncodingType, msgStreamId: Int) {
+class DataMessage: RTMPBaseMessage, @unchecked Sendable {
+  let encodeType: ObjectEncodingType
+  let msgStreamId: Int
+  let timestamp: UInt32
+
+  var messageType: MessageType { .data(type: encodeType) }
+  var streamId: UInt16 { RTMPChunkStreamId.command.rawValue }
+  var payload: Data { Data() }
+
+  init(encodeType: ObjectEncodingType, msgStreamId: Int, timestamp: UInt32 = 0) {
     self.encodeType = encodeType
-    super.init(type: .data(type: encodeType),
-               msgStreamId: msgStreamId,
-               streamId: RTMPChunkStreamId.command.rawValue)
+    self.msgStreamId = msgStreamId
+    self.timestamp = min(timestamp, maxTimestamp)
   }
 }
 
-class MetaMessage: DataMessage {
+final class MetaMessage: DataMessage, @unchecked Sendable {
   let meta: [String: Any]
   init(encodeType: ObjectEncodingType, msgStreamId: Int, meta: [String: Any]) {
     self.meta = meta
@@ -90,45 +78,30 @@ class MetaMessage: DataMessage {
 }
 
 
-class VideoMessage: RTMPBaseMessage {
+struct VideoMessage: RTMPBaseMessage {
   let data: Data
-  init(msgStreamId: Int, data: Data, timestamp: UInt32) {
-    self.data = data
-    super.init(type: .video,
-               msgStreamId: msgStreamId,
-               streamId: RTMPChunkStreamId.video.rawValue)
-    self.timestamp = timestamp
-  }
-  override var payload: Data {
-    return data
-  }
-  
-  var priority: MessagePriority {
-    .low
-  }
+  let msgStreamId: Int
+  let timestamp: UInt32
+
+  var messageType: MessageType { .video }
+  var streamId: UInt16 { RTMPChunkStreamId.video.rawValue }
+  var payload: Data { data }
+  var priority: MessagePriority { .low }
 }
 
 
-class AudioMessage: RTMPBaseMessage {
+struct AudioMessage: RTMPBaseMessage {
   let data: Data
-  
-  init(msgStreamId: Int, data: Data, timestamp: UInt32) {
-    self.data = data
-    super.init(type: .audio,
-               msgStreamId: msgStreamId,
-               streamId: RTMPChunkStreamId.audio.rawValue)
-    self.timestamp = timestamp
-  }
-  override var payload: Data {
-    return data
-  }
-  
-  var priority: MessagePriority {
-    .medium
-  }
+  let msgStreamId: Int
+  let timestamp: UInt32
+
+  var messageType: MessageType { .audio }
+  var streamId: UInt16 { RTMPChunkStreamId.audio.rawValue }
+  var payload: Data { data }
+  var priority: MessagePriority { .medium }
 }
 
-class SharedObjectMessage: DataMessage {
+final class SharedObjectMessage: DataMessage, @unchecked Sendable {
   let sharedObjectName: String?
   let sharedObject: [String: Any]?
   

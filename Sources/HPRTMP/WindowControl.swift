@@ -17,13 +17,13 @@ actor WindowControl {
   private(set) var totalOutBytesSeq: UInt32 = 1
 
   // Callback function triggered when incoming bytes reach the window limit.
-  private(set) var inBytesWindowEvent: ((UInt32) async -> Void)? = nil
-  
+  private(set) var inBytesWindowEvent: (@Sendable (UInt32) async -> Void)? = nil
+
   // The last byte count acknowledged by a peer.
   private(set) var receivedAcknowledgement: UInt32 = 0
-  
+
   // Sets the callback function for incoming byte window events.
-  func setInBytesWindowEvent(_ inBytesWindowEvent:((UInt32) async -> Void)?) {
+  func setInBytesWindowEvent(_ inBytesWindowEvent: (@Sendable (UInt32) async -> Void)?) {
     self.inBytesWindowEvent = inBytesWindowEvent
   }
   
