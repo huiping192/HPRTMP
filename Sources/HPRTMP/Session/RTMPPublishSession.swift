@@ -56,10 +56,11 @@ public actor RTMPPublishSession {
   private var configure: PublishConfigure?
   
   private var connectId: Int = 0
-  
+
   private let logger = Logger(subsystem: "HPRTMP", category: "Publish")
 
-  
+  private var eventTasks: [Task<Void, Never>] = []
+
   public init() {}
   
   public func publish(url: String, configure: PublishConfigure) async {
@@ -67,10 +68,32 @@ public actor RTMPPublishSession {
     if socket != nil {
       await socket.invalidate()
     }
+
+    // Cancel previous event tasks
+    eventTasks.forEach { $0.cancel() }
+    eventTasks.removeAll()
+
     socket = await RTMPSocket()
     await socket.setDelegate(delegate: self)
+
+    // Subscribe to stream events
+    let streamTask = Task {
+      for await event in await socket.streamEvents {
+        await handleStreamEvent(event)
+      }
+    }
+    eventTasks.append(streamTask)
+
+    // Subscribe to connection events
+    let connectionTask = Task {
+      for await event in await socket.connectionEvents {
+        await handleConnectionEvent(event)
+      }
+    }
+    eventTasks.append(connectionTask)
+
     await socket.connect(url: url)
-    
+
     publishStatus = .handShakeStart
   }
   
@@ -102,6 +125,10 @@ public actor RTMPPublishSession {
   }
   
   public func invalidate() async {
+    // Cancel event tasks
+    eventTasks.forEach { $0.cancel() }
+    eventTasks.removeAll()
+
     // send closeStream
     let closeStreamMessage = CloseStreamMessage(msgStreamId: connectId)
     await socket.send(message: closeStreamMessage, firstType: true)
@@ -113,44 +140,46 @@ public actor RTMPPublishSession {
     await self.socket.invalidate()
     self.publishStatus = .disconnected
   }
-}
 
-extension RTMPPublishSession: RTMPSocketDelegate {
-  
-
-  // publisher dont need implement
-  func socketStreamRecord(_ socket: RTMPSocket) {}
-  func socketStreamPlayStart(_ socket: RTMPSocket) {}
-  func socketStreamPause(_ socket: RTMPSocket, pause: Bool) {}
-  
-  
-  func socketStreamPublishStart(_ socket: RTMPSocket) {
-    Task {
-      logger.debug("socketStreamPublishStart")
+  private func handleStreamEvent(_ event: RTMPStreamEvent) async {
+    switch event {
+    case .publishStart:
+      logger.debug("publishStart event received")
       publishStatus = .publishStart
       guard let configure = configure else { return }
       let metaMessage = MetaMessage(encodeType: encodeType, msgStreamId: connectId, meta: configure.metaData)
       await socket.send(message: metaMessage, firstType: true)
-    }
-  }
-  
-  func socketConnectDone(_ socket: RTMPSocket) {
-    Task {
-      let message = CreateStreamMessage(encodeType: encodeType, transactionId: await transactionIdGenerator.nextId())
-      await self.socket.messageHolder.register(transactionId: message.transactionId, message: message)
+
+    case .pingRequest(let data):
+      let message = UserControlMessage(type: .pingResponse, data: data, streamId: UInt16(connectId))
       await socket.send(message: message, firstType: true)
-      
-      // make chunk size more bigger
-      let chunkSize: UInt32 = 128 * 6
-      let size = ChunkSizeMessage(size: chunkSize)
-      await socket.send(message: size, firstType: true)
+
+    case .playStart, .record, .pause:
+      // Publisher doesn't need to handle these events
+      break
     }
   }
-  
+
+  private func handleConnectionEvent(_ event: RTMPConnectionEvent) async {
+    switch event {
+    case .peerBandwidthChanged(let size):
+      // send window ack message to server
+      await socket.send(message: WindowAckMessage(size: size), firstType: true)
+
+    case .statistics(let statistics):
+      await delegate?.sessionTransmissionStatisticsChanged(self, statistics: statistics)
+
+    case .disconnected:
+      publishStatus = .disconnected
+    }
+  }
+}
+
+extension RTMPPublishSession: RTMPSocketDelegate {
   func socketHandShakeDone(_ socket: RTMPSocket) {
     Task {
       publishStatus = .handShakeDone
-      
+
       guard let urlInfo = await socket.urlInfo else { return }
       let connect = ConnectMessage(encodeType: encodeType,
                                    tcUrl: urlInfo.tcUrl,
@@ -163,7 +192,20 @@ extension RTMPPublishSession: RTMPSocketDelegate {
       await self.socket.send(message: connect, firstType: true)
     }
   }
-  
+
+  func socketConnectDone(_ socket: RTMPSocket) {
+    Task {
+      let message = CreateStreamMessage(encodeType: encodeType, transactionId: await transactionIdGenerator.nextId())
+      await self.socket.messageHolder.register(transactionId: message.transactionId, message: message)
+      await socket.send(message: message, firstType: true)
+
+      // make chunk size more bigger
+      let chunkSize: UInt32 = 128 * 6
+      let size = ChunkSizeMessage(size: chunkSize)
+      await socket.send(message: size, firstType: true)
+    }
+  }
+
   func socketCreateStreamDone(_ socket: RTMPSocket, msgStreamId: Int) {
     Task {
       publishStatus = .connect
@@ -174,34 +216,10 @@ extension RTMPPublishSession: RTMPSocketDelegate {
       await socket.send(message: message, firstType: true)
     }
   }
-  
-  func socketPinRequest(_ socket: RTMPSocket, data: Data) {
-    Task {
-      let message = UserControlMessage(type: .pingResponse, data: data, streamId: UInt16(connectId))
-      await socket.send(message: message, firstType: true)
-    }
-  }
-  
+
   func socketError(_ socket: RTMPSocket, err: RTMPError) {
     Task {
       await delegate?.sessionError(self, error: err)
-    }
-  }
-  
-  func socketPeerBandWidth(_ socket: RTMPSocket, size: UInt32) {
-    Task {
-      // send window ack message  to server
-      await socket.send(message: WindowAckMessage(size: size), firstType: true)
-    }
-  }
-  
-  func socketDisconnected(_ socket: RTMPSocket) {
-    publishStatus = .disconnected
-  }
-  
-  func socketStreamStatistics(_ socket: RTMPSocket, statistics: TransmissionStatistics) {
-    Task {
-      await delegate?.sessionTransmissionStatisticsChanged(self, statistics: statistics)
     }
   }
 }

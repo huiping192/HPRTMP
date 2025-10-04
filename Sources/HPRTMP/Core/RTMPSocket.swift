@@ -49,29 +49,18 @@ public enum RTMPError: Error, Sendable {
   }
 }
 
-public struct TransmissionStatistics {
+public struct TransmissionStatistics: Sendable {
   // todo
 //  let rtt: Int
-  
+
   let pendingMessageCount: Int
 }
 
 protocol RTMPSocketDelegate: Actor {
   func socketHandShakeDone(_ socket: RTMPSocket)
-  func socketPinRequest(_ socket: RTMPSocket, data: Data)
   func socketConnectDone(_ socket: RTMPSocket)
   func socketCreateStreamDone(_ socket: RTMPSocket, msgStreamId: Int)
   func socketError(_ socket: RTMPSocket, err: RTMPError)
-  func socketPeerBandWidth(_ socket: RTMPSocket, size: UInt32)
-  func socketDisconnected(_ socket: RTMPSocket)
-
-
-  func socketStreamPublishStart(_ socket: RTMPSocket)
-  func socketStreamRecord(_ socket: RTMPSocket)
-  func socketStreamPlayStart(_ socket: RTMPSocket)
-  func socketStreamPause(_ socket: RTMPSocket, pause: Bool)
-  
-  func socketStreamStatistics(_ socket: RTMPSocket, statistics: TransmissionStatistics)
 }
 
 public actor RTMPSocket {
@@ -83,6 +72,14 @@ public actor RTMPSocket {
   // AsyncStream for media events
   private let mediaContinuation: AsyncStream<RTMPMediaEvent>.Continuation
   public let mediaEvents: AsyncStream<RTMPMediaEvent>
+
+  // AsyncStream for stream events
+  private let streamContinuation: AsyncStream<RTMPStreamEvent>.Continuation
+  public let streamEvents: AsyncStream<RTMPStreamEvent>
+
+  // AsyncStream for connection events
+  private let connectionContinuation: AsyncStream<RTMPConnectionEvent>.Continuation
+  public let connectionEvents: AsyncStream<RTMPConnectionEvent>
 
   weak var delegate: RTMPSocketDelegate?
   
@@ -115,6 +112,16 @@ public actor RTMPSocket {
     var mediaCont: AsyncStream<RTMPMediaEvent>.Continuation!
     self.mediaEvents = AsyncStream { mediaCont = $0 }
     self.mediaContinuation = mediaCont
+
+    // Initialize stream events stream
+    var streamCont: AsyncStream<RTMPStreamEvent>.Continuation!
+    self.streamEvents = AsyncStream { streamCont = $0 }
+    self.streamContinuation = streamCont
+
+    // Initialize connection events stream
+    var connCont: AsyncStream<RTMPConnectionEvent>.Continuation!
+    self.connectionEvents = AsyncStream { connCont = $0 }
+    self.connectionContinuation = connCont
 
     await windowControl.setInBytesWindowEvent { [weak self]inbytesCount in
       await self?.sendAcknowledgementMessage(sequence: inbytesCount)
@@ -189,7 +196,7 @@ extension RTMPSocket {
     try? await connection.close()
     urlInfo = nil
     status = .closed
-    await delegate?.socketDisconnected(self)
+    connectionContinuation.yield(.disconnected)
   }
   
   private func startSendMessages() {
@@ -283,7 +290,7 @@ extension RTMPSocket {
         
         let pendingMessageCount = await messagePriorityQueue.pendingMessageCount
         let statistics = TransmissionStatistics(pendingMessageCount: pendingMessageCount)
-        await delegate?.socketStreamStatistics(self, statistics: statistics)
+        connectionContinuation.yield(.statistics(statistics))
       }
     }
     
@@ -340,7 +347,7 @@ extension RTMPSocket {
     case let peerBandwidthMessage as PeerBandwidthMessage:
       logger.info("PeerBandwidthMessage, size \(peerBandwidthMessage.windowSize)")
       await tokenBucket.update(rate: Int(peerBandwidthMessage.windowSize), capacity: Int(peerBandwidthMessage.windowSize))
-      await delegate?.socketPeerBandWidth(self, size: peerBandwidthMessage.windowSize)
+      connectionContinuation.yield(.peerBandwidthChanged(peerBandwidthMessage.windowSize))
 
     case let chunkSizeMessage as ChunkSizeMessage:
       logger.info("chunkSizeMessage, size \(chunkSizeMessage.size)")
@@ -354,9 +361,9 @@ extension RTMPSocket {
       logger.info("UserControlMessage, message Type:  \(userControlMessage.type.rawValue)")
       switch userControlMessage.type {
       case .pingRequest:
-        await self.delegate?.socketPinRequest(self, data: userControlMessage.data)
+        streamContinuation.yield(.pingRequest(userControlMessage.data))
       case .streamIsRecorded:
-        await self.delegate?.socketStreamRecord(self)
+        streamContinuation.yield(.record)
       default:
         break
       }
@@ -395,13 +402,13 @@ extension RTMPSocket {
       }
       switch statusResponse.code {
       case .publishStart:
-        await self.delegate?.socketStreamPublishStart(self)
+        streamContinuation.yield(.publishStart)
       case .playStart:
-        await self.delegate?.socketStreamPlayStart(self)
+        streamContinuation.yield(.playStart)
       case .pauseNotify:
-        await self.delegate?.socketStreamPause(self, pause: true)
+        streamContinuation.yield(.pause(true))
       case .unpauseNotify:
-        await self.delegate?.socketStreamPause(self, pause: false)
+        streamContinuation.yield(.pause(false))
       default:
         break
       }
