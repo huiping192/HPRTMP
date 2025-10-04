@@ -23,23 +23,16 @@ public struct PublishConfigure {
     self.audioSamplerate = audioSamplerate
   }
   
-  var meta: [String: Any] {
-    var dic: [String: Any] = [
-      "width": Int32(width),
-      "height": Int32(height),
-      "videocodecid": videocodecid,
-      "audiocodecid": audiocodecid,
-      "framerate": framerate
-    ]
-    if let videoDatarate {
-      dic["videodatarate"] = videoDatarate
-    }
-    if let audioDatarate {
-      dic["audiodatarate"] = audioDatarate
-    }
-    if let audioSamplerate {
-      dic["audiosamplerate"] = audioSamplerate
-    }
-    return dic
+  var metaData: MetaData {
+    MetaData(
+      width: Int32(width),
+      height: Int32(height),
+      videocodecid: videocodecid,
+      audiocodecid: audiocodecid,
+      framerate: framerate,
+      videodatarate: videoDatarate,
+      audiodatarate: audioDatarate,
+      audiosamplerate: audioSamplerate
+    )
   }
 }

@@ -132,7 +132,7 @@ extension RTMPPublishSession: RTMPSocketDelegate {
       logger.debug("socketStreamPublishStart")
       publishStatus = .publishStart
       guard let configure = configure else { return }
-      let metaMessage = MetaMessage(encodeType: encodeType, msgStreamId: connectId, meta: configure.meta)
+      let metaMessage = MetaMessage(encodeType: encodeType, msgStreamId: connectId, meta: configure.metaData)
       await socket.send(message: metaMessage, firstType: true)
     }
   }

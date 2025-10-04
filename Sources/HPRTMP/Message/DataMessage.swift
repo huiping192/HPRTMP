@@ -58,29 +58,54 @@ extension DataMessage {
 struct AnyDataMessage: DataMessage, Sendable {
   let encodeType: ObjectEncodingType
   let msgStreamId: Int
-  
+
   var payload: Data {
     Data()
   }
 }
 
-final class MetaMessage: DataMessage, @unchecked Sendable {
+public struct MetaData: Sendable {
+  let width: Int32
+  let height: Int32
+  let videocodecid: Int
+  let audiocodecid: Int
+  let framerate: Int
+  let videodatarate: Int?
+  let audiodatarate: Int?
+  let audiosamplerate: Int?
+
+  var dictionary: [String: Any] {
+    var dic: [String: Any] = [
+      "width": width,
+      "height": height,
+      "videocodecid": videocodecid,
+      "audiocodecid": audiocodecid,
+      "framerate": framerate
+    ]
+    if let videodatarate {
+      dic["videodatarate"] = videodatarate
+    }
+    if let audiodatarate {
+      dic["audiodatarate"] = audiodatarate
+    }
+    if let audiosamplerate {
+      dic["audiosamplerate"] = audiosamplerate
+    }
+    return dic
+  }
+}
+
+struct MetaMessage: DataMessage {
   let encodeType: ObjectEncodingType
   let msgStreamId: Int
-  
-  let meta: [String: Any]
-  init(encodeType: ObjectEncodingType, msgStreamId: Int, meta: [String: Any]) {
-    self.encodeType = encodeType
-    self.msgStreamId = msgStreamId
-    self.meta = meta
-  }
-  
+  let meta: MetaData
+
   var payload: Data {
     var data = Data()
     let encoder = AMF0Encoder()
     data.append((encoder.encode("onMetaData")) ?? Data())
-    data.append((encoder.encode(meta)) ?? Data())
-    
+    data.append((encoder.encode(meta.dictionary)) ?? Data())
+
     return data
   }
 }
