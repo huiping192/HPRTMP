@@ -158,11 +158,10 @@ extension RTMPSocket {
     do {
       try await self.handshake?.start()
 
-      // 握手成功，执行后续逻辑
       await self.delegate?.socketHandShakeDone(self)
-      await startSendMessages()
-      await startReceiveData()
-      await startUpdateTransmissionStatistics()
+      startSendMessages()
+      startReceiveData()
+      startUpdateTransmissionStatistics()
     } catch {
       await self.delegate?.socketError(self, err: .handShake(desc: error.localizedDescription))
     }
