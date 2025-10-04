@@ -12,6 +12,7 @@ actor MessagePriorityQueue {
   struct MessageContainer {
     let message: RTMPMessage
     let isFirstType: Bool
+    var continuation: CheckedContinuation<Void, Never>?
   }
   
   private var highPriorityQueue: [MessageContainer] = []
@@ -19,8 +20,8 @@ actor MessagePriorityQueue {
   private var lowPriorityQueue: [MessageContainer] = []
   private var waitMessageContinuation: CheckedContinuation<Void, Never>? = nil
   
-  func enqueue(_ message: RTMPMessage, firstType: Bool) {
-    let container = MessageContainer(message: message, isFirstType: firstType)
+  func enqueue(_ message: RTMPMessage, firstType: Bool, continuation: CheckedContinuation<Void, Never>? = nil) {
+    let container = MessageContainer(message: message, isFirstType: firstType, continuation: continuation)
     switch message.priority {
     case .high:
       highPriorityQueue.append(container)
@@ -29,7 +30,7 @@ actor MessagePriorityQueue {
     case .low:
       lowPriorityQueue.append(container)
     }
-    
+
     resumeWaitContinuationIfNeeded()
   }
   
