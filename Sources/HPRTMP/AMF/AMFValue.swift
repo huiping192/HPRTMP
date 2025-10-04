@@ -111,3 +111,161 @@ extension AMFValue {
     }
   }
 }
+
+// MARK: - AMF0 Encoding Support
+extension AMFValue: AMF0Encodable {
+  public var amf0Value: Data {
+    switch self {
+    case .double(let value):
+      return value.amf0Value
+    case .int(let value):
+      // Convert AMF3 int to AMF0 number (double)
+      return Double(value).amf0Value
+    case .bool(let value):
+      return value.amf0Value
+    case .string(let value):
+      return value.amf0Value
+    case .null:
+      var data = Data()
+      data.write(RTMPAMF0Type.null.rawValue)
+      return data
+    case .undefined:
+      // AMF0 doesn't have undefined, use null
+      var data = Data()
+      data.write(RTMPAMF0Type.null.rawValue)
+      return data
+    case .date(let value):
+      return value.amf0Value
+    case .object(let dict):
+      // Convert [String: AMFValue] to AMF0 object
+      var data = Data()
+      data.write(RTMPAMF0Type.object.rawValue)
+      for (key, value) in dict {
+        data.append(key.amf0KeyEncode)
+        data.append(value.amf0Value)
+      }
+      data.write([0x00, 0x00, RTMPAMF0Type.objectEnd.rawValue])
+      return data
+    case .array(let arr):
+      // Convert [AMFValue] to AMF0 strict array
+      var data = Data()
+      data.write(RTMPAMF0Type.strictArray.rawValue)
+      data.write(UInt32(arr.count))
+      for value in arr {
+        data.append(value.amf0Value)
+      }
+      return data
+    case .byteArray(let value):
+      // AMF0 doesn't have byteArray, encode as string
+      return value.base64EncodedString().amf0Value
+    case .vectorInt(let arr):
+      // Convert to AMF0 array of numbers
+      return arr.map { Double($0) }.amf0Value
+    case .vectorUInt(let arr):
+      // Convert to AMF0 array of numbers
+      return arr.map { Double($0) }.amf0Value
+    case .vectorDouble(let arr):
+      // Convert to AMF0 array of numbers
+      return arr.amf0Value
+    case .vectorObject(let arr):
+      // Convert to AMF0 strict array
+      var data = Data()
+      data.write(RTMPAMF0Type.strictArray.rawValue)
+      data.write(UInt32(arr.count))
+      for value in arr {
+        data.append(value.amf0Value)
+      }
+      return data
+    }
+  }
+}
+
+// MARK: - AMF3 Encoding Support
+extension AMFValue: AMF3Encodable {
+  public var amf3Value: Data {
+    switch self {
+    case .double(let value):
+      return value.amf3Value
+    case .int(let value):
+      return value.amf3Value
+    case .bool(let value):
+      return value.amf3Value
+    case .string(let value):
+      return value.amf3Value
+    case .null:
+      return Data([RTMPAMF3Type.null.rawValue])
+    case .undefined:
+      return Data([RTMPAMF3Type.undefined.rawValue])
+    case .date(let value):
+      return value.amf3Value
+    case .object(let dict):
+      // Convert [String: AMFValue] to AMF3 object
+      var data = Data()
+      data.write([RTMPAMF3Type.object.rawValue, 0x0b, RTMPAMF3Type.null.rawValue])
+      for (key, value) in dict {
+        data.append(key.amf3KeyValue)
+        data.append(value.amf3Value)
+      }
+      data.write(RTMPAMF3Type.null.rawValue)
+      return data
+    case .array(let arr):
+      // Convert [AMFValue] to AMF3 array
+      let encodeLength = (arr.count << 1 | 0x01).amf3LengthConvert
+      var data = Data()
+      data.write(RTMPAMF3Type.array.rawValue)
+      data.append(encodeLength)
+      data.write(RTMPAMF3Type.null.rawValue) // Empty string for associative part
+      for value in arr {
+        data.append(value.amf3Value)
+      }
+      return data
+    case .byteArray(let value):
+      return value.amf3ByteValue
+    case .vectorInt(let arr):
+      let encodeLength = (arr.count << 1 | 0x01).amf3LengthConvert
+      var data = Data()
+      data.write(RTMPAMF3Type.vectorInt.rawValue)
+      data.append(encodeLength)
+      data.write(AMF3EncodeType.Vector.dynamic.rawValue)
+      for value in arr {
+        data.append(value.bigEndian.data)
+      }
+      return data
+    case .vectorUInt(let arr):
+      let encodeLength = (arr.count << 1 | 0x01).amf3LengthConvert
+      var data = Data()
+      data.write(RTMPAMF3Type.vectorUInt.rawValue)
+      data.append(encodeLength)
+      data.write(AMF3EncodeType.Vector.dynamic.rawValue)
+      for value in arr {
+        data.append(value.bigEndian.data)
+      }
+      return data
+    case .vectorDouble(let arr):
+      let encodeLength = (arr.count << 1 | 0x01).amf3LengthConvert
+      var data = Data()
+      data.write(RTMPAMF3Type.vectorDouble.rawValue)
+      data.append(encodeLength)
+      data.write(AMF3EncodeType.Vector.dynamic.rawValue)
+      for value in arr {
+        data.append(Data(value.bitPattern.data.reversed()))
+      }
+      return data
+    case .vectorObject(let arr):
+      let encodeLength = (arr.count << 1 | 0x01).amf3LengthConvert
+      var data = Data()
+      data.write(RTMPAMF3Type.vectorObject.rawValue)
+      data.append(encodeLength)
+      data.write(AMF3EncodeType.Vector.dynamic.rawValue)
+      // Object type name
+      let typeName = "*"
+      let typeLength = (typeName.count << 1 | 0x01).amf3LengthConvert
+      data.append(typeLength)
+      data.append(Data(typeName.utf8))
+      for value in arr {
+        data.append(value.amf3Value)
+      }
+      return data
+    }
+  }
+}
