@@ -23,6 +23,7 @@ public enum RTMPError: Error, Sendable {
   case connectionNotEstablished
   case connectionInvalidated
   case dataRetrievalFailed
+  case bufferOverflow
 
   var localizedDescription: String {
     get {
@@ -41,6 +42,8 @@ public enum RTMPError: Error, Sendable {
         return "Connection invalidated"
       case .dataRetrievalFailed:
         return "Data retrieval failed unexpectedly"
+      case .bufferOverflow:
+        return "Buffer overflow: received data exceeds maximum allowed size"
       }
     }
   }
