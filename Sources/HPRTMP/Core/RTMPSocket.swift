@@ -100,7 +100,7 @@ public actor RTMPSocket {
   
   private let windowControl = WindowControl()
   
-  private let messagePriorityQueue = PriorityQueue()
+  private let messagePriorityQueue = MessagePriorityQueue()
   private let tokenBucket: TokenBucket = TokenBucket()
   
   private let urlParser = RTMPURLParser()
