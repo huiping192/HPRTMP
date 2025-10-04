@@ -1,7 +1,7 @@
 import Foundation
 
 
-enum MessagePriority {
+public enum MessagePriority {
   case high
   case medium
   case low

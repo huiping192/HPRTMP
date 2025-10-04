@@ -35,44 +35,43 @@ enum CommandNameType: String {
   case error     = "_error"
 }
 
-class CommandMessage: RTMPBaseMessage, CustomStringConvertible {
+struct CommandMessage: RTMPBaseMessage, CustomStringConvertible {
   let encodeType: ObjectEncodingType
   let commandName: String
   var commandNameType: CommandNameType? {
     CommandNameType(rawValue: commandName)
   }
   let transactionId: Int
-  let commandObject: [String: Any]?
-  
-  let info: Any?
+  let commandObject: [String: AMFValue]?
 
-  init(encodeType: ObjectEncodingType,
-       commandName: String,
-       msgStreamId: Int = 0,
-       transactionId: Int,
-       commandObject: [String: Any]? = nil,
-       info: Any? = nil) {
-    self.commandName = commandName
-    self.transactionId = transactionId
-    self.commandObject = commandObject
-    self.info = info
-    self.encodeType = encodeType
-    super.init(type: .command(type: encodeType),msgStreamId: msgStreamId, streamId: RTMPChunkStreamId.command.rawValue)
-  }
-  
-  override var payload: Data {
+  let info: AMFValue?
+  let msgStreamId: Int
+  let timestamp: UInt32
+
+  var messageType: MessageType { .command(type: encodeType) }
+  var streamId: UInt16 { RTMPChunkStreamId.command.rawValue }
+
+  var payload: Data {
     var data = Data()
-    let encoder = AMF0Encoder()
-    
-    data.append((encoder.encode(commandName)) ?? Data())
-    data.append((encoder.encode(Double(transactionId))) ?? Data())
+
+    let commandNameValue = AMFValue.string(commandName)
+    let transactionIdValue = AMFValue.double(Double(transactionId))
+
+    data.append(encodeType == .amf0 ? commandNameValue.amf0Value : commandNameValue.amf3Value)
+    data.append(encodeType == .amf0 ? transactionIdValue.amf0Value : transactionIdValue.amf3Value)
+
     if let commandObject {
-      data.append((encoder.encode(commandObject)) ?? Data())
+      let objectValue = AMFValue.object(commandObject)
+      data.append(encodeType == .amf0 ? objectValue.amf0Value : objectValue.amf3Value)
+    }
+
+    if let info {
+      data.append(encodeType == .amf0 ? info.amf0Value : info.amf3Value)
     }
 
     return data
   }
-  
+
   var description: String {
       var result = ""
       result += "Command Name: \(commandName)\n"
@@ -88,8 +87,18 @@ class CommandMessage: RTMPBaseMessage, CustomStringConvertible {
 }
 
 
-class ConnectMessage: CommandMessage {
-  let argument: [String: Any]?
+struct ConnectMessage: RTMPBaseMessage, CustomStringConvertible {
+  let encodeType: ObjectEncodingType
+  let commandName: String = "connect"
+  let transactionId: Int = commonTransactionId.connect
+  let commandObject: [String: AMFValue]?
+  let msgStreamId: Int = 0
+  let timestamp: UInt32 = 0
+  let argument: [String: AMFValue]?
+
+  var messageType: MessageType { .command(type: encodeType) }
+  var streamId: UInt16 { RTMPChunkStreamId.command.rawValue }
+
   init(encodeType: ObjectEncodingType = .amf0,
        tcUrl: String,
        appName: String,
@@ -99,25 +108,42 @@ class ConnectMessage: CommandMessage {
        audio: RTMPAudioCodecsType,
        video: RTMPVideoCodecsType,
        pageURL: URL? = nil,
-       argument: [String: Any]? = nil) {
+       argument: [String: AMFValue]? = nil) {
+    self.encodeType = encodeType
     self.argument = argument
-    let obj:[String: Any] = ["app": appName,
-                              "flashver": flashVer,
-                              "swfUrl":swfURL?.absoluteString ?? "",
-                              "tcUrl":tcUrl,
-                              "fpad":fpad,
-                              "audioCodecs": audio.rawValue,
-                              "videoCodecs":video.rawValue,
-                              "videoFunction":RTMPVideoFunction.seek.rawValue,
-                              "pageUrl":pageURL?.absoluteString ?? "",
-                              "objectEncoding":encodeType.rawValue]
-    
-    super.init(encodeType: encodeType, commandName: "connect", transactionId: commonTransactionId.connect, commandObject: obj)
+    let obj: [String: AMFValue] = [
+      "app": .string(appName),
+      "flashver": .string(flashVer),
+      "swfUrl": .string(swfURL?.absoluteString ?? ""),
+      "tcUrl": .string(tcUrl),
+      "fpad": .bool(fpad),
+      "audioCodecs": .double(Double(audio.rawValue)),
+      "videoCodecs": .double(Double(video.rawValue)),
+      "videoFunction": .double(Double(RTMPVideoFunction.seek.rawValue)),
+      "pageUrl": .string(pageURL?.absoluteString ?? ""),
+      "objectEncoding": .double(Double(encodeType.rawValue))
+    ]
+    self.commandObject = obj
   }
-  
 
-  
-  override var description: String {
+  var payload: Data {
+    var data = Data()
+
+    let commandNameValue = AMFValue.string(commandName)
+    let transactionIdValue = AMFValue.double(Double(transactionId))
+
+    data.append(encodeType == .amf0 ? commandNameValue.amf0Value : commandNameValue.amf3Value)
+    data.append(encodeType == .amf0 ? transactionIdValue.amf0Value : transactionIdValue.amf3Value)
+
+    if let commandObject {
+      let objectValue = AMFValue.object(commandObject)
+      data.append(encodeType == .amf0 ? objectValue.amf0Value : objectValue.amf3Value)
+    }
+
+    return data
+  }
+
+  var description: String {
       var desc = "ConnectMessage("
       desc += "commandName: \(commandName), "
       desc += "transactionId: \(transactionId), "
@@ -129,126 +155,226 @@ class ConnectMessage: CommandMessage {
 }
 
 
-class CreateStreamMessage: CommandMessage {
-  init(encodeType: ObjectEncodingType = .amf0, transactionId: Int, commonObject: [String: Any]? = nil) {
-    super.init(encodeType: encodeType,commandName: "createStream", transactionId: transactionId, commandObject: commonObject)
+struct CreateStreamMessage: RTMPBaseMessage, CustomStringConvertible {
+  let encodeType: ObjectEncodingType
+  let commandName: String = "createStream"
+  let transactionId: Int
+  let commandObject: [String: AMFValue]?
+  let msgStreamId: Int = 0
+  let timestamp: UInt32 = 0
+
+  var messageType: MessageType { .command(type: encodeType) }
+  var streamId: UInt16 { RTMPChunkStreamId.command.rawValue }
+
+  init(encodeType: ObjectEncodingType = .amf0, transactionId: Int, commonObject: [String: AMFValue]? = nil) {
+    self.encodeType = encodeType
+    self.transactionId = transactionId
+    self.commandObject = commonObject
   }
-  
-  override var payload: Data {
+
+  var payload: Data {
     var data = Data()
-    let encoder = AMF0Encoder()
-    
-    data.append((encoder.encode(commandName)) ?? Data())
-    data.append((encoder.encode(Double(transactionId))) ?? Data())
+
+    let commandNameValue = AMFValue.string(commandName)
+    let transactionIdValue = AMFValue.double(Double(transactionId))
+
+    data.append(encodeType == .amf0 ? commandNameValue.amf0Value : commandNameValue.amf3Value)
+    data.append(encodeType == .amf0 ? transactionIdValue.amf0Value : transactionIdValue.amf3Value)
+
     if let commandObject {
-      data.append((encoder.encode(commandObject)) ?? Data())
+      let objectValue = AMFValue.object(commandObject)
+      data.append(encodeType == .amf0 ? objectValue.amf0Value : objectValue.amf3Value)
     } else {
-      data.append(encoder.encodeNil())
+      let nullValue = AMFValue.null
+      data.append(encodeType == .amf0 ? nullValue.amf0Value : nullValue.amf3Value)
     }
 
     return data
   }
-  
-  override var description: String {
+
+  var description: String {
     let objDesc = commandObject != nil ? "\(commandObject!)" : "nil"
-    let infoDesc = info != nil ? "\(info!)" : "nil"
-    return "CreateStreamMessage: { commandName: \(commandName), transactionId: \(transactionId), commandObject: \(objDesc), info: \(infoDesc) }"
+    return "CreateStreamMessage: { commandName: \(commandName), transactionId: \(transactionId), commandObject: \(objDesc) }"
   }
 }
 
-class CloseStreamMessage: CommandMessage {
+struct CloseStreamMessage: RTMPBaseMessage, CustomStringConvertible {
+  let encodeType: ObjectEncodingType
+  let commandName: String = "closeStream"
+  let transactionId: Int = 0
+  let msgStreamId: Int
+  let timestamp: UInt32 = 0
+
+  var messageType: MessageType { .command(type: encodeType) }
+  var streamId: UInt16 { RTMPChunkStreamId.command.rawValue }
+
   init(encodeType: ObjectEncodingType = .amf0, msgStreamId: Int) {
-    super.init(encodeType: encodeType,commandName: "closeStream", msgStreamId: msgStreamId, transactionId: 0, commandObject: nil)
+    self.encodeType = encodeType
+    self.msgStreamId = msgStreamId
   }
-  
-  override var description: String {
-    let objDesc = commandObject != nil ? "\(commandObject!)" : "nil"
-    let infoDesc = info != nil ? "\(info!)" : "nil"
-    return "CloseStreamMessage: { commandName: \(commandName), transactionId: \(transactionId), commandObject: \(objDesc), info: \(infoDesc) }"
+
+  var payload: Data {
+    var data = Data()
+
+    let commandNameValue = AMFValue.string(commandName)
+    let transactionIdValue = AMFValue.double(Double(transactionId))
+
+    data.append(encodeType == .amf0 ? commandNameValue.amf0Value : commandNameValue.amf3Value)
+    data.append(encodeType == .amf0 ? transactionIdValue.amf0Value : transactionIdValue.amf3Value)
+
+    return data
+  }
+
+  var description: String {
+    return "CloseStreamMessage: { commandName: \(commandName), transactionId: \(transactionId) }"
   }
 }
 
-class DeleteStreamMessage: CommandMessage {
+struct DeleteStreamMessage: RTMPBaseMessage, CustomStringConvertible {
+  let encodeType: ObjectEncodingType
+  let commandName: String = "deleteStream"
+  let transactionId: Int = 0
+  let msgStreamId: Int
+  let timestamp: UInt32 = 0
+
+  var messageType: MessageType { .command(type: encodeType) }
+  var streamId: UInt16 { RTMPChunkStreamId.command.rawValue }
+
   init(encodeType: ObjectEncodingType = .amf0, msgStreamId: Int) {
-    super.init(encodeType: encodeType,commandName: "deleteStream", msgStreamId: msgStreamId, transactionId: 0, commandObject: nil)
+    self.encodeType = encodeType
+    self.msgStreamId = msgStreamId
   }
-  
-  override var description: String {
-    let objDesc = commandObject != nil ? "\(commandObject!)" : "nil"
-    let infoDesc = info != nil ? "\(info!)" : "nil"
-    return "DeleteStreamMessage: { commandName: \(commandName), transactionId: \(transactionId), commandObject: \(objDesc), info: \(infoDesc) }"
+
+  var payload: Data {
+    var data = Data()
+
+    let commandNameValue = AMFValue.string(commandName)
+    let transactionIdValue = AMFValue.double(Double(transactionId))
+
+    data.append(encodeType == .amf0 ? commandNameValue.amf0Value : commandNameValue.amf3Value)
+    data.append(encodeType == .amf0 ? transactionIdValue.amf0Value : transactionIdValue.amf3Value)
+
+    return data
+  }
+
+  var description: String {
+    return "DeleteStreamMessage: { commandName: \(commandName), transactionId: \(transactionId) }"
   }
 }
 
-public enum PubishType: String {
+public enum PubishType: String, Sendable {
   case live = "live"
   case record = "record"
   case append = "append"
 }
 
-class PublishMessage: CommandMessage {
+struct PublishMessage: RTMPBaseMessage {
+  let encodeType: ObjectEncodingType
+  let commandName: String = "publish"
+  let transactionId: Int = commonTransactionId.stream
+  let msgStreamId: Int
+  let timestamp: UInt32 = 0
   let type: PubishType
   let streamName: String
-  init(encodeType: ObjectEncodingType = .amf0, streamName: String, type: PubishType) {
+
+  var messageType: MessageType { .command(type: encodeType) }
+  var streamId: UInt16 { RTMPChunkStreamId.command.rawValue }
+
+  init(encodeType: ObjectEncodingType = .amf0, streamName: String, type: PubishType, msgStreamId: Int = 0) {
+    self.encodeType = encodeType
     self.streamName = streamName
     self.type = type
-    super.init(encodeType: encodeType, commandName: "publish", transactionId: commonTransactionId.stream)
+    self.msgStreamId = msgStreamId
   }
-  
-  override var payload: Data {
+
+  var payload: Data {
     var data = Data()
-    let encoder = AMF0Encoder()
-    
-    data.append((encoder.encode(commandName)) ?? Data())
-    data.append((encoder.encode(Double(transactionId))) ?? Data())
-    data.append((encoder.encodeNil()))
-    data.append((encoder.encode(streamName)) ?? Data())
-    data.append((encoder.encode(self.type.rawValue)) ?? Data())
+
+    let commandNameValue = AMFValue.string(commandName)
+    let transactionIdValue = AMFValue.double(Double(transactionId))
+    let nullValue = AMFValue.null
+    let streamNameValue = AMFValue.string(streamName)
+    let typeValue = AMFValue.string(self.type.rawValue)
+
+    data.append(encodeType == .amf0 ? commandNameValue.amf0Value : commandNameValue.amf3Value)
+    data.append(encodeType == .amf0 ? transactionIdValue.amf0Value : transactionIdValue.amf3Value)
+    data.append(encodeType == .amf0 ? nullValue.amf0Value : nullValue.amf3Value)
+    data.append(encodeType == .amf0 ? streamNameValue.amf0Value : streamNameValue.amf3Value)
+    data.append(encodeType == .amf0 ? typeValue.amf0Value : typeValue.amf3Value)
 
     return data
   }
 }
 
 
-class SeekMessage: CommandMessage {
+struct SeekMessage: RTMPBaseMessage {
+  let encodeType: ObjectEncodingType
+  let commandName: String = "seek"
+  let transactionId: Int = commonTransactionId.stream
+  let msgStreamId: Int
+  let timestamp: UInt32 = 0
   let millSecond: Double
+
+  var messageType: MessageType { .command(type: encodeType) }
+  var streamId: UInt16 { RTMPChunkStreamId.command.rawValue }
+
   init(encodeType: ObjectEncodingType = .amf0, msgStreamId: Int, millSecond: Double) {
+    self.encodeType = encodeType
+    self.msgStreamId = msgStreamId
     self.millSecond = millSecond
-    super.init(encodeType: encodeType, commandName: "seek", msgStreamId: msgStreamId, transactionId: commonTransactionId.stream)
   }
-  
-  override var payload: Data {
+
+  var payload: Data {
     var data = Data()
-    let encoder = AMF0Encoder()
-    
-    data.append((encoder.encode(commandName)) ?? Data())
-    data.append((encoder.encode(Double(transactionId))) ?? Data())
-    data.append((encoder.encodeNil()))
-    data.append((encoder.encode(millSecond)) ?? Data())
+
+    let commandNameValue = AMFValue.string(commandName)
+    let transactionIdValue = AMFValue.double(Double(transactionId))
+    let nullValue = AMFValue.null
+    let millSecondValue = AMFValue.double(millSecond)
+
+    data.append(encodeType == .amf0 ? commandNameValue.amf0Value : commandNameValue.amf3Value)
+    data.append(encodeType == .amf0 ? transactionIdValue.amf0Value : transactionIdValue.amf3Value)
+    data.append(encodeType == .amf0 ? nullValue.amf0Value : nullValue.amf3Value)
+    data.append(encodeType == .amf0 ? millSecondValue.amf0Value : millSecondValue.amf3Value)
 
     return data
   }
 }
 
 
-class PauseMessage: CommandMessage {
+struct PauseMessage: RTMPBaseMessage {
+  let encodeType: ObjectEncodingType
+  let commandName: String = "pause"
+  let transactionId: Int = commonTransactionId.stream
+  let msgStreamId: Int
+  let timestamp: UInt32 = 0
   let isPause: Bool
   let millSecond: Double
+
+  var messageType: MessageType { .command(type: encodeType) }
+  var streamId: UInt16 { RTMPChunkStreamId.command.rawValue }
+
   init(encodeType: ObjectEncodingType = .amf0, msgStreamId:Int, isPause: Bool, millSecond: Double) {
+    self.encodeType = encodeType
+    self.msgStreamId = msgStreamId
     self.isPause = isPause
     self.millSecond = millSecond
-    super.init(encodeType: encodeType, commandName: "pause", msgStreamId: msgStreamId, transactionId: commonTransactionId.stream)
   }
-  
-  override var payload: Data {
+
+  var payload: Data {
     var data = Data()
-    let encoder = AMF0Encoder()
-    
-    data.append((encoder.encode(commandName)) ?? Data())
-    data.append((encoder.encode(Double(transactionId))) ?? Data())
-    data.append((encoder.encodeNil()))
-    data.append((encoder.encode(isPause)) ?? Data())
-    data.append((encoder.encode(millSecond)) ?? Data())
+
+    let commandNameValue = AMFValue.string(commandName)
+    let transactionIdValue = AMFValue.double(Double(transactionId))
+    let nullValue = AMFValue.null
+    let isPauseValue = AMFValue.bool(isPause)
+    let millSecondValue = AMFValue.double(millSecond)
+
+    data.append(encodeType == .amf0 ? commandNameValue.amf0Value : commandNameValue.amf3Value)
+    data.append(encodeType == .amf0 ? transactionIdValue.amf0Value : transactionIdValue.amf3Value)
+    data.append(encodeType == .amf0 ? nullValue.amf0Value : nullValue.amf3Value)
+    data.append(encodeType == .amf0 ? isPauseValue.amf0Value : isPauseValue.amf3Value)
+    data.append(encodeType == .amf0 ? millSecondValue.amf0Value : millSecondValue.amf3Value)
 
     return data
   }

@@ -8,7 +8,7 @@ enum AMF0DecodeError: Error {
 }
 
 extension Data {
-  func decodeAMF0() -> [Any]? {
+  func decodeAMF0() -> [AMFValue]? {
     let decoder = AMF0Decoder()
     return decoder.decode(self)
   }
@@ -18,14 +18,14 @@ class AMF0Decoder {
   private var data: Data = Data()
   private let logger = Logger(subsystem: "HPRTMP", category: "AMF0Decoder")
   
-  func decode(_ data: Data) -> [Any]? {
+  func decode(_ data: Data) -> [AMFValue]? {
     self.data = data
-    var decodeData = [Any]()
+    var decodeData = [AMFValue]()
     while let first = self.data.first {
       guard let realType = RTMPAMF0Type(rawValue: first) else {
         return decodeData
       }
-      
+
       self.data.removeSubrange(0..<1)
       do {
         try decodeData.append(self.parseValue(type: realType))
@@ -38,34 +38,34 @@ class AMF0Decoder {
   }
   
   
-  private func parseValue(type: RTMPAMF0Type) throws -> Any {
+  private func parseValue(type: RTMPAMF0Type) throws -> AMFValue {
     switch type {
     case .number:
-      return try decodeNumber()
+      return .double(try decodeNumber())
     case .boolean:
-      return try decodeBool()
+      return .bool(try decodeBool())
     case .string:
-      return try decodeString()
+      return .string(try decodeString())
     case .longString:
-      return try decodeLongString()
+      return .string(try decodeLongString())
     case .null:
-      return "null"
+      return .null
     case .xml:
-      return try decodeXML()
+      return .string(try decodeXML())
     case .date:
-      return try decodeDate()
+      return .date(try decodeDate())
     case .object:
-      return try decodeObj()
+      return .object(try decodeObj())
     case .typedObject:
-      return try decodeTypeObject()
+      return .object(try decodeTypeObject())
     case .array:
-      return try deocdeArray()
+      return .object(try deocdeArray())
     case .strictArray:
-      return try decodeStrictArray()
+      return .array(try decodeStrictArray())
     case .switchAMF3:
-      return "Need implement"
+      throw AMF0DecodeError.parseError
     default:
-      return AMF0DecodeError.parseError
+      throw AMF0DecodeError.parseError
     }
   }
   
@@ -135,8 +135,8 @@ class AMF0Decoder {
     return result
   }
   
-  private func decodeObj() throws -> [String: Any] {
-    var map = [String: Any]()
+  private func decodeObj() throws -> [String: AMFValue] {
+    var map = [String: AMFValue]()
     var key = ""
     while let first = data.first, first != RTMPAMF0Type.objectEnd.rawValue {
       var type: RTMPAMF0Type? = RTMPAMF0Type(rawValue: first)
@@ -146,53 +146,41 @@ class AMF0Decoder {
         key = value
         continue
       }
-      
+
       guard let t = type else {
         throw AMF0DecodeError.rangeError
       }
       data.removeSubrange(0..<1)
-      
-      switch t {
-      case .string:
-        let value = try decodeString()
-        map[key] = value
-        key = ""
-      case .longString:
-        let value = try decodeLongString()
-        map[key] = value
-        key = ""
-      default:
-        
-        let value = try self.parseValue(type: t)
-        map[key] = value
-        key = ""
-      }
+
+      let value = try self.parseValue(type: t)
+      map[key] = value
+      key = ""
     }
     data.removeSubrange(0..<1)
-    
+
     return map
   }
   
-  private func decodeTypeObject() throws -> [String: Any] {
+  private func decodeTypeObject() throws -> [String: AMFValue] {
     let range = 0..<4
     data.removeSubrange(range)
     return try self.decodeObj()
   }
-  
-  private func deocdeArray() throws -> [String: Any] {
+
+  private func deocdeArray() throws -> [String: AMFValue] {
     let entryPoint = 0..<4
     data.removeSubrange(entryPoint)
     let value = try self.decodeObj()
     return value
   }
-  
-  func decodeStrictArray() throws -> [Any] {
+
+  func decodeStrictArray() throws -> [AMFValue] {
     let entryPoint = 0..<4
     guard let rangeBytes = data.subdata(safe: entryPoint) else {
       throw AMF0DecodeError.rangeError
     }
-    var decodeData = [Any]()
-    
+    var decodeData = [AMFValue]()
+
     var count = Int(Data(rangeBytes.reversed()).uint32)
     data.removeSubrange(entryPoint)
     while let first = data.first, count != 0 {

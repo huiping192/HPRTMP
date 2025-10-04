@@ -60,31 +60,32 @@ actor MessageDecoder {
       return PeerBandwidthMessage(windowSize: peer, limit: .dynamic)
     case .command(type: let type):
       let data = type == .amf0 ? chunkPayload.decodeAMF0() : chunkPayload.decodeAMF3()
-      
+
       // first is command name
-      guard let commandName = data?.first as? String else { return nil }
-      
+      guard let commandName = data?.first?.stringValue else { return nil }
+
       // second is Transaction ID, number
-      let transactionId = data?[safe: 1] as? Double
-      
+      let transactionId = data?[safe: 1]?.doubleValue
+
       // third is command object
-      let objcet = data?[safe: 2] as? [String: Any]
-      
+      let commandObject = data?[safe: 2]?.objectValue
+
       // fourth is info, maybe object([String: Any?]) or Number(connect messsage)
       let info = data?[safe: 3]
-      
-      return CommandMessage(encodeType: type, commandName: commandName, msgStreamId: msgStreamId, transactionId: Int(transactionId ?? 0), commandObject: objcet, info: info)
+
+      return CommandMessage(encodeType: type, commandName: commandName, transactionId: Int(transactionId ?? 0), commandObject: commandObject, info: info, msgStreamId: msgStreamId, timestamp: timestamp)
     case .data(type: let type):
-      return DataMessage(encodeType: type, msgStreamId: msgStreamId)
+      return AnyDataMessage(encodeType: type, msgStreamId: msgStreamId)
     case .share(type: let type):
       let data = type == .amf0 ? chunkPayload.decodeAMF0() : chunkPayload.decodeAMF3()
-      let sharedObjectName = data?.first as? String
-      let sharedObject = data?[safe: 1] as? [String: Any]
+      // First is "onSharedObject", second is name, third is object
+      let sharedObjectName = data?[safe: 1]?.stringValue
+      let sharedObject = data?[safe: 2]?.objectValue
       return SharedObjectMessage(encodeType: type, msgStreamId: msgStreamId, sharedObjectName: sharedObjectName, sharedObject: sharedObject)
     case .audio:
-      return AudioMessage(msgStreamId: msgStreamId, data: chunkPayload, timestamp: timestamp)
+      return AudioMessage(data: chunkPayload, msgStreamId: msgStreamId, timestamp: timestamp)
     case .video:
-      return VideoMessage(msgStreamId: msgStreamId, data: chunkPayload, timestamp: timestamp)
+      return VideoMessage(data: chunkPayload, msgStreamId: msgStreamId, timestamp: timestamp)
     case .aggreate:
       return nil
     case .abort:

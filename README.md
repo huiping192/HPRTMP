@@ -28,7 +28,7 @@ The main goals of this library are:
 ## Requirements
 
 - iOS 14.0+ / macOS 11+
-- Swift 5.5+
+- Swift 6.0+
 
 ## Installation
 

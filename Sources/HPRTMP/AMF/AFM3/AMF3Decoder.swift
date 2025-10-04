@@ -8,9 +8,9 @@ public class AMF3Decoder {
     self.reference = AMF3ReferenceTable()
   }
   
-  func decode(_ data: Data) throws -> [Any] {
+  func decode(_ data: Data) throws -> [AMFValue] {
     var localData = data
-    var decodeData = [Any]()
+    var decodeData = [AMFValue]()
     while !localData.isEmpty {
       guard let first = localData.first, let realType = RTMPAMF3Type(rawValue: first) else {
         throw AMF3DecodeError.rangeError
@@ -76,7 +76,7 @@ public enum AMF3DecodeError: Error {
 }
 
 extension Data {
-  public func decodeAMF3() -> [Any]? {
+  public func decodeAMF3() -> [AMFValue]? {
     var b = self
     var reference = AMF3ReferenceTable()
     return b.decode(reference: &reference)
@@ -89,8 +89,8 @@ private let logger = Logger(subsystem: "HPRTMP", category: "AMF3Decoder")
 
 
 private extension Data {
-  mutating func decode(reference: inout AMF3ReferenceTable) -> [Any]? {
-    var decodeData = [Any]()
+  mutating func decode(reference: inout AMF3ReferenceTable) -> [AMFValue]? {
+    var decodeData = [AMFValue]()
     while let first = self.first {
       guard let realType = RTMPAMF3Type(rawValue: first) else {
         return nil
@@ -103,53 +103,48 @@ private extension Data {
         logger.error("Decode Error \(error.localizedDescription)")
         return nil
       }
-      
+
     }
     return decodeData
   }
   
-  mutating func parseValue(type: RTMPAMF3Type, reference: inout AMF3ReferenceTable) throws -> Any {
+  mutating func parseValue(type: RTMPAMF3Type, reference: inout AMF3ReferenceTable) throws -> AMFValue {
     switch type {
-    case .undefined ,.null:
-      return nullString
+    case .undefined:
+      return .undefined
+    case .null:
+      return .null
     case .boolTrue:
-      return true
+      return .bool(true)
     case .boolFalse:
-      return false
+      return .bool(false)
     case .int:
-      return self.convertLength()
+      return .int(self.convertLength())
     case .double:
-      return try self.decodeDouble()
+      return .double(try self.decodeDouble())
     case .string:
-      return try self.decodeString(&reference)
+      return .string(try self.decodeString(&reference))
     case .xml:
-      return try self.decodeXML(&reference)
+      return .string(try self.decodeXML(&reference))
     case .date:
-      return try self.decodeDate(&reference)
+      return .date(try self.decodeDate(&reference))
     case .array:
-      return try self.decodeArray(&reference)
+      return .array(try self.decodeArray(&reference))
     case .object:
-      return try self.decodeObject(&reference)
-    case .xmlEnd:
-      break
+      return .object(try self.decodeObject(&reference))
     case .byteArray:
-      return try self.decodeByteArray(&reference)
+      return .byteArray(try self.decodeByteArray(&reference))
     case .vectorInt:
-      let value: [Int32] = try self.decodeVectorNumber(&reference)
-      return value
+      return .vectorInt(try self.decodeVectorNumber(&reference))
     case .vectorUInt:
-      let value: [UInt32] = try self.decodeVectorNumber(&reference)
-      return value
+      return .vectorUInt(try self.decodeVectorNumber(&reference))
     case .vectorDouble:
-      let value: [Double] = try self.decodeVectorNumber(&reference)
-      return value
+      return .vectorDouble(try self.decodeVectorNumber(&reference))
     case .vectorObject:
-      let value: [Any] = try self.decodeVectorObject(&reference)
-      return value
-    case .dictionary:
-      break
+      return .vectorObject(try self.decodeVectorObject(&reference))
+    case .xmlEnd, .dictionary:
+      throw AMF3DecodeError.parseError
     }
-    return 0
   }
   
   mutating func decodeDouble() throws -> Double {
@@ -202,11 +197,11 @@ private extension Data {
     }
   }
   
-  mutating func decodeArray(_ reference: inout AMF3ReferenceTable) throws -> [Any] {
+  mutating func decodeArray(_ reference: inout AMF3ReferenceTable) throws -> [AMFValue] {
     let (length, type) = try self.decodeLengthWithType()
     switch type {
     case .reference:
-      guard let array: [Any] = reference.object(length) else {
+      guard let array: [AMFValue] = reference.object(length) else {
         throw AMF3DecodeError.referenceParseError
       }
       return array
@@ -217,9 +212,9 @@ private extension Data {
     }
   }
   
-  private mutating func decodeArray(length: Int, reference: inout AMF3ReferenceTable) throws -> [Any] {
+  private mutating func decodeArray(length: Int, reference: inout AMF3ReferenceTable) throws -> [AMFValue] {
     self.remove(at: 0)
-    var decodeData = [Any]()
+    var decodeData = [AMFValue]()
     do {
       try (0..<length).forEach { _ in
         guard let first = self.first, let type = RTMPAMF3Type(rawValue: first) else {
@@ -255,15 +250,15 @@ private extension Data {
     }
   }
   
-  mutating func decodeObjectInfo(_ reference: inout AMF3ReferenceTable) throws -> [String: Any] {
-    var map = [String: Any]()
+  mutating func decodeObjectInfo(_ reference: inout AMF3ReferenceTable) throws -> [String: AMFValue] {
+    var map = [String: AMFValue]()
     if let className = try? self.decodeString(&reference), className.count > 0 {
-      map["className"] = className
+      map["className"] = .string(className)
     }
     var key = ""
     while let first = self.first {
       var type: RTMPAMF3Type? = RTMPAMF3Type(rawValue: first)
-      
+
       if key.isEmpty {
         type = .string
         let value = try self.decodeString(&reference)
@@ -274,44 +269,31 @@ private extension Data {
       guard let t = type else {
         throw AMF3DecodeError.rangeError
       }
-      
+
       self.remove(at: 0)
-      switch t {
-      case .string:
-        let value = try self.decodeString(&reference)
-        map[key] = value
-        key = ""
-      case .object:
-        let idx = reference.createReserved()
-        let value = try self.decodeObjectInfo(&reference)
-        map[key] = value
-        reference.replace(value, idx: idx)
-        key = ""
-      default:
-        let value = try self.parseValue(type: t, reference: &reference)
-        map[key] = value
-        key = ""
-      }
+      let value = try self.parseValue(type: t, reference: &reference)
+      map[key] = value
+      key = ""
     }
     return map
   }
-  mutating func decodeObject(_ reference: inout AMF3ReferenceTable) throws -> [String: Any] {
+  mutating func decodeObject(_ reference: inout AMF3ReferenceTable) throws -> [String: AMFValue] {
     let value = self.convertLength()
-    var map = [String: Any]()
+    var map = [String: AMFValue]()
     if value & 0b01 == 0 {
-      guard let obj: [String: Any] = reference.object(value >> 1) else {
+      guard let obj: [String: AMFValue] = reference.object(value >> 1) else {
         throw AMF3DecodeError.referenceParseError
       }
       return obj
     } else if value & 0b10 == 0 {
-      guard let obj: [String: Any] = reference.object(value >> 2) else {
+      guard let obj: [String: AMFValue] = reference.object(value >> 2) else {
         throw AMF3DecodeError.referenceParseError
       }
       return obj
     } else if value & 0x0f == 0x07, let className = try? self.decodeString(&reference), className.count > 0 {
-      map["className"] = className
+      map["className"] = .string(className)
     } else if value & 0x0f == 0x0b {
-      
+
       let idx = reference.createReserved()
       let info = try self.decodeObjectInfo(&reference)
       reference.replace(info, idx: idx)
@@ -377,7 +359,7 @@ private extension Data {
     return decodeData
   }
   
-  mutating func decodeVectorObject(_ reference: inout AMF3ReferenceTable) throws -> [Any] {
+  mutating func decodeVectorObject(_ reference: inout AMF3ReferenceTable) throws -> [AMFValue] {
     let (count, objType) = try self.decodeLengthWithType()
     self.remove(at: 0)
     let (typeLength, _) = try self.decodeLengthWithType()
@@ -389,12 +371,12 @@ private extension Data {
       }
       self.removeSubrange(range)
     case .reference:
-      guard let vectorObj: [Any] = reference.object(count) else {
+      guard let vectorObj: [AMFValue] = reference.object(count) else {
         throw AMF3DecodeError.referenceParseError
       }
       return vectorObj
     }
-    return [Any]()
+    return [AMFValue]()
   }
   
   

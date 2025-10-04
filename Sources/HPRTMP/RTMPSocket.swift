@@ -15,7 +15,7 @@ public enum RTMPStatus {
   case closed
 }
 
-public enum RTMPError: Error {
+public enum RTMPError: Error, Sendable {
   case handShake(desc: String)
   case stream(desc: String)
   case command(desc: String)
@@ -401,8 +401,8 @@ extension RTMPSocket {
       if commandMessage.commandNameType == .result {
         logger.info("Create Stream Success")
         self.status = .connected
-        
-        let msgStreamId = commandMessage.info as? Double ?? 0
+
+        let msgStreamId = commandMessage.info?.doubleValue ?? 0
         await self.delegate?.socketCreateStreamDone(self, msgStreamId: Int(msgStreamId))
       } else {
         logger.error("Create Stream failed, \(commandMessage.info.debugDescription)")

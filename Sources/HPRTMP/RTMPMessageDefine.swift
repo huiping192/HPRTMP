@@ -1,6 +1,6 @@
 import Foundation
 
-public enum ObjectEncodingType: UInt8, Decodable {
+public enum ObjectEncodingType: UInt8, Decodable, Sendable {
   case amf0 = 0
   case amf3 = 3
 }
@@ -36,8 +36,8 @@ enum RTMPVideoCodecsType: UInt16 {
   case all       = 0x00FF
 }
 
-enum MessageType: Equatable {
-  
+public enum MessageType: Equatable, Sendable {
+
   // controll
   case chunkSize
   case abort
@@ -107,7 +107,7 @@ enum MessageType: Equatable {
     }
   }
   
-  static func == (lhs: MessageType, rhs: MessageType) -> Bool {
+  public static func == (lhs: MessageType, rhs: MessageType) -> Bool {
     lhs.rawValue == rhs.rawValue
   }
   

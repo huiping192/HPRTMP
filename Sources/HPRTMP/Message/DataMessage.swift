@@ -18,136 +18,166 @@ enum RTMPChunkStreamId: UInt16 {
   case video = 5
 }
 
-protocol RTMPMessage {
-  var timestamp: UInt32 { set get }
+public protocol RTMPMessage: Sendable {
+  var timestamp: UInt32 { get }
   var messageType: MessageType { get }
-  var msgStreamId: Int  { get set }
+  var msgStreamId: Int  { get }
   var streamId: UInt16  { get }
-  
+
   var payload: Data { get}
-  
+
   var priority: MessagePriority { get }
 }
 
-extension RTMPMessage {
+public extension RTMPMessage {
   var priority: MessagePriority {
     .high
   }
 }
 
-public class RTMPBaseMessage: RTMPMessage {
-  let messageType: MessageType
-  var msgStreamId: Int
-  let streamId: UInt16
-  
+public protocol RTMPBaseMessage: RTMPMessage {
+  var messageType: MessageType { get }
+  var msgStreamId: Int { get }
+  var streamId: UInt16 { get }
+  var timestamp: UInt32 { get }
+}
+
+
+protocol DataMessage: RTMPBaseMessage {
+  var encodeType: ObjectEncodingType { get }
+  var msgStreamId: Int { get }
+  var timestamp: UInt32 { get }
+}
+
+extension DataMessage {
+  var messageType: MessageType { .data(type: encodeType) }
+  var streamId: UInt16 { RTMPChunkStreamId.command.rawValue }
+  var timestamp: UInt32 { 0 }
+}
+
+struct AnyDataMessage: DataMessage, Sendable {
+  let encodeType: ObjectEncodingType
+  let msgStreamId: Int
+
   var payload: Data {
     Data()
   }
-  
-  init(type: MessageType, msgStreamId: Int = 0, streamId: UInt16) {
-    self.messageType = type
-    self.msgStreamId = msgStreamId
-    self.streamId = streamId
-  }
-  
-  private var _timeInterval: UInt32 = 0
-  public var timestamp:UInt32  {
-    set {
-      _timeInterval = newValue >= maxTimestamp ? maxTimestamp : newValue
-    } get {
-      return _timeInterval
+}
+
+public struct MetaData: Sendable {
+  let width: Int32
+  let height: Int32
+  let videocodecid: Int
+  let audiocodecid: Int
+  let framerate: Int
+  let videodatarate: Int?
+  let audiodatarate: Int?
+  let audiosamplerate: Int?
+
+  var dictionary: [String: Any] {
+    var dic: [String: Any] = [
+      "width": width,
+      "height": height,
+      "videocodecid": videocodecid,
+      "audiocodecid": audiocodecid,
+      "framerate": framerate
+    ]
+    if let videodatarate {
+      dic["videodatarate"] = videodatarate
     }
+    if let audiodatarate {
+      dic["audiodatarate"] = audiodatarate
+    }
+    if let audiosamplerate {
+      dic["audiosamplerate"] = audiosamplerate
+    }
+    return dic
   }
 }
 
+struct MetaMessage: DataMessage {
+  let encodeType: ObjectEncodingType
+  let msgStreamId: Int
+  let meta: MetaData
 
-class DataMessage: RTMPBaseMessage {
-  var encodeType: ObjectEncodingType
-  init(encodeType: ObjectEncodingType, msgStreamId: Int) {
-    self.encodeType = encodeType
-    super.init(type: .data(type: encodeType),
-               msgStreamId: msgStreamId,
-               streamId: RTMPChunkStreamId.command.rawValue)
-  }
-}
-
-class MetaMessage: DataMessage {
-  let meta: [String: Any]
-  init(encodeType: ObjectEncodingType, msgStreamId: Int, meta: [String: Any]) {
-    self.meta = meta
-    super.init(encodeType: encodeType,
-               msgStreamId: msgStreamId)
-  }
-  
-  override var payload: Data {
+  var payload: Data {
     var data = Data()
-    let encoder = AMF0Encoder()
-    data.append((encoder.encode("onMetaData")) ?? Data())
-    data.append((encoder.encode(meta)) ?? Data())
-    
+
+    let commandNameValue = AMFValue.string("onMetaData")
+
+    // Convert meta.dictionary to [String: AMFValue]
+    var metaDict: [String: AMFValue] = [
+      "width": .double(Double(meta.width)),
+      "height": .double(Double(meta.height)),
+      "videocodecid": .double(Double(meta.videocodecid)),
+      "audiocodecid": .double(Double(meta.audiocodecid)),
+      "framerate": .double(Double(meta.framerate))
+    ]
+    if let videodatarate = meta.videodatarate {
+      metaDict["videodatarate"] = .double(Double(videodatarate))
+    }
+    if let audiodatarate = meta.audiodatarate {
+      metaDict["audiodatarate"] = .double(Double(audiodatarate))
+    }
+    if let audiosamplerate = meta.audiosamplerate {
+      metaDict["audiosamplerate"] = .double(Double(audiosamplerate))
+    }
+
+    let metaValue = AMFValue.object(metaDict)
+
+    data.append(encodeType == .amf0 ? commandNameValue.amf0Value : commandNameValue.amf3Value)
+    data.append(encodeType == .amf0 ? metaValue.amf0Value : metaValue.amf3Value)
+
     return data
   }
 }
 
-
-class VideoMessage: RTMPBaseMessage {
+struct VideoMessage: RTMPBaseMessage {
   let data: Data
-  init(msgStreamId: Int, data: Data, timestamp: UInt32) {
-    self.data = data
-    super.init(type: .video,
-               msgStreamId: msgStreamId,
-               streamId: RTMPChunkStreamId.video.rawValue)
-    self.timestamp = timestamp
-  }
-  override var payload: Data {
-    return data
-  }
-  
-  var priority: MessagePriority {
-    .low
-  }
+  let msgStreamId: Int
+  let timestamp: UInt32
+
+  var messageType: MessageType { .video }
+  var streamId: UInt16 { RTMPChunkStreamId.video.rawValue }
+  var payload: Data { data }
+  var priority: MessagePriority { .low }
 }
 
 
-class AudioMessage: RTMPBaseMessage {
+struct AudioMessage: RTMPBaseMessage {
   let data: Data
-  
-  init(msgStreamId: Int, data: Data, timestamp: UInt32) {
-    self.data = data
-    super.init(type: .audio,
-               msgStreamId: msgStreamId,
-               streamId: RTMPChunkStreamId.audio.rawValue)
-    self.timestamp = timestamp
-  }
-  override var payload: Data {
-    return data
-  }
-  
-  var priority: MessagePriority {
-    .medium
-  }
+  let msgStreamId: Int
+  let timestamp: UInt32
+
+  var messageType: MessageType { .audio }
+  var streamId: UInt16 { RTMPChunkStreamId.audio.rawValue }
+  var payload: Data { data }
+  var priority: MessagePriority { .medium }
 }
 
-class SharedObjectMessage: DataMessage {
+struct SharedObjectMessage: DataMessage {
+  let encodeType: ObjectEncodingType
+  let msgStreamId: Int
+
   let sharedObjectName: String?
-  let sharedObject: [String: Any]?
-  
-  init(encodeType: ObjectEncodingType, msgStreamId: Int, sharedObjectName: String?, sharedObject: [String: Any]?) {
-    self.sharedObjectName = sharedObjectName
-    self.sharedObject = sharedObject
-    super.init(encodeType: encodeType, msgStreamId: msgStreamId)
-  }
-  
-  override var payload: Data {
+  let sharedObject: [String: AMFValue]?
+
+  var payload: Data {
     var data = Data()
-    let encoder = AMF0Encoder()
-    data.append((encoder.encode("onSharedObject")) ?? Data())
+
+    let commandNameValue = AMFValue.string("onSharedObject")
+    data.append(encodeType == .amf0 ? commandNameValue.amf0Value : commandNameValue.amf3Value)
+
     if let sharedObjectName {
-      data.append((encoder.encode(sharedObjectName)) ?? Data())
+      let nameValue = AMFValue.string(sharedObjectName)
+      data.append(encodeType == .amf0 ? nameValue.amf0Value : nameValue.amf3Value)
     }
+
     if let sharedObject {
-      data.append((encoder.encode(sharedObject)) ?? Data())
+      let objectValue = AMFValue.object(sharedObject)
+      data.append(encodeType == .amf0 ? objectValue.amf0Value : objectValue.amf3Value)
     }
+
     return data
   }
 }

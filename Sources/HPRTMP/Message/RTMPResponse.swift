@@ -7,8 +7,8 @@ struct ConnectResponse {
   
   var objectEncoding: ObjectEncodingType
   
-  init?(info: Any?) {
-    guard let info = info as? [String: Any?] else { return nil }
+  init?(info: AMFValue?) {
+    guard let info = info?.toAny() as? [String: Any?] else { return nil }
     guard let code = info["code"] as? String else { return nil }
     self.code = CodeType.Connect(rawValue: code) ?? .failed
     
@@ -79,8 +79,8 @@ struct StatusResponse: Decodable {
   let level: Level?
   let description: String?
   
-  init?(info: Any?) {
-    guard let info = info as? [String: Any?] else { return nil }
+  init?(info: AMFValue?) {
+    guard let info = info?.toAny() as? [String: Any?] else { return nil }
     guard let code = info["code"] as? String else { return nil }
     self.code = StreamStatus(rawValue: code) ?? .failed
     
@@ -143,61 +143,61 @@ public struct MetaDataResponse {
     case audiocodecid = "audiocodecid"
   }
   
-  init?(commandObject: [String: Any?]?) {
+  init?(commandObject: [String: AMFValue]?) {
     guard let commandObject = commandObject else { return nil }
     
-    if let duration = commandObject["duration"] as? Double {
+    if let duration = commandObject["duration"]?.doubleValue {
       self.duration = duration
     }
-    if let height = commandObject["height"] as? Int {
+    if let height = commandObject["height"]?.intValue {
       self.height = height
     }
-    if let frameWidth = commandObject["frameWidth"] as? Int {
+    if let frameWidth = commandObject["frameWidth"]?.intValue {
       self.frameWidth = frameWidth
     }
-    if let moovposition = commandObject["moovposition"] as? Int {
+    if let moovposition = commandObject["moovposition"]?.intValue {
       self.moovposition = moovposition
     }
-    if let framerate = commandObject["framerate"] as? Int {
+    if let framerate = commandObject["framerate"]?.intValue {
       self.framerate = framerate
     }
-    if let avcprofile = commandObject["avcprofile"] as? Int {
+    if let avcprofile = commandObject["avcprofile"]?.intValue {
       self.avcprofile = avcprofile
     }
-    if let videocodecid = commandObject["videocodecid"] as? String {
+    if let videocodecid = commandObject["videocodecid"]?.stringValue {
       self.videocodecid = videocodecid
     }
-    if let frameHeight = commandObject["frameHeight"] as? Int {
+    if let frameHeight = commandObject["frameHeight"]?.intValue {
       self.frameHeight = frameHeight
     }
-    if let videoframerate = commandObject["videoframerate"] as? Int {
+    if let videoframerate = commandObject["videoframerate"]?.intValue {
       self.videoframerate = videoframerate
     }
-    if let audiochannels = commandObject["audiochannels"] as? Int {
+    if let audiochannels = commandObject["audiochannels"]?.intValue {
       self.audiochannels = audiochannels
     }
-    if let displayWidth = commandObject["displayWidth"] as? Int {
+    if let displayWidth = commandObject["displayWidth"]?.intValue {
       self.displayWidth = displayWidth
     }
-    if let displayHeight = commandObject["displayHeight"] as? Int {
+    if let displayHeight = commandObject["displayHeight"]?.intValue {
       self.displayHeight = displayHeight
     }
-    if let width = commandObject["width"] as? Int {
+    if let width = commandObject["width"]?.intValue {
       self.width = width
     }
-    if let avclevel = commandObject["avclevel"] as? Int {
+    if let avclevel = commandObject["avclevel"]?.intValue {
       self.avclevel = avclevel
     }
-    if let audiosamplerate = commandObject["audiosamplerate"] as? Int {
+    if let audiosamplerate = commandObject["audiosamplerate"]?.intValue {
       self.audiosamplerate = audiosamplerate
     }
-    if let aacaot = commandObject["aacaot"] as? Int {
+    if let aacaot = commandObject["aacaot"]?.intValue {
       self.aacaot = aacaot
     }
-    if let audiocodecid = commandObject["audiocodecid"] as? String {
+    if let audiocodecid = commandObject["audiocodecid"]?.stringValue {
       self.audiocodecid = audiocodecid
     }
-    if let trackinfoArray = commandObject["trackinfo"] as? [[String: Any?]] {
+    if let trackinfoArray = commandObject["trackinfo"]?.toAny() as? [[String: Any?]] {
       var trackinfo = [Trackinfo]()
       for trackinfoDict in trackinfoArray {
         if let timescale = trackinfoDict["timescale"] as? Double,

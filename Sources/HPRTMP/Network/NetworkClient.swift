@@ -2,7 +2,7 @@ import Foundation
 import NIO
 import os
 
-protocol NetworkConnectable {
+protocol NetworkConnectable: Sendable {
   func connect(host: String, port: Int) async throws
   func sendData(_ data: Data) async throws
   func receiveData() async throws -> Data
@@ -87,14 +87,14 @@ actor DataReserver {
   }
 }
 
-class NetworkClient: NetworkConnectable {
+actor NetworkClient: NetworkConnectable {
   private let group: EventLoopGroup = MultiThreadedEventLoopGroup(numberOfThreads: 1)
   private var channel: Channel?
   private var host: String?
   private var port: Int?
-  
+
   private let dataReserver = DataReserver()
-  
+
   private let logger = Logger(subsystem: "HPRTMP", category: "NetworkClient")
 
   
@@ -149,7 +149,7 @@ class NetworkClient: NetworkConnectable {
     return try await dataReserver.waitData(with:waitPromise)
   }
   
-  private func responseReceived(data: Data) {
+  nonisolated private func responseReceived(data: Data) {
     dataReserver.dataArrived(data: data)
   }
   

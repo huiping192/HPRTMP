@@ -1,6 +1,6 @@
 import Foundation
 
-protocol MessageHeader: RTMPEncodable {
+protocol MessageHeader: RTMPEncodable, Sendable {
 }
 
 extension MessageHeader where Self: Equatable {
