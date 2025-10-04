@@ -196,6 +196,8 @@ extension RTMPSocket {
         // windows sizeが超えた場合acknowledgementまち
         if await windowControl.shouldWaitAcknowledgement {
           logger.info("[HPRTMP] Window size reached, waiting for acknowledgement...")
+          await messagePriorityQueue.requeue(messageContainer)
+          try? await Task.sleep(nanoseconds: 100_000_000)  // Wait 100ms to avoid busy waiting
           continue
         }
         
@@ -217,13 +219,23 @@ extension RTMPSocket {
                 successfullySent = true
               } catch {
                 logger.error("[HPRTMP] send message failed: \(type(of: message)), error: \(error)")
-                await delegate?.socketError(self, err: .stream(desc: error.localizedDescription))
+
+                // Notify delegate first (check for nil to avoid silent failure)
+                if let delegate = self.delegate {
+                  await delegate.socketError(self, err: .stream(desc: error.localizedDescription))
+                } else {
+                  logger.error("[HPRTMP] CRITICAL: delegate is nil, cannot notify error!")
+                }
+
+                // Clean up all resources (cancels tasks, closes socket, sets status to .closed)
+                await invalidate()
+
                 return
               }
             } else {
-              logger.info("[HPRTMP] token bucket is empty, waiting...")
-              // wait 10ms
-              try? await Task.sleep(nanoseconds:  UInt64(10 * 1000 * 1000))
+              let waitTime = await tokenBucket.timeUntilAvailable(tokensNeeded: chunkData.count)
+              logger.info("[HPRTMP] token bucket is empty, waiting \(waitTime / 1_000_000)ms...")
+              try? await Task.sleep(nanoseconds: waitTime)
             }
           }
         }

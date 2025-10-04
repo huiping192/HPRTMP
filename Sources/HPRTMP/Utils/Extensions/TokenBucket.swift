@@ -1,43 +1,67 @@
-
 import Foundation
+
+/// Token bucket algorithm for rate limiting.
+///
+/// Tokens are continuously refilled at a specified rate. Operations consume tokens
+/// and are allowed only when sufficient tokens are available.
 actor TokenBucket {
-  private let defaultRate = 2500000  // Default refill rate in tokens per second
-  private var tokens: Int  // Current number of tokens in the bucket
-  private var lastRefillTime: TimeInterval  // Last time the bucket was refilled
-  private var refillRate: Int  // Rate at which tokens are refilled
-  private var capacity: Int  // Maximum capacity of the bucket
-  
-  // Initialization, set the refill rate and capacity, and fill the bucket
+  private let defaultRate = 2500000  // tokens per second
+
+  private var tokens: Int
+  private var lastRefillTime: TimeInterval
+  private var refillRate: Int
+  private var capacity: Int
+
   init() {
     self.refillRate = defaultRate
     self.capacity = defaultRate
     self.tokens = defaultRate
     self.lastRefillTime = Date().timeIntervalSince1970
   }
-  
-  // Update the rate and capacity of the bucket
+
+  /// Updates the refill rate and capacity, resetting tokens to capacity.
   func update(rate: Int, capacity: Int) {
     self.refillRate = rate
     self.capacity = capacity
     self.tokens = capacity
   }
-  
-  // Refill tokens in the bucket
-  func refill() {
+
+  /// Refills tokens based on elapsed time since last refill.
+  /// Formula: tokensToAdd = (elapsedSeconds * refillRate)
+  private func refill() {
     let currentTime = Date().timeIntervalSince1970
     let elapsedTime = Int((currentTime - lastRefillTime) * 1000)
-    let tokensToAdd = elapsedTime * refillRate / 1000  // Calculate tokens to add based on elapsed time and refill rate
-    tokens = min(tokens + tokensToAdd, capacity)  // Add tokens but do not exceed maximum capacity
-    lastRefillTime = currentTime  // Update the last refill time
+    let tokensToAdd = elapsedTime * refillRate / 1000
+    tokens = min(tokens + tokensToAdd, capacity)
+    lastRefillTime = currentTime
   }
-  
-  // Consume tokens and return whether the operation was successful
+
+  /// Attempts to consume the specified number of tokens.
+  /// - Returns: `true` if successful, `false` if insufficient tokens
   func consume(tokensNeeded: Int) -> Bool {
-    refill()  // First, refill the bucket
-    if tokens >= tokensNeeded {  // If there are enough tokens
-      tokens -= tokensNeeded  // Consume the tokens
-      return true  // Return success
+    refill()
+
+    guard tokens >= tokensNeeded else {
+      return false
     }
-    return false  // Not enough tokens, return failure
+
+    tokens -= tokensNeeded
+    return true
+  }
+
+  /// Calculates time (in nanoseconds) until the requested tokens become available.
+  /// - Returns: 0 if tokens are already available, otherwise wait time capped at 1 second
+  func timeUntilAvailable(tokensNeeded: Int) -> UInt64 {
+    refill()
+
+    guard tokens < tokensNeeded else {
+      return 0
+    }
+
+    let tokensShortage = tokensNeeded - tokens
+    let millisNeeded = (tokensShortage * 1000) / refillRate
+    let cappedMillis = min(millisNeeded, 1000)  // Cap at 1s to avoid extremely long waits
+
+    return UInt64(cappedMillis * 1_000_000)
   }
 }

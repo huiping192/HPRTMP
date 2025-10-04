@@ -74,4 +74,16 @@ actor MessagePriorityQueue {
     waitMessageContinuation.resume()
     self.waitMessageContinuation = nil
   }
+
+  // Requeues a message to the front of its priority queue (used when waiting for ACK)
+  func requeue(_ container: MessageContainer) {
+    switch container.message.priority {
+    case .high:
+      highPriorityQueue.insert(container, at: 0)
+    case .medium:
+      mediumPriorityQueue.insert(container, at: 0)
+    case .low:
+      lowPriorityQueue.insert(container, at: 0)
+    }
+  }
 }
