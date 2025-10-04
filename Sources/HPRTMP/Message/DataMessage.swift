@@ -43,31 +43,39 @@ public protocol RTMPBaseMessage: RTMPMessage {
 }
 
 
-class DataMessage: RTMPBaseMessage, @unchecked Sendable {
-  let encodeType: ObjectEncodingType
-  let msgStreamId: Int
-  let timestamp: UInt32
+protocol DataMessage: RTMPBaseMessage {
+  var encodeType: ObjectEncodingType { get }
+  var msgStreamId: Int { get }
+  var timestamp: UInt32 { get }
+}
 
+extension DataMessage {
   var messageType: MessageType { .data(type: encodeType) }
   var streamId: UInt16 { RTMPChunkStreamId.command.rawValue }
-  var payload: Data { Data() }
+  var timestamp: UInt32 { 0 }
+}
 
-  init(encodeType: ObjectEncodingType, msgStreamId: Int, timestamp: UInt32 = 0) {
-    self.encodeType = encodeType
-    self.msgStreamId = msgStreamId
-    self.timestamp = min(timestamp, maxTimestamp)
+struct AnyDataMessage: DataMessage, Sendable {
+  let encodeType: ObjectEncodingType
+  let msgStreamId: Int
+  
+  var payload: Data {
+    Data()
   }
 }
 
 final class MetaMessage: DataMessage, @unchecked Sendable {
+  let encodeType: ObjectEncodingType
+  let msgStreamId: Int
+  
   let meta: [String: Any]
   init(encodeType: ObjectEncodingType, msgStreamId: Int, meta: [String: Any]) {
+    self.encodeType = encodeType
+    self.msgStreamId = msgStreamId
     self.meta = meta
-    super.init(encodeType: encodeType,
-               msgStreamId: msgStreamId)
   }
   
-  override var payload: Data {
+  var payload: Data {
     var data = Data()
     let encoder = AMF0Encoder()
     data.append((encoder.encode("onMetaData")) ?? Data())
@@ -76,7 +84,6 @@ final class MetaMessage: DataMessage, @unchecked Sendable {
     return data
   }
 }
-
 
 struct VideoMessage: RTMPBaseMessage {
   let data: Data
@@ -102,16 +109,20 @@ struct AudioMessage: RTMPBaseMessage {
 }
 
 final class SharedObjectMessage: DataMessage, @unchecked Sendable {
+  let encodeType: ObjectEncodingType
+  let msgStreamId: Int
+  
   let sharedObjectName: String?
   let sharedObject: [String: Any]?
   
   init(encodeType: ObjectEncodingType, msgStreamId: Int, sharedObjectName: String?, sharedObject: [String: Any]?) {
+    self.encodeType = encodeType
+    self.msgStreamId = msgStreamId
     self.sharedObjectName = sharedObjectName
     self.sharedObject = sharedObject
-    super.init(encodeType: encodeType, msgStreamId: msgStreamId)
   }
   
-  override var payload: Data {
+  var payload: Data {
     var data = Data()
     let encoder = AMF0Encoder()
     data.append((encoder.encode("onSharedObject")) ?? Data())

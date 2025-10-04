@@ -75,7 +75,7 @@ actor MessageDecoder {
       
       return CommandMessage(encodeType: type, commandName: commandName, msgStreamId: msgStreamId, transactionId: Int(transactionId ?? 0), commandObject: objcet, info: info)
     case .data(type: let type):
-      return DataMessage(encodeType: type, msgStreamId: msgStreamId)
+      return AnyDataMessage(encodeType: type, msgStreamId: msgStreamId)
     case .share(type: let type):
       let data = type == .amf0 ? chunkPayload.decodeAMF0() : chunkPayload.decodeAMF3()
       let sharedObjectName = data?.first as? String
