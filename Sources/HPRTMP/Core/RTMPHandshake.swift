@@ -17,8 +17,8 @@ actor RTMPHandshake {
     case none
   }
 
-  // const 1536 byte
-  static let packetSize = 1536
+  // C1 packet size (1536 bytes, not including C0)
+  static let c1PacketSize = 1536
   private static let rtmpVersion: UInt8 = 3
 
   private var client: (any NetworkConnectable)?
@@ -47,11 +47,11 @@ actor RTMPHandshake {
     // const 0,0,0,0
     data.write([0x00,0x00,0x00,0x00])
     
-    // random
-    let randomSize = RTMPHandshake.packetSize - data.count
-    (0...randomSize).forEach { _ in
-      data.write(UInt8(arc4random_uniform(0xff)))
-    }
+    // random bytes: C1 size minus already written bytes (version + timestamp + zero)
+    // Note: using 0...randomSize because we need randomSize+1 bytes to reach total C1 size
+    let randomSize = RTMPHandshake.c1PacketSize - data.count
+    data.append(contentsOf: (0...randomSize).map { _ in UInt8.random(in: 0...255) })
+    
     return data
   }
   
@@ -62,7 +62,7 @@ actor RTMPHandshake {
     // timestamp
     data.write(UInt32(Date().timeIntervalSince1970).bigEndian.toUInt8Array())
     // c2 random
-    data.append(s0s1Packet.subdata(in: 8..<RTMPHandshake.packetSize))
+    data.append(s0s1Packet.subdata(in: 8..<RTMPHandshake.c1PacketSize))
     return data
   }
   
@@ -77,7 +77,7 @@ actor RTMPHandshake {
     try await sendPacket(c0c1Packet)
         
     // receive s0s1, + 1 because first byte is s0(rtmp version)
-    let s0s1Packet = try await receivePacket(expectedSize: Self.packetSize + 1)
+    let s0s1Packet = try await receivePacket(expectedSize: Self.c1PacketSize + 1)
    
     status = .verSent
 
@@ -87,7 +87,7 @@ actor RTMPHandshake {
     status = .ackSent
     
     // receive s2 packet
-    _ = try await receivePacket(expectedSize: Self.packetSize)
+    _ = try await receivePacket(expectedSize: Self.c1PacketSize)
     
     status = .handshakeDone
   }
