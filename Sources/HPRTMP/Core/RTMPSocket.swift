@@ -220,6 +220,9 @@ extension RTMPSocket {
               } catch {
                 logger.error("[HPRTMP] send message failed: \(type(of: message)), error: \(error)")
 
+                // Resume continuation before cleanup
+                messageContainer.continuation?.resume()
+
                 // Notify delegate first (check for nil to avoid silent failure)
                 if let delegate = self.delegate {
                   await delegate.socketError(self, err: .stream(desc: error.localizedDescription))
@@ -239,6 +242,9 @@ extension RTMPSocket {
             }
           }
         }
+
+        // All chunks sent successfully, resume continuation if present
+        messageContainer.continuation?.resume()
       }
     }
     
@@ -286,6 +292,14 @@ extension RTMPSocket {
   }
   func send(message: RTMPMessage, firstType: Bool) async {
     await messagePriorityQueue.enqueue(message, firstType: firstType)
+  }
+
+  func sendAndWait(message: RTMPMessage, firstType: Bool) async {
+    await withCheckedContinuation { continuation in
+      Task {
+        await messagePriorityQueue.enqueue(message, firstType: firstType, continuation: continuation)
+      }
+    }
   }
   
   private func receiveData() async throws -> Data {

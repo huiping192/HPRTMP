@@ -234,6 +234,19 @@ final class MessagePriorityQueueTests: XCTestCase {
     XCTAssertTrue(isEmpty)
   }
 
+  // MARK: - Continuation Tests
+
+  func testEnqueueWithoutContinuation() async {
+    let queue = MessagePriorityQueue()
+    let message = createMessage(priority: .medium)
+
+    await queue.enqueue(message, firstType: false, continuation: nil)
+
+    let container = await queue.dequeue()
+    XCTAssertNotNil(container)
+    XCTAssertNil(container?.continuation, "Container should have nil continuation when enqueued without one")
+  }
+
   // MARK: - Helper Methods
 
   private func createMessage(priority: MessagePriority, timestamp: UInt32 = 0) -> RTMPMessage {

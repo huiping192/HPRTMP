@@ -105,11 +105,11 @@ public actor RTMPPublishSession {
     // send closeStream
     let closeStreamMessage = CloseStreamMessage(msgStreamId: connectId)
     await socket.send(message: closeStreamMessage, firstType: true)
-    
-    // send deleteStream
+
+    // send deleteStream and wait for it to be sent
     let deleteStreamMessage = DeleteStreamMessage(msgStreamId: connectId)
-    await socket.send(message: deleteStreamMessage, firstType: true)
-    
+    await socket.sendAndWait(message: deleteStreamMessage, firstType: true)
+
     await self.socket.invalidate()
     self.publishStatus = .disconnected
   }
