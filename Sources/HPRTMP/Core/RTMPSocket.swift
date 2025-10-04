@@ -142,9 +142,10 @@ extension RTMPSocket {
     do {
       try await connection.connect(host: urlInfo.host, port: urlInfo.port)
       status = .open
-      Task {
+      let task = Task {
         await self.startShakeHands()
       }
+      tasks.append(task)
     } catch {
       self.logger.error("[HPRTMP] connection error: \(error.localizedDescription)")
       await self.delegate?.socketError(self, err: .uknown(desc: error.localizedDescription))
@@ -175,6 +176,7 @@ extension RTMPSocket {
     tasks.forEach {
       $0.cancel()
     }
+    tasks.removeAll()
     await handshake?.reset()
     await decoder.reset()
     try? await connection.close()
