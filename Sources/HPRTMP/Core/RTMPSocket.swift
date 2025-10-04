@@ -23,6 +23,7 @@ public enum RTMPError: Error, Sendable {
   case connectionNotEstablished
   case connectionInvalidated
   case dataRetrievalFailed
+  case bufferOverflow
 
   var localizedDescription: String {
     get {
@@ -41,6 +42,8 @@ public enum RTMPError: Error, Sendable {
         return "Connection invalidated"
       case .dataRetrievalFailed:
         return "Data retrieval failed unexpectedly"
+      case .bufferOverflow:
+        return "Buffer overflow: received data exceeds maximum allowed size"
       }
     }
   }
@@ -155,9 +158,13 @@ extension RTMPSocket {
       return
     }
     self.handshake = RTMPHandshake(client: client)
-    await self.handshake?.setDelegate(delegate: self)
     do {
       try await self.handshake?.start()
+
+      await self.delegate?.socketHandShakeDone(self)
+      startSendMessages()
+      startReceiveData()
+      startUpdateTransmissionStatistics()
     } catch {
       await self.delegate?.socketError(self, err: .handShake(desc: error.localizedDescription))
     }
@@ -268,23 +275,6 @@ extension RTMPSocket {
   
   private func receiveData() async throws -> Data {
     return try await connection.receiveData()
-  }
-}
-
-extension RTMPSocket: RTMPHandshakeDelegate {
-  nonisolated func rtmpHandshakeDidChange(status: RTMPHandshake.Status) {
-    Task {
-      guard status == .handshakeDone else { return }
-      await self.delegate?.socketHandShakeDone(self)
-      
-      // start sending messages
-      await startSendMessages()
-      
-      // start receive data
-      await startReceiveData()
-      
-      await startUpdateTransmissionStatistics()
-    }
   }
 }
 
