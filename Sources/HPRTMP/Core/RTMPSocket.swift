@@ -62,13 +62,10 @@ protocol RTMPSocketDelegate: Actor {
   func socketConnectDone(_ socket: RTMPSocket)
   func socketCreateStreamDone(_ socket: RTMPSocket, msgStreamId: Int)
   func socketError(_ socket: RTMPSocket, err: RTMPError)
-  func socketGetMeta(_ socket: RTMPSocket, meta: MetaDataResponse)
   func socketPeerBandWidth(_ socket: RTMPSocket, size: UInt32)
   func socketDisconnected(_ socket: RTMPSocket)
-  
-  
-  func socketStreamOutputAudio(_ socket: RTMPSocket, data: Data, timeStamp: Int64)
-  func socketStreamOutputVideo(_ socket: RTMPSocket, data: Data, timeStamp: Int64)
+
+
   func socketStreamPublishStart(_ socket: RTMPSocket)
   func socketStreamRecord(_ socket: RTMPSocket)
   func socketStreamPlayStart(_ socket: RTMPSocket)
@@ -78,11 +75,15 @@ protocol RTMPSocketDelegate: Actor {
 }
 
 public actor RTMPSocket {
-  
+
   private let connection: NetworkConnectable = NetworkClient()
-  
+
   private var status: RTMPStatus = .none
-  
+
+  // AsyncStream for media events
+  private let mediaContinuation: AsyncStream<RTMPMediaEvent>.Continuation
+  public let mediaEvents: AsyncStream<RTMPMediaEvent>
+
   weak var delegate: RTMPSocketDelegate?
   
   func setDelegate(delegate: RTMPSocketDelegate) {
@@ -110,6 +111,11 @@ public actor RTMPSocket {
   private var tasks: [Task<Void, Never>] = []
     
   public init() async {
+    // Initialize media events stream
+    var mediaCont: AsyncStream<RTMPMediaEvent>.Continuation!
+    self.mediaEvents = AsyncStream { mediaCont = $0 }
+    self.mediaContinuation = mediaCont
+
     await windowControl.setInBytesWindowEvent { [weak self]inbytesCount in
       await self?.sendAcknowledgementMessage(sequence: inbytesCount)
     }
@@ -363,11 +369,11 @@ extension RTMPSocket {
 
     case let videoMessage as VideoMessage:
       logger.info("VideoMessage, message Type:  \(videoMessage.messageType.rawValue)")
-      await self.delegate?.socketStreamOutputVideo(self, data: videoMessage.data, timeStamp: Int64(videoMessage.timestamp))
+      mediaContinuation.yield(.video(data: videoMessage.data, timestamp: Int64(videoMessage.timestamp)))
 
     case let audioMessage as AudioMessage:
       logger.info("AudioMessage, message Type:  \(audioMessage.messageType.rawValue)")
-      await self.delegate?.socketStreamOutputAudio(self, data: audioMessage.data, timeStamp: Int64(audioMessage.timestamp))
+      mediaContinuation.yield(.audio(data: audioMessage.data, timestamp: Int64(audioMessage.timestamp)))
 
     case let sharedObjectMessage as SharedObjectMessage:
       logger.info("ShareMessage, message Type:  \(sharedObjectMessage.messageType.rawValue)")
@@ -405,7 +411,7 @@ extension RTMPSocket {
     // meta data
     if commandMessage.commandNameType == .onMetaData {
       guard let meta = MetaDataResponse(commandObject: commandMessage.commandObject) else { return }
-      await self.delegate?.socketGetMeta(self, meta: meta)
+      mediaContinuation.yield(.metadata(meta))
       return
     }
     

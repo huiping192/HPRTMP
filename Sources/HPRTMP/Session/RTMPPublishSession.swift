@@ -117,11 +117,8 @@ public actor RTMPPublishSession {
 
 extension RTMPPublishSession: RTMPSocketDelegate {
   
-  
+
   // publisher dont need implement
-  func socketGetMeta(_ socket: RTMPSocket, meta: MetaDataResponse) {}
-  func socketStreamOutputAudio(_ socket: RTMPSocket, data: Data, timeStamp: Int64) {}
-  func socketStreamOutputVideo(_ socket: RTMPSocket, data: Data, timeStamp: Int64) {}
   func socketStreamRecord(_ socket: RTMPSocket) {}
   func socketStreamPlayStart(_ socket: RTMPSocket) {}
   func socketStreamPause(_ socket: RTMPSocket, pause: Bool) {}
