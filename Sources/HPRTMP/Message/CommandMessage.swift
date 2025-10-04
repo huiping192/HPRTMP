@@ -53,13 +53,16 @@ struct CommandMessage: RTMPBaseMessage, CustomStringConvertible {
 
   var payload: Data {
     var data = Data()
-    let encoder = AMF0Encoder()
 
-    data.append((encoder.encode(commandName)) ?? Data())
-    data.append((encoder.encode(Double(transactionId))) ?? Data())
+    let commandNameValue = AMFValue.string(commandName)
+    let transactionIdValue = AMFValue.double(Double(transactionId))
+
+    data.append(encodeType == .amf0 ? commandNameValue.amf0Value : commandNameValue.amf3Value)
+    data.append(encodeType == .amf0 ? transactionIdValue.amf0Value : transactionIdValue.amf3Value)
+
     if let commandObject {
-      let anyDict = commandObject.mapValues { $0.toAny() }
-      data.append((encoder.encode(anyDict)) ?? Data())
+      let objectValue = AMFValue.object(commandObject)
+      data.append(encodeType == .amf0 ? objectValue.amf0Value : objectValue.amf3Value)
     }
 
     return data
@@ -121,13 +124,18 @@ struct ConnectMessage: RTMPBaseMessage, CustomStringConvertible {
 
   var payload: Data {
     var data = Data()
-    let encoder = AMF0Encoder()
-    data.append((encoder.encode(commandName)) ?? Data())
-    data.append((encoder.encode(Double(transactionId))) ?? Data())
+
+    let commandNameValue = AMFValue.string(commandName)
+    let transactionIdValue = AMFValue.double(Double(transactionId))
+
+    data.append(encodeType == .amf0 ? commandNameValue.amf0Value : commandNameValue.amf3Value)
+    data.append(encodeType == .amf0 ? transactionIdValue.amf0Value : transactionIdValue.amf3Value)
+
     if let commandObject {
-      let anyDict = commandObject.mapValues { $0.toAny() }
-      data.append((encoder.encode(anyDict)) ?? Data())
+      let objectValue = AMFValue.object(commandObject)
+      data.append(encodeType == .amf0 ? objectValue.amf0Value : objectValue.amf3Value)
     }
+
     return data
   }
 
@@ -162,15 +170,19 @@ struct CreateStreamMessage: RTMPBaseMessage, CustomStringConvertible {
 
   var payload: Data {
     var data = Data()
-    let encoder = AMF0Encoder()
 
-    data.append((encoder.encode(commandName)) ?? Data())
-    data.append((encoder.encode(Double(transactionId))) ?? Data())
+    let commandNameValue = AMFValue.string(commandName)
+    let transactionIdValue = AMFValue.double(Double(transactionId))
+
+    data.append(encodeType == .amf0 ? commandNameValue.amf0Value : commandNameValue.amf3Value)
+    data.append(encodeType == .amf0 ? transactionIdValue.amf0Value : transactionIdValue.amf3Value)
+
     if let commandObject {
-      let anyDict = commandObject.mapValues { $0.toAny() }
-      data.append((encoder.encode(anyDict)) ?? Data())
+      let objectValue = AMFValue.object(commandObject)
+      data.append(encodeType == .amf0 ? objectValue.amf0Value : objectValue.amf3Value)
     } else {
-      data.append(encoder.encodeNil())
+      let nullValue = AMFValue.null
+      data.append(encodeType == .amf0 ? nullValue.amf0Value : nullValue.amf3Value)
     }
 
     return data
@@ -199,9 +211,13 @@ struct CloseStreamMessage: RTMPBaseMessage, CustomStringConvertible {
 
   var payload: Data {
     var data = Data()
-    let encoder = AMF0Encoder()
-    data.append((encoder.encode(commandName)) ?? Data())
-    data.append((encoder.encode(Double(transactionId))) ?? Data())
+
+    let commandNameValue = AMFValue.string(commandName)
+    let transactionIdValue = AMFValue.double(Double(transactionId))
+
+    data.append(encodeType == .amf0 ? commandNameValue.amf0Value : commandNameValue.amf3Value)
+    data.append(encodeType == .amf0 ? transactionIdValue.amf0Value : transactionIdValue.amf3Value)
+
     return data
   }
 
@@ -227,9 +243,13 @@ struct DeleteStreamMessage: RTMPBaseMessage, CustomStringConvertible {
 
   var payload: Data {
     var data = Data()
-    let encoder = AMF0Encoder()
-    data.append((encoder.encode(commandName)) ?? Data())
-    data.append((encoder.encode(Double(transactionId))) ?? Data())
+
+    let commandNameValue = AMFValue.string(commandName)
+    let transactionIdValue = AMFValue.double(Double(transactionId))
+
+    data.append(encodeType == .amf0 ? commandNameValue.amf0Value : commandNameValue.amf3Value)
+    data.append(encodeType == .amf0 ? transactionIdValue.amf0Value : transactionIdValue.amf3Value)
+
     return data
   }
 
@@ -265,13 +285,18 @@ struct PublishMessage: RTMPBaseMessage {
 
   var payload: Data {
     var data = Data()
-    let encoder = AMF0Encoder()
 
-    data.append((encoder.encode(commandName)) ?? Data())
-    data.append((encoder.encode(Double(transactionId))) ?? Data())
-    data.append((encoder.encodeNil()))
-    data.append((encoder.encode(streamName)) ?? Data())
-    data.append((encoder.encode(self.type.rawValue)) ?? Data())
+    let commandNameValue = AMFValue.string(commandName)
+    let transactionIdValue = AMFValue.double(Double(transactionId))
+    let nullValue = AMFValue.null
+    let streamNameValue = AMFValue.string(streamName)
+    let typeValue = AMFValue.string(self.type.rawValue)
+
+    data.append(encodeType == .amf0 ? commandNameValue.amf0Value : commandNameValue.amf3Value)
+    data.append(encodeType == .amf0 ? transactionIdValue.amf0Value : transactionIdValue.amf3Value)
+    data.append(encodeType == .amf0 ? nullValue.amf0Value : nullValue.amf3Value)
+    data.append(encodeType == .amf0 ? streamNameValue.amf0Value : streamNameValue.amf3Value)
+    data.append(encodeType == .amf0 ? typeValue.amf0Value : typeValue.amf3Value)
 
     return data
   }
@@ -297,12 +322,16 @@ struct SeekMessage: RTMPBaseMessage {
 
   var payload: Data {
     var data = Data()
-    let encoder = AMF0Encoder()
 
-    data.append((encoder.encode(commandName)) ?? Data())
-    data.append((encoder.encode(Double(transactionId))) ?? Data())
-    data.append((encoder.encodeNil()))
-    data.append((encoder.encode(millSecond)) ?? Data())
+    let commandNameValue = AMFValue.string(commandName)
+    let transactionIdValue = AMFValue.double(Double(transactionId))
+    let nullValue = AMFValue.null
+    let millSecondValue = AMFValue.double(millSecond)
+
+    data.append(encodeType == .amf0 ? commandNameValue.amf0Value : commandNameValue.amf3Value)
+    data.append(encodeType == .amf0 ? transactionIdValue.amf0Value : transactionIdValue.amf3Value)
+    data.append(encodeType == .amf0 ? nullValue.amf0Value : nullValue.amf3Value)
+    data.append(encodeType == .amf0 ? millSecondValue.amf0Value : millSecondValue.amf3Value)
 
     return data
   }
@@ -330,13 +359,18 @@ struct PauseMessage: RTMPBaseMessage {
 
   var payload: Data {
     var data = Data()
-    let encoder = AMF0Encoder()
 
-    data.append((encoder.encode(commandName)) ?? Data())
-    data.append((encoder.encode(Double(transactionId))) ?? Data())
-    data.append((encoder.encodeNil()))
-    data.append((encoder.encode(isPause)) ?? Data())
-    data.append((encoder.encode(millSecond)) ?? Data())
+    let commandNameValue = AMFValue.string(commandName)
+    let transactionIdValue = AMFValue.double(Double(transactionId))
+    let nullValue = AMFValue.null
+    let isPauseValue = AMFValue.bool(isPause)
+    let millSecondValue = AMFValue.double(millSecond)
+
+    data.append(encodeType == .amf0 ? commandNameValue.amf0Value : commandNameValue.amf3Value)
+    data.append(encodeType == .amf0 ? transactionIdValue.amf0Value : transactionIdValue.amf3Value)
+    data.append(encodeType == .amf0 ? nullValue.amf0Value : nullValue.amf3Value)
+    data.append(encodeType == .amf0 ? isPauseValue.amf0Value : isPauseValue.amf3Value)
+    data.append(encodeType == .amf0 ? millSecondValue.amf0Value : millSecondValue.amf3Value)
 
     return data
   }

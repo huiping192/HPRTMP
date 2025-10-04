@@ -102,9 +102,31 @@ struct MetaMessage: DataMessage {
 
   var payload: Data {
     var data = Data()
-    let encoder = AMF0Encoder()
-    data.append((encoder.encode("onMetaData")) ?? Data())
-    data.append((encoder.encode(meta.dictionary)) ?? Data())
+
+    let commandNameValue = AMFValue.string("onMetaData")
+
+    // Convert meta.dictionary to [String: AMFValue]
+    var metaDict: [String: AMFValue] = [
+      "width": .double(Double(meta.width)),
+      "height": .double(Double(meta.height)),
+      "videocodecid": .double(Double(meta.videocodecid)),
+      "audiocodecid": .double(Double(meta.audiocodecid)),
+      "framerate": .double(Double(meta.framerate))
+    ]
+    if let videodatarate = meta.videodatarate {
+      metaDict["videodatarate"] = .double(Double(videodatarate))
+    }
+    if let audiodatarate = meta.audiodatarate {
+      metaDict["audiodatarate"] = .double(Double(audiodatarate))
+    }
+    if let audiosamplerate = meta.audiosamplerate {
+      metaDict["audiosamplerate"] = .double(Double(audiosamplerate))
+    }
+
+    let metaValue = AMFValue.object(metaDict)
+
+    data.append(encodeType == .amf0 ? commandNameValue.amf0Value : commandNameValue.amf3Value)
+    data.append(encodeType == .amf0 ? metaValue.amf0Value : metaValue.amf3Value)
 
     return data
   }
@@ -142,16 +164,20 @@ struct SharedObjectMessage: DataMessage {
 
   var payload: Data {
     var data = Data()
-    let encoder = AMF0Encoder()
-    data.append((encoder.encode("onSharedObject")) ?? Data())
+
+    let commandNameValue = AMFValue.string("onSharedObject")
+    data.append(encodeType == .amf0 ? commandNameValue.amf0Value : commandNameValue.amf3Value)
+
     if let sharedObjectName {
-      data.append((encoder.encode(sharedObjectName)) ?? Data())
+      let nameValue = AMFValue.string(sharedObjectName)
+      data.append(encodeType == .amf0 ? nameValue.amf0Value : nameValue.amf3Value)
     }
+
     if let sharedObject {
-      // Convert [String: AMFValue] to [String: Any] for encoding
-      let anyDict = sharedObject.mapValues { $0.toAny() }
-      data.append((encoder.encode(anyDict)) ?? Data())
+      let objectValue = AMFValue.object(sharedObject)
+      data.append(encodeType == .amf0 ? objectValue.amf0Value : objectValue.amf3Value)
     }
+
     return data
   }
 }
