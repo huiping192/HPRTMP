@@ -286,45 +286,38 @@ extension RTMPSocket {
     guard !data.isEmpty else { return }
     await windowControl.addInBytesCount(UInt32(data.count))
     await decoder.append(data)
-    
-    if await decoder.isDecoding {
-      return
-    }
-    var dataRemainCount = 0
-    while await decoder.remainDataCount != dataRemainCount, await decoder.remainDataCount != 0 {
-      dataRemainCount = await decoder.remainDataCount
-      await decode(data: data)
+
+    while true {
+      guard let message = await decoder.decode() else {
+        break
+      }
+      await handleDecodedMessage(message)
     }
   }
   
-  private func decode(data: Data) async {
-    guard let message = await decoder.decode() else {
-      logger.info("[HPRTMP] decode message need more data. \(data)")
-      return
-    }
-    
+  private func handleDecodedMessage(_ message: RTMPMessage) async {
     switch message {
     case let windowAckMessage as WindowAckMessage:
       logger.info("WindowAckMessage, size \(windowAckMessage.size)")
       await windowControl.setWindowSize(windowAckMessage.size)
-      
+
     case let acknowledgementMessage as AcknowledgementMessage:
       logger.info("AcknowledgementMessage, size \(acknowledgementMessage.sequence)")
       await windowControl.updateReceivedAcknowledgement(acknowledgementMessage.sequence)
-      
+
     case let peerBandwidthMessage as PeerBandwidthMessage:
       logger.info("PeerBandwidthMessage, size \(peerBandwidthMessage.windowSize)")
       await tokenBucket.update(rate: Int(peerBandwidthMessage.windowSize), capacity: Int(peerBandwidthMessage.windowSize))
       await delegate?.socketPeerBandWidth(self, size: peerBandwidthMessage.windowSize)
-      
+
     case let chunkSizeMessage as ChunkSizeMessage:
       logger.info("chunkSizeMessage, size \(chunkSizeMessage.size)")
       await decoder.setMaxChunkSize(maxChunkSize: Int(chunkSizeMessage.size))
-      
+
     case let commandMessage as CommandMessage:
       logger.info("CommandMessage, \(commandMessage.description)")
       await handleCommandMessage(commandMessage)
-      
+
     case let userControlMessage as UserControlMessage:
       logger.info("UserControlMessage, message Type:  \(userControlMessage.type.rawValue)")
       switch userControlMessage.type {
@@ -335,27 +328,27 @@ extension RTMPSocket {
       default:
         break
       }
-      
+
     case let controlMessage as ControlMessage:
       logger.info("ControlMessage, message Type:  \(controlMessage.messageType.rawValue)")
-      
+
     case let dataMessage as DataMessage:
       logger.info("DataMessage, message Type:  \(dataMessage.messageType.rawValue)")
-      
+
     case let videoMessage as VideoMessage:
       logger.info("VideoMessage, message Type:  \(videoMessage.messageType.rawValue)")
       await self.delegate?.socketStreamOutputVideo(self, data: videoMessage.data, timeStamp: Int64(videoMessage.timestamp))
-      
+
     case let audioMessage as AudioMessage:
       logger.info("AudioMessage, message Type:  \(audioMessage.messageType.rawValue)")
       await self.delegate?.socketStreamOutputAudio(self, data: audioMessage.data, timeStamp: Int64(audioMessage.timestamp))
-      
+
     case let sharedObjectMessage as SharedObjectMessage:
       logger.info("ShareMessage, message Type:  \(sharedObjectMessage.messageType.rawValue)")
-      
+
     case let abortMessage as AbortMessage:
       logger.info("AbortMessage, message Type:  \(abortMessage.chunkStreamId)")
-      
+
     default:
       break
     }
