@@ -25,7 +25,7 @@ actor RTMPHandshake {
   static let packetSize = 1536
   private static let rtmpVersion: UInt8 = 3
 
-  private weak var client: NetworkClient?
+  private var client: (any NetworkConnectable)?
 
   weak var delegate: RTMPHandshakeDelegate?
 
@@ -37,7 +37,7 @@ actor RTMPHandshake {
     self.delegate = delegate
   }
 
-  public init(client: NetworkClient) {
+  public init(client: any NetworkConnectable) {
     self.client = client
   }
   
