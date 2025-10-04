@@ -133,20 +133,13 @@ struct AudioMessage: RTMPBaseMessage {
   var priority: MessagePriority { .medium }
 }
 
-final class SharedObjectMessage: DataMessage, @unchecked Sendable {
+struct SharedObjectMessage: DataMessage {
   let encodeType: ObjectEncodingType
   let msgStreamId: Int
-  
+
   let sharedObjectName: String?
-  let sharedObject: [String: Any]?
-  
-  init(encodeType: ObjectEncodingType, msgStreamId: Int, sharedObjectName: String?, sharedObject: [String: Any]?) {
-    self.encodeType = encodeType
-    self.msgStreamId = msgStreamId
-    self.sharedObjectName = sharedObjectName
-    self.sharedObject = sharedObject
-  }
-  
+  let sharedObject: [String: AMFValue]?
+
   var payload: Data {
     var data = Data()
     let encoder = AMF0Encoder()
@@ -155,7 +148,9 @@ final class SharedObjectMessage: DataMessage, @unchecked Sendable {
       data.append((encoder.encode(sharedObjectName)) ?? Data())
     }
     if let sharedObject {
-      data.append((encoder.encode(sharedObject)) ?? Data())
+      // Convert [String: AMFValue] to [String: Any] for encoding
+      let anyDict = sharedObject.mapValues { $0.toAny() }
+      data.append((encoder.encode(anyDict)) ?? Data())
     }
     return data
   }

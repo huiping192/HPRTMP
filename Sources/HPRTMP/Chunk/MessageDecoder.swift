@@ -78,8 +78,8 @@ actor MessageDecoder {
       return AnyDataMessage(encodeType: type, msgStreamId: msgStreamId)
     case .share(type: let type):
       let data = type == .amf0 ? chunkPayload.decodeAMF0() : chunkPayload.decodeAMF3()
-      let sharedObjectName = data?.first as? String
-      let sharedObject = data?[safe: 1] as? [String: Any]
+      let sharedObjectName = data?.first?.stringValue
+      let sharedObject = data?[safe: 1]?.objectValue
       return SharedObjectMessage(encodeType: type, msgStreamId: msgStreamId, sharedObjectName: sharedObjectName, sharedObject: sharedObject)
     case .audio:
       return AudioMessage(data: chunkPayload, msgStreamId: msgStreamId, timestamp: timestamp)
