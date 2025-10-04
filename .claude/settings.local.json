@@ -1,7 +1,8 @@
 {
   "permissions": {
     "allow": [
-      "Bash(swift --version)"
+      "Bash(swift --version)",
+      "Bash(xargs basename:*)"
     ],
     "deny": [],
     "ask": []

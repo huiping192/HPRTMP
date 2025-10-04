@@ -65,6 +65,10 @@ struct CommandMessage: RTMPBaseMessage, CustomStringConvertible {
       data.append(encodeType == .amf0 ? objectValue.amf0Value : objectValue.amf3Value)
     }
 
+    if let info {
+      data.append(encodeType == .amf0 ? info.amf0Value : info.amf3Value)
+    }
+
     return data
   }
 
