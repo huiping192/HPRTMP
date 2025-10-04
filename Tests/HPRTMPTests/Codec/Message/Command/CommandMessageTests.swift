@@ -30,7 +30,6 @@ final class CommandMessageTests: XCTestCase {
     let payload = message.payload
 
     // Decode and verify
-    let decoder = AMF0Decoder()
     let decoded = payload.decodeAMF0()
 
     XCTAssertNotNil(decoded)
