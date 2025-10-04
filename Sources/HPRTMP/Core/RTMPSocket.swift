@@ -128,9 +128,10 @@ public actor RTMPSocket {
     await resume()
   }
   
-  public func connect(streamURL: URL, streamKey: String, port: Int = 1935) {
+  public func connect(streamURL: URL, streamKey: String, port: Int = 1935) async {
     let urlInfo = RTMPURLInfo(url: streamURL, appName: "", key: streamKey, port: port)
     self.urlInfo = urlInfo
+    await resume()
   }
 }
 
