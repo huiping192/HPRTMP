@@ -401,8 +401,8 @@ extension RTMPSocket {
       if commandMessage.commandNameType == .result {
         logger.info("Create Stream Success")
         self.status = .connected
-        
-        let msgStreamId = commandMessage.info as? Double ?? 0
+
+        let msgStreamId = commandMessage.info?.doubleValue ?? 0
         await self.delegate?.socketCreateStreamDone(self, msgStreamId: Int(msgStreamId))
       } else {
         logger.error("Create Stream failed, \(commandMessage.info.debugDescription)")

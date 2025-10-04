@@ -35,36 +35,21 @@ enum CommandNameType: String {
   case error     = "_error"
 }
 
-class CommandMessage: RTMPBaseMessage, @unchecked Sendable, CustomStringConvertible {
+struct CommandMessage: RTMPBaseMessage, CustomStringConvertible {
   let encodeType: ObjectEncodingType
   let commandName: String
   var commandNameType: CommandNameType? {
     CommandNameType(rawValue: commandName)
   }
   let transactionId: Int
-  let commandObject: [String: Any]?
+  let commandObject: [String: AMFValue]?
 
-  let info: Any?
+  let info: AMFValue?
   let msgStreamId: Int
   let timestamp: UInt32
 
   var messageType: MessageType { .command(type: encodeType) }
   var streamId: UInt16 { RTMPChunkStreamId.command.rawValue }
-
-  init(encodeType: ObjectEncodingType,
-       commandName: String,
-       msgStreamId: Int = 0,
-       transactionId: Int,
-       commandObject: [String: Any]? = nil,
-       info: Any? = nil) {
-    self.commandName = commandName
-    self.transactionId = transactionId
-    self.commandObject = commandObject
-    self.info = info
-    self.encodeType = encodeType
-    self.msgStreamId = msgStreamId
-    self.timestamp = 0
-  }
 
   var payload: Data {
     var data = Data()
@@ -73,12 +58,13 @@ class CommandMessage: RTMPBaseMessage, @unchecked Sendable, CustomStringConverti
     data.append((encoder.encode(commandName)) ?? Data())
     data.append((encoder.encode(Double(transactionId))) ?? Data())
     if let commandObject {
-      data.append((encoder.encode(commandObject)) ?? Data())
+      let anyDict = commandObject.mapValues { $0.toAny() }
+      data.append((encoder.encode(anyDict)) ?? Data())
     }
 
     return data
   }
-  
+
   var description: String {
       var result = ""
       result += "Command Name: \(commandName)\n"
@@ -94,8 +80,18 @@ class CommandMessage: RTMPBaseMessage, @unchecked Sendable, CustomStringConverti
 }
 
 
-final class ConnectMessage: CommandMessage, @unchecked Sendable {
-  let argument: [String: Any]?
+struct ConnectMessage: RTMPBaseMessage, CustomStringConvertible {
+  let encodeType: ObjectEncodingType
+  let commandName: String = "connect"
+  let transactionId: Int = commonTransactionId.connect
+  let commandObject: [String: AMFValue]?
+  let msgStreamId: Int = 0
+  let timestamp: UInt32 = 0
+  let argument: [String: AMFValue]?
+
+  var messageType: MessageType { .command(type: encodeType) }
+  var streamId: UInt16 { RTMPChunkStreamId.command.rawValue }
+
   init(encodeType: ObjectEncodingType = .amf0,
        tcUrl: String,
        appName: String,
@@ -105,25 +101,37 @@ final class ConnectMessage: CommandMessage, @unchecked Sendable {
        audio: RTMPAudioCodecsType,
        video: RTMPVideoCodecsType,
        pageURL: URL? = nil,
-       argument: [String: Any]? = nil) {
+       argument: [String: AMFValue]? = nil) {
+    self.encodeType = encodeType
     self.argument = argument
-    let obj:[String: Any] = ["app": appName,
-                              "flashver": flashVer,
-                              "swfUrl":swfURL?.absoluteString ?? "",
-                              "tcUrl":tcUrl,
-                              "fpad":fpad,
-                              "audioCodecs": audio.rawValue,
-                              "videoCodecs":video.rawValue,
-                              "videoFunction":RTMPVideoFunction.seek.rawValue,
-                              "pageUrl":pageURL?.absoluteString ?? "",
-                              "objectEncoding":encodeType.rawValue]
-    
-    super.init(encodeType: encodeType, commandName: "connect", transactionId: commonTransactionId.connect, commandObject: obj)
+    let obj: [String: AMFValue] = [
+      "app": .string(appName),
+      "flashver": .string(flashVer),
+      "swfUrl": .string(swfURL?.absoluteString ?? ""),
+      "tcUrl": .string(tcUrl),
+      "fpad": .bool(fpad),
+      "audioCodecs": .double(Double(audio.rawValue)),
+      "videoCodecs": .double(Double(video.rawValue)),
+      "videoFunction": .double(Double(RTMPVideoFunction.seek.rawValue)),
+      "pageUrl": .string(pageURL?.absoluteString ?? ""),
+      "objectEncoding": .double(Double(encodeType.rawValue))
+    ]
+    self.commandObject = obj
   }
-  
 
-  
-  override var description: String {
+  var payload: Data {
+    var data = Data()
+    let encoder = AMF0Encoder()
+    data.append((encoder.encode(commandName)) ?? Data())
+    data.append((encoder.encode(Double(transactionId))) ?? Data())
+    if let commandObject {
+      let anyDict = commandObject.mapValues { $0.toAny() }
+      data.append((encoder.encode(anyDict)) ?? Data())
+    }
+    return data
+  }
+
+  var description: String {
       var desc = "ConnectMessage("
       desc += "commandName: \(commandName), "
       desc += "transactionId: \(transactionId), "
@@ -135,76 +143,130 @@ final class ConnectMessage: CommandMessage, @unchecked Sendable {
 }
 
 
-final class CreateStreamMessage: CommandMessage, @unchecked Sendable {
-  init(encodeType: ObjectEncodingType = .amf0, transactionId: Int, commonObject: [String: Any]? = nil) {
-    super.init(encodeType: encodeType,commandName: "createStream", transactionId: transactionId, commandObject: commonObject)
+struct CreateStreamMessage: RTMPBaseMessage, CustomStringConvertible {
+  let encodeType: ObjectEncodingType
+  let commandName: String = "createStream"
+  let transactionId: Int
+  let commandObject: [String: AMFValue]?
+  let msgStreamId: Int = 0
+  let timestamp: UInt32 = 0
+
+  var messageType: MessageType { .command(type: encodeType) }
+  var streamId: UInt16 { RTMPChunkStreamId.command.rawValue }
+
+  init(encodeType: ObjectEncodingType = .amf0, transactionId: Int, commonObject: [String: AMFValue]? = nil) {
+    self.encodeType = encodeType
+    self.transactionId = transactionId
+    self.commandObject = commonObject
   }
-  
-  override var payload: Data {
+
+  var payload: Data {
     var data = Data()
     let encoder = AMF0Encoder()
-    
+
     data.append((encoder.encode(commandName)) ?? Data())
     data.append((encoder.encode(Double(transactionId))) ?? Data())
     if let commandObject {
-      data.append((encoder.encode(commandObject)) ?? Data())
+      let anyDict = commandObject.mapValues { $0.toAny() }
+      data.append((encoder.encode(anyDict)) ?? Data())
     } else {
       data.append(encoder.encodeNil())
     }
 
     return data
   }
-  
-  override var description: String {
+
+  var description: String {
     let objDesc = commandObject != nil ? "\(commandObject!)" : "nil"
-    let infoDesc = info != nil ? "\(info!)" : "nil"
-    return "CreateStreamMessage: { commandName: \(commandName), transactionId: \(transactionId), commandObject: \(objDesc), info: \(infoDesc) }"
+    return "CreateStreamMessage: { commandName: \(commandName), transactionId: \(transactionId), commandObject: \(objDesc) }"
   }
 }
 
-final class CloseStreamMessage: CommandMessage, @unchecked Sendable {
+struct CloseStreamMessage: RTMPBaseMessage, CustomStringConvertible {
+  let encodeType: ObjectEncodingType
+  let commandName: String = "closeStream"
+  let transactionId: Int = 0
+  let msgStreamId: Int
+  let timestamp: UInt32 = 0
+
+  var messageType: MessageType { .command(type: encodeType) }
+  var streamId: UInt16 { RTMPChunkStreamId.command.rawValue }
+
   init(encodeType: ObjectEncodingType = .amf0, msgStreamId: Int) {
-    super.init(encodeType: encodeType,commandName: "closeStream", msgStreamId: msgStreamId, transactionId: 0, commandObject: nil)
+    self.encodeType = encodeType
+    self.msgStreamId = msgStreamId
   }
-  
-  override var description: String {
-    let objDesc = commandObject != nil ? "\(commandObject!)" : "nil"
-    let infoDesc = info != nil ? "\(info!)" : "nil"
-    return "CloseStreamMessage: { commandName: \(commandName), transactionId: \(transactionId), commandObject: \(objDesc), info: \(infoDesc) }"
+
+  var payload: Data {
+    var data = Data()
+    let encoder = AMF0Encoder()
+    data.append((encoder.encode(commandName)) ?? Data())
+    data.append((encoder.encode(Double(transactionId))) ?? Data())
+    return data
+  }
+
+  var description: String {
+    return "CloseStreamMessage: { commandName: \(commandName), transactionId: \(transactionId) }"
   }
 }
 
-final class DeleteStreamMessage: CommandMessage, @unchecked Sendable {
+struct DeleteStreamMessage: RTMPBaseMessage, CustomStringConvertible {
+  let encodeType: ObjectEncodingType
+  let commandName: String = "deleteStream"
+  let transactionId: Int = 0
+  let msgStreamId: Int
+  let timestamp: UInt32 = 0
+
+  var messageType: MessageType { .command(type: encodeType) }
+  var streamId: UInt16 { RTMPChunkStreamId.command.rawValue }
+
   init(encodeType: ObjectEncodingType = .amf0, msgStreamId: Int) {
-    super.init(encodeType: encodeType,commandName: "deleteStream", msgStreamId: msgStreamId, transactionId: 0, commandObject: nil)
+    self.encodeType = encodeType
+    self.msgStreamId = msgStreamId
   }
-  
-  override var description: String {
-    let objDesc = commandObject != nil ? "\(commandObject!)" : "nil"
-    let infoDesc = info != nil ? "\(info!)" : "nil"
-    return "DeleteStreamMessage: { commandName: \(commandName), transactionId: \(transactionId), commandObject: \(objDesc), info: \(infoDesc) }"
+
+  var payload: Data {
+    var data = Data()
+    let encoder = AMF0Encoder()
+    data.append((encoder.encode(commandName)) ?? Data())
+    data.append((encoder.encode(Double(transactionId))) ?? Data())
+    return data
+  }
+
+  var description: String {
+    return "DeleteStreamMessage: { commandName: \(commandName), transactionId: \(transactionId) }"
   }
 }
 
-public enum PubishType: String {
+public enum PubishType: String, Sendable {
   case live = "live"
   case record = "record"
   case append = "append"
 }
 
-final class PublishMessage: CommandMessage, @unchecked Sendable {
+struct PublishMessage: RTMPBaseMessage {
+  let encodeType: ObjectEncodingType
+  let commandName: String = "publish"
+  let transactionId: Int = commonTransactionId.stream
+  let msgStreamId: Int
+  let timestamp: UInt32 = 0
   let type: PubishType
   let streamName: String
+
+  var messageType: MessageType { .command(type: encodeType) }
+  var streamId: UInt16 { RTMPChunkStreamId.command.rawValue }
+
   init(encodeType: ObjectEncodingType = .amf0, streamName: String, type: PubishType, msgStreamId: Int = 0) {
+    self.encodeType = encodeType
     self.streamName = streamName
     self.type = type
-    super.init(encodeType: encodeType, commandName: "publish", msgStreamId: msgStreamId, transactionId: commonTransactionId.stream)
+    self.msgStreamId = msgStreamId
   }
-  
-  override var payload: Data {
+
+  var payload: Data {
     var data = Data()
     let encoder = AMF0Encoder()
-    
+
     data.append((encoder.encode(commandName)) ?? Data())
     data.append((encoder.encode(Double(transactionId))) ?? Data())
     data.append((encoder.encodeNil()))
@@ -216,17 +278,27 @@ final class PublishMessage: CommandMessage, @unchecked Sendable {
 }
 
 
-final class SeekMessage: CommandMessage, @unchecked Sendable {
+struct SeekMessage: RTMPBaseMessage {
+  let encodeType: ObjectEncodingType
+  let commandName: String = "seek"
+  let transactionId: Int = commonTransactionId.stream
+  let msgStreamId: Int
+  let timestamp: UInt32 = 0
   let millSecond: Double
+
+  var messageType: MessageType { .command(type: encodeType) }
+  var streamId: UInt16 { RTMPChunkStreamId.command.rawValue }
+
   init(encodeType: ObjectEncodingType = .amf0, msgStreamId: Int, millSecond: Double) {
+    self.encodeType = encodeType
+    self.msgStreamId = msgStreamId
     self.millSecond = millSecond
-    super.init(encodeType: encodeType, commandName: "seek", msgStreamId: msgStreamId, transactionId: commonTransactionId.stream)
   }
-  
-  override var payload: Data {
+
+  var payload: Data {
     var data = Data()
     let encoder = AMF0Encoder()
-    
+
     data.append((encoder.encode(commandName)) ?? Data())
     data.append((encoder.encode(Double(transactionId))) ?? Data())
     data.append((encoder.encodeNil()))
@@ -237,19 +309,29 @@ final class SeekMessage: CommandMessage, @unchecked Sendable {
 }
 
 
-final class PauseMessage: CommandMessage, @unchecked Sendable {
+struct PauseMessage: RTMPBaseMessage {
+  let encodeType: ObjectEncodingType
+  let commandName: String = "pause"
+  let transactionId: Int = commonTransactionId.stream
+  let msgStreamId: Int
+  let timestamp: UInt32 = 0
   let isPause: Bool
   let millSecond: Double
+
+  var messageType: MessageType { .command(type: encodeType) }
+  var streamId: UInt16 { RTMPChunkStreamId.command.rawValue }
+
   init(encodeType: ObjectEncodingType = .amf0, msgStreamId:Int, isPause: Bool, millSecond: Double) {
+    self.encodeType = encodeType
+    self.msgStreamId = msgStreamId
     self.isPause = isPause
     self.millSecond = millSecond
-    super.init(encodeType: encodeType, commandName: "pause", msgStreamId: msgStreamId, transactionId: commonTransactionId.stream)
   }
-  
-  override var payload: Data {
+
+  var payload: Data {
     var data = Data()
     let encoder = AMF0Encoder()
-    
+
     data.append((encoder.encode(commandName)) ?? Data())
     data.append((encoder.encode(Double(transactionId))) ?? Data())
     data.append((encoder.encodeNil()))

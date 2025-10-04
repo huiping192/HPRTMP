@@ -68,12 +68,12 @@ actor MessageDecoder {
       let transactionId = data?[safe: 1]?.doubleValue
 
       // third is command object
-      let objcet = data?[safe: 2]?.toAny() as? [String: Any]
+      let commandObject = data?[safe: 2]?.objectValue
 
       // fourth is info, maybe object([String: Any?]) or Number(connect messsage)
-      let info = data?[safe: 3]?.toAny()
+      let info = data?[safe: 3]
 
-      return CommandMessage(encodeType: type, commandName: commandName, msgStreamId: msgStreamId, transactionId: Int(transactionId ?? 0), commandObject: objcet, info: info)
+      return CommandMessage(encodeType: type, commandName: commandName, transactionId: Int(transactionId ?? 0), commandObject: commandObject, info: info, msgStreamId: msgStreamId, timestamp: timestamp)
     case .data(type: let type):
       return AnyDataMessage(encodeType: type, msgStreamId: msgStreamId)
     case .share(type: let type):
