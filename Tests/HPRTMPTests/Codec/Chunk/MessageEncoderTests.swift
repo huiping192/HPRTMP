@@ -10,12 +10,12 @@ import XCTest
 
 final class MessageEncoderTests: XCTestCase {
   
-  func testSingleChunkFirst() throws {
+  func testSingleChunkFirst() async throws {
     let message = AudioMessage(data: Data([0x01, 0x02, 0x03, 0x04]), msgStreamId: 10, timestamp: 1234)
     let encoder = MessageEncoder()
 
     // When
-    let chunks = encoder.encode(message: message, isFirstType0: true)
+    let chunks = await encoder.encode(message: message, isFirstType0: true)
 
     // Then
     XCTAssertEqual(chunks.count, 1)
@@ -31,12 +31,12 @@ final class MessageEncoderTests: XCTestCase {
     XCTAssertEqual(firstChunk.chunkData, Data([0x01, 0x02, 0x03, 0x04]))
   }
 
-  func testSingleChunkNotFirst() throws {
+  func testSingleChunkNotFirst() async throws {
     let message = AudioMessage(data: Data([0x01, 0x02, 0x03, 0x04]), msgStreamId: 10, timestamp: 1234)
     let encoder = MessageEncoder()
 
     // When
-    let chunks = encoder.encode(message: message, isFirstType0: false)
+    let chunks = await encoder.encode(message: message, isFirstType0: false)
 
     // Then
     XCTAssertEqual(chunks.count, 1)
@@ -51,13 +51,13 @@ final class MessageEncoderTests: XCTestCase {
     XCTAssertEqual(firstChunk.chunkData, Data([0x01, 0x02, 0x03, 0x04]))
   }
 
-  func testChunk_multipleChunks() throws {
+  func testChunk_multipleChunks() async throws {
     let message = AudioMessage(data: Data([0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08]), msgStreamId: 10, timestamp: 1234)
     let encoder = MessageEncoder()
-    encoder.chunkSize = 4
+    await encoder.setChunkSize(chunkSize: 4)
     
     // When
-    let chunks = encoder.encode(message: message, isFirstType0: true)
+    let chunks = await encoder.encode(message: message, isFirstType0: true)
     
     // Then
     XCTAssertEqual(chunks.count, 2)

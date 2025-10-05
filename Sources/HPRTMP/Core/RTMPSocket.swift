@@ -255,9 +255,9 @@ extension RTMPSocket {
         logger.debug("send message start: \(type(of: message))")
         
         if let message = message as? ChunkSizeMessage {
-          encoder.chunkSize = message.size
+          await encoder.setChunkSize(chunkSize: message.size)
         }
-        let chunkDataList = encoder.encode(message: message, isFirstType0: isFirstType).map({ $0.encode() })
+        let chunkDataList = await encoder.encode(message: message, isFirstType0: isFirstType).map({ $0.encode() })
         
         for chunkData in chunkDataList {
           var successfullySent = false
