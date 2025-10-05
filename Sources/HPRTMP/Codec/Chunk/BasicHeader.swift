@@ -8,17 +8,18 @@ enum MessageHeaderType: UInt8 {
   case type3 = 3
 }
 struct BasicHeader: Equatable {
-  let streamId: UInt16
+  let streamId: ChunkStreamId
   let type: MessageHeaderType
-  
+
   func encode() -> Data {
     let fmt = UInt8(type.rawValue << 6)
-    if streamId <= 63 {
-      return Data([UInt8(fmt | UInt8(streamId))])
+    let streamIdValue = streamId.value
+    if streamIdValue <= 63 {
+      return Data([UInt8(fmt | UInt8(streamIdValue))])
     }
-    if streamId <= 319 {
-      return Data([UInt8(fmt | 0b00000000), UInt8(streamId - 64)])
+    if streamIdValue <= 319 {
+      return Data([UInt8(fmt | 0b00000000), UInt8(streamIdValue - 64)])
     }
-    return Data([fmt | 0b00000001] + (streamId - 64).bigEndian.data)
+    return Data([fmt | 0b00000001] + (streamIdValue - 64).bigEndian.data)
   }
 }

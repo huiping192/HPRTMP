@@ -13,8 +13,8 @@ class MessageDecoderTests: XCTestCase {
     let decoder = MessageDecoder()
 
     // Prepare your test data here, which should be a Data object containing a single RTMP chunk.
-    let basicHeader = BasicHeader(streamId: 10, type: .type0)
-    let targetMessageHeader = MessageHeaderType0(timestamp: 100, messageLength: 9, type: .audio, messageStreamId: 15)
+    let basicHeader = BasicHeader(streamId: ChunkStreamId(10), type: .type0)
+    let targetMessageHeader = MessageHeaderType0(timestamp: Timestamp(100), messageLength: 9, type: .audio, messageStreamId: MessageStreamId(15))
 
     var payload = Data()
     payload.writeU24(1, bigEndian: true)
@@ -31,15 +31,15 @@ class MessageDecoderTests: XCTestCase {
     XCTAssertTrue(message is AudioMessage)
     let audioMessage = message as? AudioMessage
     XCTAssertEqual(audioMessage?.data, payload)
-    XCTAssertEqual(audioMessage?.timestamp, 100)
-    XCTAssertEqual(audioMessage?.msgStreamId, 15)
+    XCTAssertEqual(audioMessage?.timestamp.value, 100)
+    XCTAssertEqual(audioMessage?.msgStreamId.value, 15)
   }
   func testDecodeMessage_MultipleChunks() async {
     let decoder = MessageDecoder()
 
     // Prepare your test data here, which should be a Data object containing multiple RTMP chunks.
-    let basicHeader = BasicHeader(streamId: 10, type: .type0)
-    let targetMessageHeader = MessageHeaderType0(timestamp: 100, messageLength: 307, type: .audio, messageStreamId: 15)
+    let basicHeader = BasicHeader(streamId: ChunkStreamId(10), type: .type0)
+    let targetMessageHeader = MessageHeaderType0(timestamp: Timestamp(100), messageLength: 307, type: .audio, messageStreamId: MessageStreamId(15))
 
     var payload = Data()
     (0..<128).forEach { _ in
@@ -48,7 +48,7 @@ class MessageDecoderTests: XCTestCase {
 
     let targetChunk = Chunk(chunkHeader: ChunkHeader(basicHeader: basicHeader, messageHeader: targetMessageHeader), chunkData: payload)
 
-    let basicHeader2 = BasicHeader(streamId: 10, type: .type3)
+    let basicHeader2 = BasicHeader(streamId: ChunkStreamId(10), type: .type3)
     let messageHeader2 = MessageHeaderType3()
     var payload2 = Data()
     (0..<128).forEach { _ in
@@ -56,7 +56,7 @@ class MessageDecoderTests: XCTestCase {
     }
     let secondChunk = Chunk(chunkHeader: ChunkHeader(basicHeader: basicHeader2, messageHeader: messageHeader2), chunkData: payload2)
 
-    let basicHeader3 = BasicHeader(streamId: 10, type: .type3)
+    let basicHeader3 = BasicHeader(streamId: ChunkStreamId(10), type: .type3)
     let messageHeader3 = MessageHeaderType3()
     var payload3 = Data()
     (0..<51).forEach { _ in
@@ -75,14 +75,14 @@ class MessageDecoderTests: XCTestCase {
     XCTAssertTrue(message is AudioMessage)
     let audioMessage = message as? AudioMessage
     XCTAssertEqual(audioMessage?.data.count, 307)
-    XCTAssertEqual(audioMessage?.timestamp, 100)
-    XCTAssertEqual(audioMessage?.msgStreamId, 15)
+    XCTAssertEqual(audioMessage?.timestamp.value, 100)
+    XCTAssertEqual(audioMessage?.msgStreamId.value, 15)
   }
   
   func testDecodeMessage_InvalidData() async {
     let decoder = MessageDecoder()
-    let basicHeader = BasicHeader(streamId: 10, type: .type0)
-    let targetMessageHeader = MessageHeaderType0(timestamp: 100, messageLength: 307, type: .audio, messageStreamId: 15)
+    let basicHeader = BasicHeader(streamId: ChunkStreamId(10), type: .type0)
+    let targetMessageHeader = MessageHeaderType0(timestamp: Timestamp(100), messageLength: 307, type: .audio, messageStreamId: MessageStreamId(15))
 
     var payload = Data()
     (0..<128).forEach { _ in
@@ -106,14 +106,14 @@ class MessageDecoderTests: XCTestCase {
     let decoder = MessageDecoder()
 
     // Audio stream: 3 chunks, total 300 bytes
-    let audioStreamId: UInt16 = 4
-    let audioMsgStreamId = 1
-    let audioTimestamp: UInt32 = 100
+    let audioStreamId = ChunkStreamId(4)
+    let audioMsgStreamId = MessageStreamId(1)
+    let audioTimestamp = Timestamp(100)
 
     // Video stream: 2 chunks, total 200 bytes
-    let videoStreamId: UInt16 = 6
-    let videoMsgStreamId = 1
-    let videoTimestamp: UInt32 = 200
+    let videoStreamId = ChunkStreamId(6)
+    let videoMsgStreamId = MessageStreamId(1)
+    let videoTimestamp = Timestamp(200)
 
     // Audio chunk 1 (Type 0 header, 128 bytes payload)
     let audioHeader1 = MessageHeaderType0(timestamp: audioTimestamp, messageLength: 300, type: .audio, messageStreamId: audioMsgStreamId)
@@ -168,8 +168,8 @@ class MessageDecoderTests: XCTestCase {
     XCTAssertTrue(message1 is VideoMessage)
     let videoMessage = message1 as? VideoMessage
     XCTAssertEqual(videoMessage?.data.count, 200)
-    XCTAssertEqual(videoMessage?.timestamp, videoTimestamp)
-    XCTAssertEqual(videoMessage?.msgStreamId, videoMsgStreamId)
+    XCTAssertEqual(videoMessage?.timestamp.value, videoTimestamp.value)
+    XCTAssertEqual(videoMessage?.msgStreamId.value, videoMsgStreamId.value)
 
     // Verify all bytes are 0xBB
     let videoBytes = videoMessage?.data.map { $0 } ?? []
@@ -181,8 +181,8 @@ class MessageDecoderTests: XCTestCase {
     XCTAssertTrue(message2 is AudioMessage)
     let audioMessage = message2 as? AudioMessage
     XCTAssertEqual(audioMessage?.data.count, 300)
-    XCTAssertEqual(audioMessage?.timestamp, audioTimestamp)
-    XCTAssertEqual(audioMessage?.msgStreamId, audioMsgStreamId)
+    XCTAssertEqual(audioMessage?.timestamp.value, audioTimestamp.value)
+    XCTAssertEqual(audioMessage?.msgStreamId.value, audioMsgStreamId.value)
 
     // Verify all bytes are 0xAA
     let audioBytes = audioMessage?.data.map { $0 } ?? []
@@ -192,9 +192,9 @@ class MessageDecoderTests: XCTestCase {
   func testCreateMessage() async {
     let decoder = MessageDecoder()
 
-    let chunkStreamId: UInt16 = 1
-    let msgStreamId = 1
-    let timestamp: UInt32 = 100
+    let chunkStreamId = ChunkStreamId(1)
+    let msgStreamId = MessageStreamId(1)
+    let timestamp = Timestamp(100)
     let chunkPayload = Data([0, 1, 2, 3])
 
     let chunkSizeMessage = await decoder.createMessage(chunkStreamId: chunkStreamId, msgStreamId: msgStreamId, messageType: .chunkSize, timestamp: timestamp, chunkPayload: chunkPayload)

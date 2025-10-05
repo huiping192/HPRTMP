@@ -6,9 +6,9 @@ actor MessageDecoder {
   // MARK: - Assembling Message State
 
   private struct AssemblingMessage {
-    let msgStreamId: Int
+    let msgStreamId: MessageStreamId
     let messageType: MessageType
-    let timestamp: UInt32
+    let timestamp: Timestamp
     let totalLength: Int
     var accumulatedData: Data
   }
@@ -19,7 +19,7 @@ actor MessageDecoder {
   private var maxChunkSize: Int = 128
   private(set) var isDecoding = false
   private let logger = Logger(subsystem: "HPRTMP", category: "MessageDecoder")
-  private var assemblingMessages: [UInt16: AssemblingMessage] = [:]
+  private var assemblingMessages: [ChunkStreamId: AssemblingMessage] = [:]
 
   // MARK: - Public API
 
@@ -77,9 +77,9 @@ actor MessageDecoder {
     let chunkStreamId = basicHeader.streamId
 
     // Determine message properties based on header type
-    let msgStreamId: Int
+    let msgStreamId: MessageStreamId
     let messageType: MessageType
-    let timestamp: UInt32
+    let timestamp: Timestamp
     let totalLength: Int
 
     if let header0 = messageHeader as? MessageHeaderType0 {
@@ -95,7 +95,7 @@ actor MessageDecoder {
 
       // Get msgStreamId from stream context
       let context = await chunkDecoder.streamContexts[chunkStreamId]
-      msgStreamId = context?.messageStreamId ?? 0
+      msgStreamId = context?.messageStreamId ?? MessageStreamId(0)
 
     } else if let header2 = messageHeader as? MessageHeaderType2 {
       timestamp = header2.timestampDelta
@@ -103,7 +103,7 @@ actor MessageDecoder {
       // Get other fields from stream context
       let context = await chunkDecoder.streamContexts[chunkStreamId]
       guard let context = context else {
-        logger.error("No context for Type2 header on stream \(chunkStreamId)")
+        logger.error("No context for Type2 header on stream \(chunkStreamId.value)")
         return nil
       }
       msgStreamId = context.messageStreamId
@@ -114,7 +114,7 @@ actor MessageDecoder {
       // Get all fields from stream context
       let context = await chunkDecoder.streamContexts[chunkStreamId]
       guard let context = context else {
-        logger.error("No context for Type3 header on stream \(chunkStreamId)")
+        logger.error("No context for Type3 header on stream \(chunkStreamId.value)")
         return nil
       }
       msgStreamId = context.messageStreamId
@@ -174,7 +174,7 @@ actor MessageDecoder {
 
   // MARK: - Message Creation
 
-  func createMessage(chunkStreamId: UInt16, msgStreamId: Int, messageType: MessageType, timestamp: UInt32, chunkPayload: Data) -> RTMPMessage? {
+  func createMessage(chunkStreamId: ChunkStreamId, msgStreamId: MessageStreamId, messageType: MessageType, timestamp: Timestamp, chunkPayload: Data) -> RTMPMessage? {
     switch messageType {
     case .chunkSize:
       let size = Data(chunkPayload.reversed()).uint32
@@ -218,7 +218,7 @@ actor MessageDecoder {
     case .aggreate:
       return nil
     case .abort:
-      return AbortMessage(chunkStreamId: chunkStreamId)
+      return AbortMessage(chunkStreamId: chunkStreamId.value)
     case .acknowledgement:
       let size = Data(chunkPayload.reversed()).uint32
       return AcknowledgementMessage(sequence: size)

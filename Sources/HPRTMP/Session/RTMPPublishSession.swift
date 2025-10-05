@@ -55,7 +55,7 @@ public actor RTMPPublishSession {
   
   private var configure: PublishConfigure?
   
-  private var connectId: Int = 0
+  private var connectId: MessageStreamId = .zero
 
   private let logger = Logger(subsystem: "HPRTMP", category: "Publish")
 
@@ -98,11 +98,11 @@ public actor RTMPPublishSession {
       publishStatus = .handShakeDone
 
       let streamId = try await socket.createStream()
-      self.connectId = streamId
+      self.connectId = MessageStreamId(streamId)
       publishStatus = .connect
 
       // Send publish message
-      let publishMsg = PublishMessage(encodeType: encodeType, streamName: await socket.urlInfo?.key ?? "", type: .live, msgStreamId: streamId)
+      let publishMsg = PublishMessage(encodeType: encodeType, streamName: await socket.urlInfo?.key ?? "", type: .live, msgStreamId: connectId)
       await socket.send(message: publishMsg, firstType: true)
 
       // Send chunk size
@@ -119,26 +119,26 @@ public actor RTMPPublishSession {
   private var audioHeaderSended = false
 
   public func publishVideoHeader(data: Data) async {
-    let message = VideoMessage(data: data, msgStreamId: connectId, timestamp: 0)
+    let message = VideoMessage(data: data, msgStreamId: connectId, timestamp: .zero)
     await socket.send(message: message, firstType: true)
     videoHeaderSended = true
   }
 
   public func publishVideo(data: Data, delta: UInt32) async {
     guard videoHeaderSended else { return }
-    let message = VideoMessage(data: data, msgStreamId: connectId, timestamp: delta)
+    let message = VideoMessage(data: data, msgStreamId: connectId, timestamp: Timestamp(delta))
     await socket.send(message: message, firstType: false)
   }
 
   public func publishAudioHeader(data: Data) async {
-    let message = AudioMessage(data: data, msgStreamId: connectId, timestamp: 0)
+    let message = AudioMessage(data: data, msgStreamId: connectId, timestamp: .zero)
     await socket.send(message: message, firstType: true)
     audioHeaderSended = true
   }
 
   public func publishAudio(data: Data, delta: UInt32) async {
     guard audioHeaderSended else { return }
-    let message = AudioMessage(data: data, msgStreamId: connectId, timestamp: delta)
+    let message = AudioMessage(data: data, msgStreamId: connectId, timestamp: Timestamp(delta))
     await socket.send(message: message, firstType: false)
   }
   
@@ -169,7 +169,7 @@ public actor RTMPPublishSession {
       await socket.send(message: metaMessage, firstType: true)
 
     case .pingRequest(let data):
-      let message = UserControlMessage(type: .pingResponse, data: data, streamId: UInt16(connectId))
+      let message = UserControlMessage(type: .pingResponse, data: data, streamId: ChunkStreamId(UInt16(connectId.value)))
       await socket.send(message: message, firstType: true)
 
     case .playStart, .record, .pause:

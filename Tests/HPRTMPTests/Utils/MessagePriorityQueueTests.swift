@@ -81,13 +81,13 @@ final class MessagePriorityQueueTests: XCTestCase {
 
     // Should maintain FIFO order for same priority
     let first = await queue.dequeue()
-    XCTAssertEqual(first?.message.timestamp, 100)
+    XCTAssertEqual(first?.message.timestamp.value, 100)
 
     let second = await queue.dequeue()
-    XCTAssertEqual(second?.message.timestamp, 200)
+    XCTAssertEqual(second?.message.timestamp.value, 200)
 
     let third = await queue.dequeue()
-    XCTAssertEqual(third?.message.timestamp, 300)
+    XCTAssertEqual(third?.message.timestamp.value, 300)
   }
 
   // MARK: - Wait/Resume Tests
@@ -251,13 +251,14 @@ final class MessagePriorityQueueTests: XCTestCase {
 
   private func createMessage(priority: MessagePriority, timestamp: UInt32 = 0) -> RTMPMessage {
     // Create a test message with specified priority
+    let ts = Timestamp(timestamp)
     switch priority {
     case .high:
-      return TestHighPriorityMessage(timestamp: timestamp)
+      return TestHighPriorityMessage(timestamp: ts)
     case .medium:
-      return TestMediumPriorityMessage(timestamp: timestamp)
+      return TestMediumPriorityMessage(timestamp: ts)
     case .low:
-      return TestLowPriorityMessage(timestamp: timestamp)
+      return TestLowPriorityMessage(timestamp: ts)
     }
   }
 }
@@ -265,28 +266,28 @@ final class MessagePriorityQueueTests: XCTestCase {
 // MARK: - Test Message Types
 
 struct TestHighPriorityMessage: RTMPMessage {
-  let timestamp: UInt32
+  let timestamp: Timestamp
   var messageType: MessageType { .chunkSize }
-  var msgStreamId: Int { 0 }
-  var streamId: UInt16 { 3 }
+  var msgStreamId: MessageStreamId { .zero }
+  var streamId: ChunkStreamId { ChunkStreamId(3) }
   var payload: Data { Data() }
   var priority: MessagePriority { .high }
 }
 
 struct TestMediumPriorityMessage: RTMPMessage {
-  let timestamp: UInt32
+  let timestamp: Timestamp
   var messageType: MessageType { .audio }
-  var msgStreamId: Int { 0 }
-  var streamId: UInt16 { 4 }
+  var msgStreamId: MessageStreamId { .zero }
+  var streamId: ChunkStreamId { ChunkStreamId(4) }
   var payload: Data { Data() }
   var priority: MessagePriority { .medium }
 }
 
 struct TestLowPriorityMessage: RTMPMessage {
-  let timestamp: UInt32
+  let timestamp: Timestamp
   var messageType: MessageType { .video }
-  var msgStreamId: Int { 0 }
-  var streamId: UInt16 { 5 }
+  var msgStreamId: MessageStreamId { .zero }
+  var streamId: ChunkStreamId { ChunkStreamId(5) }
   var payload: Data { Data() }
   var priority: MessagePriority { .low }
 }

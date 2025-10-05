@@ -11,9 +11,9 @@ struct ChunkHeader: RTMPEncodable {
   }
   
   // Initialize the ChunkHeader struct with a stream ID, message header, and chunk payload
-  init(streamId: UInt16,messageHeader: MessageHeader) {
+  init(streamId: ChunkStreamId, messageHeader: MessageHeader) {
     self.messageHeader = messageHeader
-    
+
     // Determine the basic header type based on the type of the message header
     let basicHeaderType: MessageHeaderType
     switch messageHeader {
@@ -28,7 +28,7 @@ struct ChunkHeader: RTMPEncodable {
     default:
         basicHeaderType = .type0
     }
-    
+
     self.basicHeader = BasicHeader(streamId: streamId, type: basicHeaderType)
   }
   

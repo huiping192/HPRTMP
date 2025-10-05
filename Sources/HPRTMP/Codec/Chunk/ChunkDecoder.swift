@@ -16,8 +16,8 @@ actor ChunkDecoder {
   struct StreamContext {
     var messageLength: Int
     var messageType: MessageType
-    var messageStreamId: Int
-    var timestamp: UInt32
+    var messageStreamId: MessageStreamId
+    var timestamp: Timestamp
     var remainingLength: Int  // Remaining bytes to read for current message
   }
 
@@ -25,9 +25,9 @@ actor ChunkDecoder {
 
   private var buffer = Data()
   private var state: State = .waitingBasicHeader
-  private(set) var streamContexts: [UInt16: StreamContext] = [:]
+  private(set) var streamContexts: [ChunkStreamId: StreamContext] = [:]
   var maxChunkSize: Int = 128
-  private let maxTimestamp: UInt32 = 16777215
+  private let maxTimestampValue = Timestamp(16777215)
 
   // MARK: - Public API
 
@@ -85,7 +85,7 @@ actor ChunkDecoder {
 
     // Parse chunk stream ID
     let compare: UInt8 = 0b00111111
-    let streamId: UInt16
+    let streamIdValue: UInt16
     let basicHeaderLength: Int
 
     switch compare & byte {
@@ -93,20 +93,20 @@ actor ChunkDecoder {
       guard buffer.count >= 2 else { return nil }
       basicHeaderLength = 2
       let startIndex = buffer.startIndex
-      streamId = UInt16(buffer[startIndex + 1] + 64)
+      streamIdValue = UInt16(buffer[startIndex + 1] + 64)
 
     case 1:
       guard buffer.count >= 3 else { return nil }
       basicHeaderLength = 3
       let startIndex = buffer.startIndex
-      streamId = UInt16(Data(buffer[startIndex + 1...startIndex + 2].reversed()).uint16) + 64
+      streamIdValue = UInt16(Data(buffer[startIndex + 1...startIndex + 2].reversed()).uint16) + 64
 
     default:
       basicHeaderLength = 1
-      streamId = UInt16(compare & byte)
+      streamIdValue = UInt16(compare & byte)
     }
 
-    let basicHeader = BasicHeader(streamId: streamId, type: headerType)
+    let basicHeader = BasicHeader(streamId: ChunkStreamId(streamIdValue), type: headerType)
 
     // Transition to next state
     state = .waitingMessageHeader(basicHeader: basicHeader, basicHeaderSize: basicHeaderLength)
@@ -125,47 +125,47 @@ actor ChunkDecoder {
     case .type0:
       guard headerData.count >= 11 else { return nil }
       let startIndex = headerData.startIndex
-      let timestamp = Data(headerData[startIndex...startIndex+2].reversed() + [0x00]).uint32
+      let timestampValue = Data(headerData[startIndex...startIndex+2].reversed() + [0x00]).uint32
       let messageLength = Data(headerData[startIndex+3...startIndex+5].reversed() + [0x00]).uint32
       let messageType = MessageType(rawValue: headerData[startIndex+6])
-      let messageStreamId = Data(headerData[startIndex+7...startIndex+10]).uint32
+      let messageStreamIdValue = Data(headerData[startIndex+7...startIndex+10]).uint32
 
       // Check for extended timestamp
-      if timestamp == maxTimestamp {
-        messageHeader = MessageHeaderType0(timestamp: 0, messageLength: Int(messageLength), type: messageType, messageStreamId: Int(messageStreamId))
+      if timestampValue == maxTimestampValue.value {
+        messageHeader = MessageHeaderType0(timestamp: Timestamp(0), messageLength: Int(messageLength), type: messageType, messageStreamId: MessageStreamId(Int(messageStreamIdValue)))
         messageHeaderSize = 11
         state = .waitingExtendedTimestamp(basicHeader: basicHeader, messageHeader: messageHeader!, headerSize: basicHeaderSize + messageHeaderSize)
         buffer.removeFirst(messageHeaderSize)
         return decodeChunk()
       }
 
-      messageHeader = MessageHeaderType0(timestamp: timestamp, messageLength: Int(messageLength), type: messageType, messageStreamId: Int(messageStreamId))
+      messageHeader = MessageHeaderType0(timestamp: Timestamp(timestampValue), messageLength: Int(messageLength), type: messageType, messageStreamId: MessageStreamId(Int(messageStreamIdValue)))
       messageHeaderSize = 11
 
       // Update stream context for Type0
       streamContexts[basicHeader.streamId] = StreamContext(
         messageLength: Int(messageLength),
         messageType: messageType,
-        messageStreamId: Int(messageStreamId),
-        timestamp: timestamp,
+        messageStreamId: MessageStreamId(Int(messageStreamIdValue)),
+        timestamp: Timestamp(timestampValue),
         remainingLength: Int(messageLength)
       )
 
     case .type1:
       guard headerData.count >= 7 else { return nil }
       let startIndex = headerData.startIndex
-      let timestampDelta = Data(headerData[startIndex...startIndex+2].reversed() + [0x00]).uint32
+      let timestampDeltaValue = Data(headerData[startIndex...startIndex+2].reversed() + [0x00]).uint32
       let messageLength = Data(headerData[startIndex+3...startIndex+5].reversed() + [0x00]).uint32
       let messageType = MessageType(rawValue: headerData[startIndex+6])
 
-      messageHeader = MessageHeaderType1(timestampDelta: timestampDelta, messageLength: Int(messageLength), type: messageType)
+      messageHeader = MessageHeaderType1(timestampDelta: Timestamp(timestampDeltaValue), messageLength: Int(messageLength), type: messageType)
       messageHeaderSize = 7
 
       // Update stream context for Type1 (reuse messageStreamId from context)
       if var context = streamContexts[basicHeader.streamId] {
         context.messageLength = Int(messageLength)
         context.messageType = messageType
-        context.timestamp += timestampDelta
+        context.timestamp += Timestamp(timestampDeltaValue)
         context.remainingLength = Int(messageLength)
         streamContexts[basicHeader.streamId] = context
       } else {
@@ -173,8 +173,8 @@ actor ChunkDecoder {
         streamContexts[basicHeader.streamId] = StreamContext(
           messageLength: Int(messageLength),
           messageType: messageType,
-          messageStreamId: 0,  // Unknown for Type1 without prior context
-          timestamp: timestampDelta,
+          messageStreamId: MessageStreamId(0),  // Unknown for Type1 without prior context
+          timestamp: Timestamp(timestampDeltaValue),
           remainingLength: Int(messageLength)
         )
       }
@@ -182,14 +182,14 @@ actor ChunkDecoder {
     case .type2:
       guard headerData.count >= 3 else { return nil }
       let startIndex = headerData.startIndex
-      let timestampDelta = Data(headerData[startIndex...startIndex+2].reversed() + [0x00]).uint32
+      let timestampDeltaValue = Data(headerData[startIndex...startIndex+2].reversed() + [0x00]).uint32
 
-      messageHeader = MessageHeaderType2(timestampDelta: timestampDelta)
+      messageHeader = MessageHeaderType2(timestampDelta: Timestamp(timestampDeltaValue))
       messageHeaderSize = 3
 
       // Update stream context for Type2 (reuse messageLength, messageType, messageStreamId)
       if var context = streamContexts[basicHeader.streamId] {
-        context.timestamp += timestampDelta
+        context.timestamp += Timestamp(timestampDeltaValue)
         // Type2 can continue an ongoing message OR start a new one
         // This is handled in getPayloadLength
         streamContexts[basicHeader.streamId] = context
@@ -219,14 +219,14 @@ actor ChunkDecoder {
     guard buffer.count >= 4 else { return nil }
 
     let startIndex = buffer.startIndex
-    let extendedTimestamp = Data(buffer[startIndex...startIndex+3].reversed()).uint32
+    let extendedTimestampValue = Data(buffer[startIndex...startIndex+3].reversed()).uint32
     buffer.removeFirst(4)
 
     // Update message header with extended timestamp
     let updatedMessageHeader: any MessageHeader
     if let header0 = messageHeader as? MessageHeaderType0 {
       updatedMessageHeader = MessageHeaderType0(
-        timestamp: extendedTimestamp,
+        timestamp: Timestamp(extendedTimestampValue),
         messageLength: header0.messageLength,
         type: header0.type,
         messageStreamId: header0.messageStreamId
@@ -237,7 +237,7 @@ actor ChunkDecoder {
         messageLength: header0.messageLength,
         messageType: header0.type,
         messageStreamId: header0.messageStreamId,
-        timestamp: extendedTimestamp,
+        timestamp: Timestamp(extendedTimestampValue),
         remainingLength: header0.messageLength
       )
     } else {
@@ -280,7 +280,7 @@ actor ChunkDecoder {
 
   // MARK: - Helper Methods
 
-  private func getPayloadLength(for streamId: UInt16, messageHeader: any MessageHeader) -> Int {
+  private func getPayloadLength(for streamId: ChunkStreamId, messageHeader: any MessageHeader) -> Int {
     // For Type0 and Type1, we can get length directly from header
     if let header0 = messageHeader as? MessageHeaderType0 {
       return min(header0.messageLength, maxChunkSize)

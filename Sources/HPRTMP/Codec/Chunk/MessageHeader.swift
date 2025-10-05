@@ -11,37 +11,37 @@ extension MessageHeader where Self: Equatable {
 
 struct MessageHeaderType0: MessageHeader {
   // max timestamp 0xFFFFFF
-  let maxTimestamp: UInt32 = 16777215
-  
-  let timestamp: UInt32
+  let maxTimestampValue = Timestamp(16777215)
+
+  let timestamp: Timestamp
   let messageLength: Int
   let type: MessageType
-  let messageStreamId: Int
-  
+  let messageStreamId: MessageStreamId
+
   func encode() -> Data {
     var data = Data()
-    let isExtendTime = timestamp > maxTimestamp
-    let time = isExtendTime ?  maxTimestamp : timestamp
+    let isExtendTime = timestamp > maxTimestampValue
+    let time = isExtendTime ? maxTimestampValue.value : timestamp.value
     data.writeU24(UInt32(time), bigEndian: true)
     data.writeU24(UInt32(messageLength), bigEndian: true)
     data.append(type.rawValue)
-    data.append(UInt32(messageStreamId).data) // little-endian
+    data.append(UInt32(messageStreamId.value).data) // little-endian
 
     if isExtendTime {
-      data.append(timestamp.bigEndian.data)
+      data.append(timestamp.value.bigEndian.data)
     }
     return data
   }
 }
 
 struct MessageHeaderType1: MessageHeader {
-  let timestampDelta: UInt32
+  let timestampDelta: Timestamp
   let messageLength: Int
   let type: MessageType
-  
+
   func encode() -> Data {
     var data = Data()
-    data.writeU24(UInt32(timestampDelta), bigEndian: true)
+    data.writeU24(timestampDelta.value, bigEndian: true)
     data.writeU24(UInt32(messageLength), bigEndian: true)
     data.write(type.rawValue)
     return data
@@ -49,11 +49,11 @@ struct MessageHeaderType1: MessageHeader {
 }
 
 struct MessageHeaderType2: MessageHeader {
-  let timestampDelta: UInt32
-  
+  let timestampDelta: Timestamp
+
   func encode() -> Data {
     var data = Data()
-    data.writeU24(UInt32(timestampDelta), bigEndian: true)
+    data.writeU24(timestampDelta.value, bigEndian: true)
     return data
   }
 }

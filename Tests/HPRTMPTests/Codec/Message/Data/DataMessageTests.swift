@@ -26,7 +26,7 @@ final class DataMessageTests: XCTestCase {
 
     let message = MetaMessage(
       encodeType: .amf0,
-      msgStreamId: 1,
+      msgStreamId: MessageStreamId(1),
       meta: meta
     )
 
@@ -66,7 +66,7 @@ final class DataMessageTests: XCTestCase {
 
     let message = MetaMessage(
       encodeType: .amf3,
-      msgStreamId: 1,
+      msgStreamId: MessageStreamId(1),
       meta: meta
     )
 
@@ -106,7 +106,7 @@ final class DataMessageTests: XCTestCase {
 
     let message = MetaMessage(
       encodeType: .amf0,
-      msgStreamId: 1,
+      msgStreamId: MessageStreamId(1),
       meta: meta
     )
 
@@ -135,7 +135,7 @@ final class DataMessageTests: XCTestCase {
 
     let originalMessage = MetaMessage(
       encodeType: .amf0,
-      msgStreamId: 1,
+      msgStreamId: MessageStreamId(1),
       meta: meta
     )
 
@@ -163,7 +163,7 @@ final class DataMessageTests: XCTestCase {
 
     let message = SharedObjectMessage(
       encodeType: .amf0,
-      msgStreamId: 1,
+      msgStreamId: MessageStreamId(1),
       sharedObjectName: "myObject",
       sharedObject: sharedObject
     )
@@ -196,7 +196,7 @@ final class DataMessageTests: XCTestCase {
 
     let message = SharedObjectMessage(
       encodeType: .amf3,
-      msgStreamId: 1,
+      msgStreamId: MessageStreamId(1),
       sharedObjectName: "counter",
       sharedObject: sharedObject
     )
@@ -222,7 +222,7 @@ final class DataMessageTests: XCTestCase {
 
     let message = SharedObjectMessage(
       encodeType: .amf0,
-      msgStreamId: 1,
+      msgStreamId: MessageStreamId(1),
       sharedObjectName: nil,
       sharedObject: sharedObject
     )
@@ -253,7 +253,7 @@ final class DataMessageTests: XCTestCase {
 
     let message = SharedObjectMessage(
       encodeType: .amf0,
-      msgStreamId: 1,
+      msgStreamId: MessageStreamId(1),
       sharedObjectName: "complex",
       sharedObject: sharedObject
     )
@@ -283,7 +283,7 @@ final class DataMessageTests: XCTestCase {
 
     let originalMessage = SharedObjectMessage(
       encodeType: .amf0,
-      msgStreamId: 1,
+      msgStreamId: MessageStreamId(1),
       sharedObjectName: "testObject",
       sharedObject: sharedObject
     )
@@ -293,10 +293,10 @@ final class DataMessageTests: XCTestCase {
     // Decode using MessageDecoder
     let decoder = MessageDecoder()
     let decodedMessage = await decoder.createMessage(
-      chunkStreamId: RTMPChunkStreamId.command.rawValue,
-      msgStreamId: 1,
+      chunkStreamId: ChunkStreamId(RTMPChunkStreamId.command.rawValue),
+      msgStreamId: MessageStreamId(1),
       messageType: .share(type: .amf0),
-      timestamp: 0,
+      timestamp: Timestamp(0),
       chunkPayload: payload
     )
 

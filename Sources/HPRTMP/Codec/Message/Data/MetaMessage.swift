@@ -40,7 +40,7 @@ public struct MetaData: Sendable {
 
 struct MetaMessage: DataMessage {
   let encodeType: ObjectEncodingType
-  let msgStreamId: Int
+  let msgStreamId: MessageStreamId
   let meta: MetaData
 
   var payload: Data {

@@ -9,7 +9,7 @@ import Foundation
 
 struct SharedObjectMessage: DataMessage {
   let encodeType: ObjectEncodingType
-  let msgStreamId: Int
+  let msgStreamId: MessageStreamId
 
   let sharedObjectName: String?
   let sharedObject: [String: AMFValue]?

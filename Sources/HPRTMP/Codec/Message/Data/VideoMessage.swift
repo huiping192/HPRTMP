@@ -9,11 +9,11 @@ import Foundation
 
 struct VideoMessage: RTMPBaseMessage {
   let data: Data
-  let msgStreamId: Int
-  let timestamp: UInt32
+  let msgStreamId: MessageStreamId
+  let timestamp: Timestamp
 
   var messageType: MessageType { .video }
-  var streamId: UInt16 { RTMPChunkStreamId.video.rawValue }
+  var streamId: ChunkStreamId { RTMPChunkStreamId.video.chunkStreamId }
   var payload: Data { data }
   var priority: MessagePriority { .low }
 }

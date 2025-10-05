@@ -21,10 +21,10 @@ enum UserControlEventType: Int {
 struct UserControlMessage: RTMPBaseMessage {
   let type: UserControlEventType
   let data: Data
-  let streamId: UInt16
+  let streamId: ChunkStreamId
 
-  var msgStreamId: Int { 0 }
-  var timestamp: UInt32 { 0 }
+  var msgStreamId: MessageStreamId { .zero }
+  var timestamp: Timestamp { .zero }
   var messageType: MessageType { .control }
   var payload: Data {
     var data = Data()
@@ -33,15 +33,15 @@ struct UserControlMessage: RTMPBaseMessage {
     return data
   }
 
-  init(type: UserControlEventType, data: Data, streamId: UInt16) {
+  init(type: UserControlEventType, data: Data, streamId: ChunkStreamId) {
     self.type = type
     self.data = data
     self.streamId = streamId
   }
 
-  init(streamBufferLength: Int, streamId: UInt16) {
+  init(streamBufferLength: Int, streamId: ChunkStreamId) {
     var data = Data()
-    let id = UInt32(streamId).bigEndian.data
+    let id = UInt32(streamId.value).bigEndian.data
     data.append(id)
     let length = UInt32(streamBufferLength).bigEndian.data
     data.append(length)
