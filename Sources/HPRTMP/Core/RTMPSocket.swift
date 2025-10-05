@@ -24,6 +24,7 @@ public enum RTMPError: Error, Sendable {
   case connectionInvalidated
   case dataRetrievalFailed
   case bufferOverflow
+  case invalidChunkSize(size: UInt32, min: UInt32, max: UInt32)
 
   var localizedDescription: String {
     get {
@@ -44,6 +45,8 @@ public enum RTMPError: Error, Sendable {
         return "Data retrieval failed unexpectedly"
       case .bufferOverflow:
         return "Buffer overflow: received data exceeds maximum allowed size"
+      case .invalidChunkSize(let size, let min, let max):
+        return "Invalid chunk size: \(size). Must be between \(min) and \(max)"
       }
     }
   }
@@ -253,9 +256,14 @@ extension RTMPSocket {
         }
         
         logger.debug("send message start: \(type(of: message))")
-        
+
         if let message = message as? ChunkSizeMessage {
-          await encoder.setChunkSize(chunkSize: message.size)
+          do {
+            try await encoder.setChunkSize(chunkSize: message.size)
+          } catch {
+            logger.error("[HPRTMP] Invalid chunk size: \(error.localizedDescription), using default chunk size")
+            // Continue with default chunk size instead of invalidating connection
+          }
         }
         let chunkDataList = await encoder.encode(message: message, isFirstType0: isFirstType).map({ $0.encode() })
         
