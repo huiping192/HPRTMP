@@ -10,12 +10,6 @@ actor ChunkDecoder {
     case waitingExtendedTimestamp(basicHeader: BasicHeader, messageHeader: any MessageHeader, headerSize: Int)
     case waitingPayload(chunkHeader: ChunkHeader, headerSize: Int, payloadLength: Int)
   }
-  
-  private enum ProcessResult {
-    case chunk(Chunk)
-    case needMoreData
-    case continueProcessing
-  }
 
   // MARK: - Stream Context
 
