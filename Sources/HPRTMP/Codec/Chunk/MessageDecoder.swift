@@ -3,18 +3,14 @@ import os
 
 actor MessageDecoder {
 
-  // MARK: - State Machine
+  // MARK: - Assembling Message State
 
-  private enum State {
-    case idle
-    case assembling(
-      chunkStreamId: UInt16,
-      msgStreamId: Int,
-      messageType: MessageType,
-      timestamp: UInt32,
-      totalLength: Int,
-      accumulatedData: Data
-    )
+  private struct AssemblingMessage {
+    let msgStreamId: Int
+    let messageType: MessageType
+    let timestamp: UInt32
+    let totalLength: Int
+    var accumulatedData: Data
   }
 
   // MARK: - Properties
@@ -23,7 +19,7 @@ actor MessageDecoder {
   private var maxChunkSize: Int = 128
   private(set) var isDecoding = false
   private let logger = Logger(subsystem: "HPRTMP", category: "MessageDecoder")
-  private var state: State = .idle
+  private var assemblingMessages: [UInt16: AssemblingMessage] = [:]
 
   // MARK: - Public API
 
@@ -54,7 +50,7 @@ actor MessageDecoder {
 
   func reset() async {
     await chunkDecoder.reset()
-    state = .idle
+    assemblingMessages.removeAll()
     isDecoding = false
   }
 
@@ -78,6 +74,7 @@ actor MessageDecoder {
   private func processChunk(_ chunk: Chunk) async -> RTMPMessage? {
     let basicHeader = chunk.chunkHeader.basicHeader
     let messageHeader = chunk.chunkHeader.messageHeader
+    let chunkStreamId = basicHeader.streamId
 
     // Determine message properties based on header type
     let msgStreamId: Int
@@ -97,16 +94,16 @@ actor MessageDecoder {
       timestamp = header1.timestampDelta
 
       // Get msgStreamId from stream context
-      let context = await chunkDecoder.streamContexts[basicHeader.streamId]
+      let context = await chunkDecoder.streamContexts[chunkStreamId]
       msgStreamId = context?.messageStreamId ?? 0
 
     } else if let header2 = messageHeader as? MessageHeaderType2 {
       timestamp = header2.timestampDelta
 
       // Get other fields from stream context
-      let context = await chunkDecoder.streamContexts[basicHeader.streamId]
+      let context = await chunkDecoder.streamContexts[chunkStreamId]
       guard let context = context else {
-        logger.error("No context for Type2 header on stream \(basicHeader.streamId)")
+        logger.error("No context for Type2 header on stream \(chunkStreamId)")
         return nil
       }
       msgStreamId = context.messageStreamId
@@ -115,9 +112,9 @@ actor MessageDecoder {
 
     } else if messageHeader is MessageHeaderType3 {
       // Get all fields from stream context
-      let context = await chunkDecoder.streamContexts[basicHeader.streamId]
+      let context = await chunkDecoder.streamContexts[chunkStreamId]
       guard let context = context else {
-        logger.error("No context for Type3 header on stream \(basicHeader.streamId)")
+        logger.error("No context for Type3 header on stream \(chunkStreamId)")
         return nil
       }
       msgStreamId = context.messageStreamId
@@ -130,14 +127,32 @@ actor MessageDecoder {
       return nil
     }
 
-    // Handle message assembly
-    switch state {
-    case .idle:
-      // Start a new message
+    // Check if we're already assembling a message for this chunk stream
+    if var assembling = assemblingMessages[chunkStreamId] {
+      // Continue assembling existing message
+      assembling.accumulatedData.append(chunk.chunkData)
+
+      if assembling.accumulatedData.count >= assembling.totalLength {
+        // Message complete - remove from assembling and return
+        assemblingMessages.removeValue(forKey: chunkStreamId)
+        return createMessage(
+          chunkStreamId: chunkStreamId,
+          msgStreamId: assembling.msgStreamId,
+          messageType: assembling.messageType,
+          timestamp: assembling.timestamp,
+          chunkPayload: assembling.accumulatedData
+        )
+      } else {
+        // Still need more chunks - update the assembling state
+        assemblingMessages[chunkStreamId] = assembling
+        return nil
+      }
+    } else {
+      // Start new message or handle single-chunk message
       if chunk.chunkData.count >= totalLength {
         // Single-chunk message - complete immediately
         return createMessage(
-          chunkStreamId: basicHeader.streamId,
+          chunkStreamId: chunkStreamId,
           msgStreamId: msgStreamId,
           messageType: messageType,
           timestamp: timestamp,
@@ -145,47 +160,12 @@ actor MessageDecoder {
         )
       } else {
         // Multi-chunk message - start assembling
-        state = .assembling(
-          chunkStreamId: basicHeader.streamId,
+        assemblingMessages[chunkStreamId] = AssemblingMessage(
           msgStreamId: msgStreamId,
           messageType: messageType,
           timestamp: timestamp,
           totalLength: totalLength,
           accumulatedData: chunk.chunkData
-        )
-        return nil
-      }
-
-    case .assembling(let chunkStreamId, let msgStreamId, let messageType, let timestamp, let totalLength, var accumulatedData):
-      // Continue assembling message
-      guard chunkStreamId == basicHeader.streamId else {
-        logger.warning("Received chunk from different stream while assembling message")
-        // This shouldn't happen with proper RTMP implementation
-        // For now, we'll ignore this chunk and continue
-        return nil
-      }
-
-      accumulatedData.append(chunk.chunkData)
-
-      if accumulatedData.count >= totalLength {
-        // Message complete
-        state = .idle
-        return createMessage(
-          chunkStreamId: chunkStreamId,
-          msgStreamId: msgStreamId,
-          messageType: messageType,
-          timestamp: timestamp,
-          chunkPayload: accumulatedData
-        )
-      } else {
-        // Need more chunks
-        state = .assembling(
-          chunkStreamId: chunkStreamId,
-          msgStreamId: msgStreamId,
-          messageType: messageType,
-          timestamp: timestamp,
-          totalLength: totalLength,
-          accumulatedData: accumulatedData
         )
         return nil
       }
