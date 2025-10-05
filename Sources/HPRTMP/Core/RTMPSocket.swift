@@ -56,13 +56,6 @@ public struct TransmissionStatistics: Sendable {
   let pendingMessageCount: Int
 }
 
-protocol RTMPSocketDelegate: Actor {
-  func socketHandShakeDone(_ socket: RTMPSocket)
-  func socketConnectDone(_ socket: RTMPSocket)
-  func socketCreateStreamDone(_ socket: RTMPSocket, msgStreamId: Int)
-  func socketError(_ socket: RTMPSocket, err: RTMPError)
-}
-
 public actor RTMPSocket {
 
   private let connection: NetworkConnectable = NetworkClient()
@@ -81,14 +74,14 @@ public actor RTMPSocket {
   private let connectionContinuation: AsyncStream<RTMPConnectionEvent>.Continuation
   public let connectionEvents: AsyncStream<RTMPConnectionEvent>
 
-  weak var delegate: RTMPSocketDelegate?
-  
-  func setDelegate(delegate: RTMPSocketDelegate) {
-    self.delegate = delegate
-  }
+  // Continuations for async operations
+  private var connectContinuation: CheckedContinuation<Void, Error>?
+  private var streamCreationContinuations: [Int: CheckedContinuation<Int, Error>] = [:]
   
   private(set) var urlInfo: RTMPURLInfo?
-  
+
+  private let transactionIdGenerator = TransactionIdGenerator()
+
   let messageHolder = MessageHolder()
   
   private let encoder = MessageEncoder()
@@ -132,59 +125,104 @@ public actor RTMPSocket {
     guard status == .connected else { return }
     await self.send(message: AcknowledgementMessage(sequence: UInt32(sequence)), firstType: true)
   }
-  
-  
-  public func connect(url: String) async {
-    guard let urlInfo = try? urlParser.parse(url: url) else { return }
-    self.urlInfo = urlInfo
-    
-    await resume()
-  }
-  
-  public func connect(streamURL: URL, streamKey: String, port: Int = 1935) async {
-    let urlInfo = RTMPURLInfo(url: streamURL, appName: "", key: streamKey, port: port)
-    self.urlInfo = urlInfo
-    await resume()
-  }
 }
 
 // public func
 extension RTMPSocket {
-  public func resume() async {
-    guard status != .connected else { return }
-    guard let urlInfo else { return }
+  public func openTransport(url: String) async throws {
+    guard let urlInfo = try? urlParser.parse(url: url) else {
+      throw RTMPError.uknown(desc: "Invalid URL")
+    }
+    self.urlInfo = urlInfo
+
     do {
       try await connection.connect(host: urlInfo.host, port: urlInfo.port)
       status = .open
-      let task = Task {
-        await self.startShakeHands()
-      }
-      tasks.append(task)
     } catch {
-      self.logger.error("[HPRTMP] connection error: \(error.localizedDescription)")
-      await self.delegate?.socketError(self, err: .uknown(desc: error.localizedDescription))
-      await self.invalidate()
+      logger.error("[HPRTMP] connection error: \(error.localizedDescription)")
+      throw RTMPError.uknown(desc: error.localizedDescription)
     }
   }
-  
-  private func startShakeHands() async {
-    guard let client = connection as? NetworkClient else {
-      await self.delegate?.socketError(self, err: .handShake(desc: "Invalid connection type"))
-      return
+
+  public func performHandshake() async throws {
+    guard status == .open else {
+      throw RTMPError.handShake(desc: "Transport not open")
     }
+    guard let client = connection as? NetworkClient else {
+      throw RTMPError.handShake(desc: "Invalid connection type")
+    }
+
     self.handshake = RTMPHandshake(client: client)
+
     do {
       try await self.handshake?.start()
-
-      await self.delegate?.socketHandShakeDone(self)
-      startSendMessages()
-      startReceiveData()
-      startUpdateTransmissionStatistics()
     } catch {
-      await self.delegate?.socketError(self, err: .handShake(desc: error.localizedDescription))
+      throw RTMPError.handShake(desc: error.localizedDescription)
+    }
+
+    // Start background tasks after handshake completes
+    startSendMessages()
+    startReceiveData()
+    startUpdateTransmissionStatistics()
+  }
+
+  public func establishConnection() async throws {
+    guard status == .open else {
+      throw RTMPError.connectionNotEstablished
+    }
+    guard let urlInfo else {
+      throw RTMPError.connectionNotEstablished
+    }
+
+    let connectMsg = ConnectMessage(
+      tcUrl: urlInfo.tcUrl,
+      appName: urlInfo.appName,
+      flashVer: "LNX 9,0,124,2",
+      fpad: false,
+      audio: .aac,
+      video: .h264
+    )
+
+    await messageHolder.register(transactionId: connectMsg.transactionId, message: connectMsg)
+    await send(message: connectMsg, firstType: true)
+
+    try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+      self.connectContinuation = continuation
+    }
+
+    status = .connected
+  }
+
+  public func createStream() async throws -> Int {
+    guard status == .connected else {
+      throw RTMPError.connectionNotEstablished
+    }
+
+    let transactionId = await transactionIdGenerator.nextId()
+    let msg = CreateStreamMessage(transactionId: transactionId)
+
+    await messageHolder.register(transactionId: msg.transactionId, message: msg)
+    await send(message: msg, firstType: true)
+
+    return try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Int, Error>) in
+      self.streamCreationContinuations[transactionId] = continuation
     }
   }
-  
+
+  public func connect(url: String) async throws {
+    try await openTransport(url: url)
+    try await performHandshake()
+    try await establishConnection()
+  }
+
+  public func connect(streamURL: URL, streamKey: String, port: Int = 1935) async throws {
+    let urlInfo = RTMPURLInfo(url: streamURL, appName: "", key: streamKey, port: port)
+    self.urlInfo = urlInfo
+    try await openTransport(url: streamURL.absoluteString)
+    try await performHandshake()
+    try await establishConnection()
+  }
+
   public func invalidate() async {
     guard status != .closed && status != .none else { return }
     tasks.forEach {
@@ -236,12 +274,8 @@ extension RTMPSocket {
                 // Resume continuation before cleanup
                 messageContainer.continuation?.resume()
 
-                // Notify delegate first (check for nil to avoid silent failure)
-                if let delegate = self.delegate {
-                  await delegate.socketError(self, err: .stream(desc: error.localizedDescription))
-                } else {
-                  logger.error("[HPRTMP] CRITICAL: delegate is nil, cannot notify error!")
-                }
+                // Log the error
+                logger.error("[HPRTMP] Send error: \(error.localizedDescription)")
 
                 // Clean up all resources (cancels tasks, closes socket, sets status to .closed)
                 await invalidate()
@@ -273,7 +307,6 @@ extension RTMPSocket {
           await self.handleOutputData(data: data)
         } catch {
           logger.error("[HPRTMP] receive message failed: error: \(error)")
-          await delegate?.socketError(self, err: .stream(desc: error.localizedDescription))
           return
         }
       }
@@ -397,7 +430,7 @@ extension RTMPSocket {
     if commandMessage.commandNameType == .onStatus {
       guard let statusResponse = StatusResponse(info: commandMessage.info) else { return }
       if statusResponse.level == .error {
-        await self.delegate?.socketError(self, err: .command(desc: statusResponse.description ?? ""))
+        logger.error("Status error: \(statusResponse.description ?? "")")
         return
       }
       switch statusResponse.code {
@@ -430,10 +463,13 @@ extension RTMPSocket {
         let connectResponse = ConnectResponse(info: commandMessage.info)
         if connectResponse?.code == .success {
           logger.info("Connect Success")
-          await self.delegate?.socketConnectDone(self)
+          connectContinuation?.resume()
+          connectContinuation = nil
         } else {
           logger.error("Connect failed")
-          await self.delegate?.socketError(self, err: .command(desc: connectResponse?.code.rawValue ?? "Connect error"))
+          let error = RTMPError.command(desc: connectResponse?.code.rawValue ?? "Connect error")
+          connectContinuation?.resume(throwing: error)
+          connectContinuation = nil
         }
       }
     case is CreateStreamMessage:
@@ -441,11 +477,14 @@ extension RTMPSocket {
         logger.info("Create Stream Success")
         self.status = .connected
 
-        let msgStreamId = commandMessage.info?.doubleValue ?? 0
-        await self.delegate?.socketCreateStreamDone(self, msgStreamId: Int(msgStreamId))
+        let streamId = Int(commandMessage.info?.doubleValue ?? 0)
+        streamCreationContinuations[commandMessage.transactionId]?.resume(returning: streamId)
+        streamCreationContinuations.removeValue(forKey: commandMessage.transactionId)
       } else {
         logger.error("Create Stream failed, \(commandMessage.info.debugDescription)")
-        await self.delegate?.socketError(self, err: .command(desc: "Create Stream error"))
+        let error = RTMPError.command(desc: "Create Stream error")
+        streamCreationContinuations[commandMessage.transactionId]?.resume(throwing: error)
+        streamCreationContinuations.removeValue(forKey: commandMessage.transactionId)
       }
     default:
       break

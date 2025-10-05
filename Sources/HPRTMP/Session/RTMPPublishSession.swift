@@ -74,27 +74,45 @@ public actor RTMPPublishSession {
     eventTasks.removeAll()
 
     socket = await RTMPSocket()
-    await socket.setDelegate(delegate: self)
+    let socketRef = socket!
 
     // Subscribe to stream events
-    let streamTask = Task {
-      for await event in await socket.streamEvents {
+    let streamTask = Task { [socketRef] in
+      for await event in socketRef.streamEvents {
         await handleStreamEvent(event)
       }
     }
     eventTasks.append(streamTask)
 
     // Subscribe to connection events
-    let connectionTask = Task {
-      for await event in await socket.connectionEvents {
+    let connectionTask = Task { [socketRef] in
+      for await event in socketRef.connectionEvents {
         await handleConnectionEvent(event)
       }
     }
     eventTasks.append(connectionTask)
 
-    await socket.connect(url: url)
+    do {
+      publishStatus = .handShakeStart
+      try await socket.connect(url: url)
+      publishStatus = .handShakeDone
 
-    publishStatus = .handShakeStart
+      let streamId = try await socket.createStream()
+      self.connectId = streamId
+      publishStatus = .connect
+
+      // Send publish message
+      let publishMsg = PublishMessage(encodeType: encodeType, streamName: await socket.urlInfo?.key ?? "", type: .live, msgStreamId: streamId)
+      await socket.send(message: publishMsg, firstType: true)
+
+      // Send chunk size
+      let chunkSize: UInt32 = 128 * 6
+      let size = ChunkSizeMessage(size: chunkSize)
+      await socket.send(message: size, firstType: true)
+    } catch {
+      publishStatus = .failed(err: error as? RTMPError ?? .uknown(desc: error.localizedDescription))
+      await delegate?.sessionError(self, error: error as? RTMPError ?? .uknown(desc: error.localizedDescription))
+    }
   }
   
   private var videoHeaderSended = false
@@ -175,52 +193,4 @@ public actor RTMPPublishSession {
   }
 }
 
-extension RTMPPublishSession: RTMPSocketDelegate {
-  func socketHandShakeDone(_ socket: RTMPSocket) {
-    Task {
-      publishStatus = .handShakeDone
-
-      guard let urlInfo = await socket.urlInfo else { return }
-      let connect = ConnectMessage(encodeType: encodeType,
-                                   tcUrl: urlInfo.tcUrl,
-                                   appName: urlInfo.appName,
-                                   flashVer: "FMLE/3.0 (compatible; FMSc/1.0)",
-                                   fpad: false,
-                                   audio: .aac,
-                                   video: .h264)
-      await self.socket.messageHolder.register(transactionId: connect.transactionId, message: connect)
-      await self.socket.send(message: connect, firstType: true)
-    }
-  }
-
-  func socketConnectDone(_ socket: RTMPSocket) {
-    Task {
-      let message = CreateStreamMessage(encodeType: encodeType, transactionId: await transactionIdGenerator.nextId())
-      await self.socket.messageHolder.register(transactionId: message.transactionId, message: message)
-      await socket.send(message: message, firstType: true)
-
-      // make chunk size more bigger
-      let chunkSize: UInt32 = 128 * 6
-      let size = ChunkSizeMessage(size: chunkSize)
-      await socket.send(message: size, firstType: true)
-    }
-  }
-
-  func socketCreateStreamDone(_ socket: RTMPSocket, msgStreamId: Int) {
-    Task {
-      publishStatus = .connect
-
-      let message = await PublishMessage(encodeType: encodeType, streamName: socket.urlInfo?.key ?? "", type: .live, msgStreamId: msgStreamId)
-
-      self.connectId = msgStreamId
-      await socket.send(message: message, firstType: true)
-    }
-  }
-
-  func socketError(_ socket: RTMPSocket, err: RTMPError) {
-    Task {
-      await delegate?.sessionError(self, error: err)
-    }
-  }
-}
 
