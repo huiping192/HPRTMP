@@ -92,8 +92,13 @@ class AMF0Decoder {
     }
     let length = Data(rangeBytes.reversed()).uint16
     data.removeSubrange(range)
-    let value = data[0..<Int(length)].string
-    data.removeSubrange(0..<Int(length))
+
+    let stringRange = 0..<Int(length)
+    guard let stringData = data.subdata(safe: stringRange) else {
+      throw AMF0DecodeError.rangeError
+    }
+    let value = stringData.string
+    data.removeSubrange(stringRange)
     return value
   }
   
@@ -104,8 +109,13 @@ class AMF0Decoder {
     }
     let length = Data(rangeBytes.reversed()).uint32
     data.removeSubrange(range)
-    let value = data[0..<Int(length)].string
-    data.removeSubrange(0..<Int(length))
+
+    let stringRange = 0..<Int(length)
+    guard let stringData = data.subdata(safe: stringRange) else {
+      throw AMF0DecodeError.rangeError
+    }
+    let value = stringData.string
+    data.removeSubrange(stringRange)
     return value
   }
   
@@ -155,6 +165,11 @@ class AMF0Decoder {
       let value = try self.parseValue(type: t)
       map[key] = value
       key = ""
+    }
+
+    // Check for objectEnd marker
+    guard data.count >= 1 else {
+      throw AMF0DecodeError.rangeError
     }
     data.removeSubrange(0..<1)
 

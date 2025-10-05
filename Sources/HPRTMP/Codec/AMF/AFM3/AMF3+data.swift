@@ -37,6 +37,12 @@ extension Bool: AMF3Encodable {
 
 extension Int: AMF3Encodable {
   var amf3Value: Data {
+    // AMF3 int valid range is 0...0x1fffffff (0-536870911)
+    // Out of range values should be converted to double
+    if self < 0 || self > 0x1fffffff {
+      return Double(self).amf3Value
+    }
+
     var data = Data()
     data.write(RTMPAMF3Type.int.rawValue)
     data.append(amf3LengthConvert)
@@ -61,8 +67,10 @@ extension Int: AMF3Encodable {
       let third  = UInt8((self >> 8 & 0x7f) | 0x80)
       let four   = UInt8(self & 0xff)
       return Data([first, second, third, four])
-    default: // out of range auto convert to double
-      return Double(self).amf3Value
+    default:
+      // This default case should theoretically never be reached,
+      // as out-of-range values are handled in amf3Value
+      fatalError("Invalid int value for AMF3 encoding: \(self)")
     }
   }
   
@@ -81,13 +89,15 @@ extension Double: AMF3Encodable {
 
 extension String: AMF3Encodable, AMF3KeyEncodable {
   var amf3KeyValue: Data {
-    let encodeLength = (self.count << 1 | 0x01).amf3LengthConvert
+    // AMF3 spec requires UTF-8 byte count, not character count
+    let utf8ByteCount = self.utf8.count
+    let encodeLength = (utf8ByteCount << 1 | 0x01).amf3LengthConvert
     var data = Data()
     data.append(encodeLength)
     data.append(Data(self.utf8))
     return data
   }
-  
+
   var amf3Value: Data {
     var data = Data()
     data.write(RTMPAMF3Type.string.rawValue)
