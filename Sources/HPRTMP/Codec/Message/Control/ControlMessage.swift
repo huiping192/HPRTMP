@@ -8,14 +8,14 @@
 import Foundation
 
 class ControlMessage: RTMPBaseMessage, @unchecked Sendable {
-  let msgStreamId: Int
-  let timestamp: UInt32
+  let msgStreamId: MessageStreamId
+  let timestamp: Timestamp
   let messageType: MessageType
 
-  var streamId: UInt16 { RTMPChunkStreamId.control.rawValue }
+  var streamId: ChunkStreamId { RTMPChunkStreamId.control.chunkStreamId }
   var payload: Data { Data() }
 
-  init(type: MessageType, msgStreamId: Int = 0, timestamp: UInt32 = 0) {
+  init(type: MessageType, msgStreamId: MessageStreamId = .zero, timestamp: Timestamp = .zero) {
     self.messageType = type
     self.msgStreamId = msgStreamId
     self.timestamp = timestamp
@@ -26,10 +26,10 @@ class ControlMessage: RTMPBaseMessage, @unchecked Sendable {
 struct ChunkSizeMessage: RTMPBaseMessage {
   let size: UInt32
 
-  var msgStreamId: Int { 0 }
-  var timestamp: UInt32 { 0 }
+  var msgStreamId: MessageStreamId { .zero }
+  var timestamp: Timestamp { .zero }
   var messageType: MessageType { .chunkSize }
-  var streamId: UInt16 { RTMPChunkStreamId.control.rawValue }
+  var streamId: ChunkStreamId { RTMPChunkStreamId.control.chunkStreamId }
   var payload: Data {
     var data = Data()
     data.write(size & 0x7FFFFFFF)
@@ -42,10 +42,10 @@ struct ChunkSizeMessage: RTMPBaseMessage {
 struct AbortMessage: RTMPBaseMessage {
   let chunkStreamId: UInt16
 
-  var msgStreamId: Int { 0 }
-  var timestamp: UInt32 { 0 }
+  var msgStreamId: MessageStreamId { .zero }
+  var timestamp: Timestamp { .zero }
   var messageType: MessageType { .abort }
-  var streamId: UInt16 { RTMPChunkStreamId.control.rawValue }
+  var streamId: ChunkStreamId { RTMPChunkStreamId.control.chunkStreamId }
   var payload: Data {
     var data = Data()
     data.write(UInt32(chunkStreamId))
@@ -58,10 +58,10 @@ struct AbortMessage: RTMPBaseMessage {
 struct AcknowledgementMessage: RTMPBaseMessage {
   let sequence: UInt32
 
-  var msgStreamId: Int { 0 }
-  var timestamp: UInt32 { 0 }
+  var msgStreamId: MessageStreamId { .zero }
+  var timestamp: Timestamp { .zero }
   var messageType: MessageType { .acknowledgement }
-  var streamId: UInt16 { RTMPChunkStreamId.control.rawValue }
+  var streamId: ChunkStreamId { RTMPChunkStreamId.control.chunkStreamId }
   var payload: Data {
     var data = Data()
     data.write(sequence)
@@ -74,10 +74,10 @@ struct AcknowledgementMessage: RTMPBaseMessage {
 struct WindowAckMessage: RTMPBaseMessage {
   let size: UInt32
 
-  var msgStreamId: Int { 0 }
-  var timestamp: UInt32 { 0 }
+  var msgStreamId: MessageStreamId { .zero }
+  var timestamp: Timestamp { .zero }
   var messageType: MessageType { .windowAcknowledgement }
-  var streamId: UInt16 { RTMPChunkStreamId.control.rawValue }
+  var streamId: ChunkStreamId { RTMPChunkStreamId.control.chunkStreamId }
   var payload: Data {
     var data = Data()
     data.write(size)
@@ -98,10 +98,10 @@ struct PeerBandwidthMessage: RTMPBaseMessage {
   let windowSize: UInt32
   let limit: LimitType
 
-  var msgStreamId: Int { 0 }
-  var timestamp: UInt32 { 0 }
+  var msgStreamId: MessageStreamId { .zero }
+  var timestamp: Timestamp { .zero }
   var messageType: MessageType { .peerBandwidth }
-  var streamId: UInt16 { RTMPChunkStreamId.control.rawValue }
+  var streamId: ChunkStreamId { RTMPChunkStreamId.control.chunkStreamId }
   var payload: Data {
     var data = Data()
     data.write(windowSize)

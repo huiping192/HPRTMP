@@ -23,8 +23,8 @@ final class CommandMessageTests: XCTestCase {
       transactionId: 1,
       commandObject: commandObject,
       info: .string("info"),
-      msgStreamId: 0,
-      timestamp: 0
+      msgStreamId: MessageStreamId(0),
+      timestamp: Timestamp(0)
     )
 
     let payload = message.payload
@@ -51,8 +51,8 @@ final class CommandMessageTests: XCTestCase {
       transactionId: 1,
       commandObject: commandObject,
       info: .string("info"),
-      msgStreamId: 0,
-      timestamp: 0
+      msgStreamId: MessageStreamId(0),
+      timestamp: Timestamp(0)
     )
 
     let payload = message.payload
@@ -168,7 +168,7 @@ final class CommandMessageTests: XCTestCase {
   func testCloseStreamMessageAMF0Encoding() {
     let message = CloseStreamMessage(
       encodeType: .amf0,
-      msgStreamId: 1
+      msgStreamId: MessageStreamId(1)
     )
 
     let payload = message.payload
@@ -183,7 +183,7 @@ final class CommandMessageTests: XCTestCase {
   func testCloseStreamMessageAMF3Encoding() {
     let message = CloseStreamMessage(
       encodeType: .amf3,
-      msgStreamId: 1
+      msgStreamId: MessageStreamId(1)
     )
 
     let payload = message.payload
@@ -200,7 +200,7 @@ final class CommandMessageTests: XCTestCase {
   func testDeleteStreamMessageAMF0Encoding() {
     let message = DeleteStreamMessage(
       encodeType: .amf0,
-      msgStreamId: 1
+      msgStreamId: MessageStreamId(1)
     )
 
     let payload = message.payload
@@ -215,7 +215,7 @@ final class CommandMessageTests: XCTestCase {
   func testDeleteStreamMessageAMF3Encoding() {
     let message = DeleteStreamMessage(
       encodeType: .amf3,
-      msgStreamId: 1
+      msgStreamId: MessageStreamId(1)
     )
 
     let payload = message.payload
@@ -234,7 +234,7 @@ final class CommandMessageTests: XCTestCase {
       encodeType: .amf0,
       streamName: "testStream",
       type: .live,
-      msgStreamId: 1
+      msgStreamId: MessageStreamId(1)
     )
 
     let payload = message.payload
@@ -254,7 +254,7 @@ final class CommandMessageTests: XCTestCase {
       encodeType: .amf3,
       streamName: "testStream",
       type: .record,
-      msgStreamId: 1
+      msgStreamId: MessageStreamId(1)
     )
 
     let payload = message.payload
@@ -274,7 +274,7 @@ final class CommandMessageTests: XCTestCase {
   func testSeekMessageAMF0Encoding() {
     let message = SeekMessage(
       encodeType: .amf0,
-      msgStreamId: 1,
+      msgStreamId: MessageStreamId(1),
       millSecond: 5000.0
     )
 
@@ -292,7 +292,7 @@ final class CommandMessageTests: XCTestCase {
   func testSeekMessageAMF3Encoding() {
     let message = SeekMessage(
       encodeType: .amf3,
-      msgStreamId: 1,
+      msgStreamId: MessageStreamId(1),
       millSecond: 5000.0
     )
 
@@ -312,7 +312,7 @@ final class CommandMessageTests: XCTestCase {
   func testPauseMessageAMF0Encoding() {
     let message = PauseMessage(
       encodeType: .amf0,
-      msgStreamId: 1,
+      msgStreamId: MessageStreamId(1),
       isPause: true,
       millSecond: 3000.0
     )
@@ -332,7 +332,7 @@ final class CommandMessageTests: XCTestCase {
   func testPauseMessageAMF3Encoding() {
     let message = PauseMessage(
       encodeType: .amf3,
-      msgStreamId: 1,
+      msgStreamId: MessageStreamId(1),
       isPause: false,
       millSecond: 3000.0
     )
@@ -365,8 +365,8 @@ final class CommandMessageTests: XCTestCase {
       transactionId: 1,
       commandObject: commandObject,
       info: .double(5.0),
-      msgStreamId: 0,
-      timestamp: 100
+      msgStreamId: MessageStreamId(0),
+      timestamp: Timestamp(100)
     )
 
     // Encode to payload
@@ -375,10 +375,10 @@ final class CommandMessageTests: XCTestCase {
     // Decode using MessageDecoder
     let decoder = MessageDecoder()
     let decodedMessage = await decoder.createMessage(
-      chunkStreamId: RTMPChunkStreamId.command.rawValue,
-      msgStreamId: 0,
+      chunkStreamId: RTMPChunkStreamId.command.chunkStreamId,
+      msgStreamId: MessageStreamId(0),
       messageType: .command(type: .amf0),
-      timestamp: 100,
+      timestamp: Timestamp(100),
       chunkPayload: payload
     )
 

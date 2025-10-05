@@ -9,7 +9,7 @@ import Foundation
 
 public protocol RTMPBaseMessage: RTMPMessage {
   var messageType: MessageType { get }
-  var msgStreamId: Int { get }
-  var streamId: UInt16 { get }
-  var timestamp: UInt32 { get }
+  var msgStreamId: MessageStreamId { get }
+  var streamId: ChunkStreamId { get }
+  var timestamp: Timestamp { get }
 }

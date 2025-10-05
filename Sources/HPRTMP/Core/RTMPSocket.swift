@@ -417,11 +417,11 @@ extension RTMPSocket {
 
     case let videoMessage as VideoMessage:
       logger.info("VideoMessage, message Type:  \(videoMessage.messageType.rawValue)")
-      mediaContinuation.yield(.video(data: videoMessage.data, timestamp: Int64(videoMessage.timestamp)))
+      mediaContinuation.yield(.video(data: videoMessage.data, timestamp: Int64(videoMessage.timestamp.value)))
 
     case let audioMessage as AudioMessage:
       logger.info("AudioMessage, message Type:  \(audioMessage.messageType.rawValue)")
-      mediaContinuation.yield(.audio(data: audioMessage.data, timestamp: Int64(audioMessage.timestamp)))
+      mediaContinuation.yield(.audio(data: audioMessage.data, timestamp: Int64(audioMessage.timestamp.value)))
 
     case let sharedObjectMessage as SharedObjectMessage:
       logger.info("ShareMessage, message Type:  \(sharedObjectMessage.messageType.rawValue)")

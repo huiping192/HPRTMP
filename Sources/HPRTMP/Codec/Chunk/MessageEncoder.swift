@@ -11,7 +11,7 @@ actor MessageEncoder {
   // Track last message state for Type2 header optimization
   private var lastMessageLength: Int?
   private var lastMessageType: MessageType?
-  private var lastMessageStreamId: Int?
+  private var lastMessageStreamId: MessageStreamId?
   
   func setChunkSize(chunkSize: UInt32) throws {
     guard chunkSize >= Self.minChunkSize && chunkSize <= Self.maxChunkSize else {
@@ -30,7 +30,7 @@ actor MessageEncoder {
         isFirstChunk: chunkIndex == 0,
         useType0: isFirstType0
       )
-      
+
       let header = ChunkHeader(streamId: message.streamId, messageHeader: messageHeader)
       return Chunk(chunkHeader: header, chunkData: chunkData)
     }

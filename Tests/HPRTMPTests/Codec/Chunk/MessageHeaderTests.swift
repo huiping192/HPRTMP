@@ -11,28 +11,28 @@ import XCTest
 class MessageHeaderType0Tests: XCTestCase {
   
   func testEncodeWithMaxTimestamp() {
-    let header = MessageHeaderType0(timestamp: 16777215,
+    let header = MessageHeaderType0(timestamp: Timestamp(16777215),
                                     messageLength: 5,
                                     type: .video,
-                                    messageStreamId: 1)
+                                    messageStreamId: MessageStreamId(1))
     let expected = Data([0xff, 0xff, 0xff, 0x00, 0x00, 0x05, 0x09, 0x01, 0x00, 0x00, 0x00])
     XCTAssertEqual(header.encode(), expected)
   }
   
   func testEncodeWithExtendedTimestamp() {
-    let header = MessageHeaderType0(timestamp: 16777216,
+    let header = MessageHeaderType0(timestamp: Timestamp(16777216),
                                     messageLength: 5,
                                     type: .video,
-                                    messageStreamId: 1)
+                                    messageStreamId: MessageStreamId(1))
     let expected = Data([0xff, 0xff, 0xff, 0x00, 0x00, 0x05, 0x09, 0x01, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00])
     XCTAssertEqual(header.encode(), expected)
   }
   
   func testEncodeWithSmallTimestamp() {
-    let header = MessageHeaderType0(timestamp: 1,
+    let header = MessageHeaderType0(timestamp: Timestamp(1),
                                     messageLength: 5,
                                     type: .video,
-                                    messageStreamId: 1)
+                                    messageStreamId: MessageStreamId(1))
     let expected = Data([0x00, 0x00, 0x01, 0x00, 0x00, 0x05, 0x09, 0x01, 0x00, 0x00, 0x00])
     
     
@@ -44,7 +44,7 @@ class MessageHeaderType0Tests: XCTestCase {
 
 class MessageHeaderType1Tests: XCTestCase {
   func testEncode() {
-    let header = MessageHeaderType1(timestampDelta: 100, messageLength: 100, type: .audio)
+    let header = MessageHeaderType1(timestampDelta: Timestamp(100), messageLength: 100, type: .audio)
     let expectedData = Data([0x00, 0x00, 0x64, 0x00, 0x00, 0x64, 0x08])
     XCTAssertEqual(header.encode(), expectedData)
   }
@@ -52,7 +52,7 @@ class MessageHeaderType1Tests: XCTestCase {
 
 class MessageHeaderType2Tests: XCTestCase {
   func testEncode() {
-    let header = MessageHeaderType2(timestampDelta: 100)
+    let header = MessageHeaderType2(timestampDelta: Timestamp(100))
     let expectedData = Data([0x00, 0x00, 0x64])
     XCTAssertEqual(header.encode(), expectedData)
   }

@@ -45,11 +45,11 @@ struct CommandMessage: RTMPBaseMessage, CustomStringConvertible {
   let commandObject: [String: AMFValue]?
 
   let info: AMFValue?
-  let msgStreamId: Int
-  let timestamp: UInt32
+  let msgStreamId: MessageStreamId
+  let timestamp: Timestamp
 
   var messageType: MessageType { .command(type: encodeType) }
-  var streamId: UInt16 { RTMPChunkStreamId.command.rawValue }
+  var streamId: ChunkStreamId { RTMPChunkStreamId.command.chunkStreamId }
 
   var payload: Data {
     var data = Data()
@@ -92,12 +92,12 @@ struct ConnectMessage: RTMPBaseMessage, CustomStringConvertible {
   let commandName: String = "connect"
   let transactionId: Int = commonTransactionId.connect
   let commandObject: [String: AMFValue]?
-  let msgStreamId: Int = 0
-  let timestamp: UInt32 = 0
+  let msgStreamId: MessageStreamId = .zero
+  let timestamp: Timestamp = .zero
   let argument: [String: AMFValue]?
 
   var messageType: MessageType { .command(type: encodeType) }
-  var streamId: UInt16 { RTMPChunkStreamId.command.rawValue }
+  var streamId: ChunkStreamId { RTMPChunkStreamId.command.chunkStreamId }
 
   init(encodeType: ObjectEncodingType = .amf0,
        tcUrl: String,
@@ -160,11 +160,11 @@ struct CreateStreamMessage: RTMPBaseMessage, CustomStringConvertible {
   let commandName: String = "createStream"
   let transactionId: Int
   let commandObject: [String: AMFValue]?
-  let msgStreamId: Int = 0
-  let timestamp: UInt32 = 0
+  let msgStreamId: MessageStreamId = .zero
+  let timestamp: Timestamp = .zero
 
   var messageType: MessageType { .command(type: encodeType) }
-  var streamId: UInt16 { RTMPChunkStreamId.command.rawValue }
+  var streamId: ChunkStreamId { RTMPChunkStreamId.command.chunkStreamId }
 
   init(encodeType: ObjectEncodingType = .amf0, transactionId: Int, commonObject: [String: AMFValue]? = nil) {
     self.encodeType = encodeType
@@ -202,13 +202,13 @@ struct CloseStreamMessage: RTMPBaseMessage, CustomStringConvertible {
   let encodeType: ObjectEncodingType
   let commandName: String = "closeStream"
   let transactionId: Int = 0
-  let msgStreamId: Int
-  let timestamp: UInt32 = 0
+  let msgStreamId: MessageStreamId
+  let timestamp: Timestamp = .zero
 
   var messageType: MessageType { .command(type: encodeType) }
-  var streamId: UInt16 { RTMPChunkStreamId.command.rawValue }
+  var streamId: ChunkStreamId { RTMPChunkStreamId.command.chunkStreamId }
 
-  init(encodeType: ObjectEncodingType = .amf0, msgStreamId: Int) {
+  init(encodeType: ObjectEncodingType = .amf0, msgStreamId: MessageStreamId) {
     self.encodeType = encodeType
     self.msgStreamId = msgStreamId
   }
@@ -234,13 +234,13 @@ struct DeleteStreamMessage: RTMPBaseMessage, CustomStringConvertible {
   let encodeType: ObjectEncodingType
   let commandName: String = "deleteStream"
   let transactionId: Int = 0
-  let msgStreamId: Int
-  let timestamp: UInt32 = 0
+  let msgStreamId: MessageStreamId
+  let timestamp: Timestamp = .zero
 
   var messageType: MessageType { .command(type: encodeType) }
-  var streamId: UInt16 { RTMPChunkStreamId.command.rawValue }
+  var streamId: ChunkStreamId { RTMPChunkStreamId.command.chunkStreamId }
 
-  init(encodeType: ObjectEncodingType = .amf0, msgStreamId: Int) {
+  init(encodeType: ObjectEncodingType = .amf0, msgStreamId: MessageStreamId) {
     self.encodeType = encodeType
     self.msgStreamId = msgStreamId
   }
@@ -272,15 +272,15 @@ struct PublishMessage: RTMPBaseMessage {
   let encodeType: ObjectEncodingType
   let commandName: String = "publish"
   let transactionId: Int = commonTransactionId.stream
-  let msgStreamId: Int
-  let timestamp: UInt32 = 0
+  let msgStreamId: MessageStreamId
+  let timestamp: Timestamp = .zero
   let type: PubishType
   let streamName: String
 
   var messageType: MessageType { .command(type: encodeType) }
-  var streamId: UInt16 { RTMPChunkStreamId.command.rawValue }
+  var streamId: ChunkStreamId { RTMPChunkStreamId.command.chunkStreamId }
 
-  init(encodeType: ObjectEncodingType = .amf0, streamName: String, type: PubishType, msgStreamId: Int = 0) {
+  init(encodeType: ObjectEncodingType = .amf0, streamName: String, type: PubishType, msgStreamId: MessageStreamId = .zero) {
     self.encodeType = encodeType
     self.streamName = streamName
     self.type = type
@@ -311,14 +311,14 @@ struct SeekMessage: RTMPBaseMessage {
   let encodeType: ObjectEncodingType
   let commandName: String = "seek"
   let transactionId: Int = commonTransactionId.stream
-  let msgStreamId: Int
-  let timestamp: UInt32 = 0
+  let msgStreamId: MessageStreamId
+  let timestamp: Timestamp = .zero
   let millSecond: Double
 
   var messageType: MessageType { .command(type: encodeType) }
-  var streamId: UInt16 { RTMPChunkStreamId.command.rawValue }
+  var streamId: ChunkStreamId { RTMPChunkStreamId.command.chunkStreamId }
 
-  init(encodeType: ObjectEncodingType = .amf0, msgStreamId: Int, millSecond: Double) {
+  init(encodeType: ObjectEncodingType = .amf0, msgStreamId: MessageStreamId, millSecond: Double) {
     self.encodeType = encodeType
     self.msgStreamId = msgStreamId
     self.millSecond = millSecond
@@ -346,15 +346,15 @@ struct PauseMessage: RTMPBaseMessage {
   let encodeType: ObjectEncodingType
   let commandName: String = "pause"
   let transactionId: Int = commonTransactionId.stream
-  let msgStreamId: Int
-  let timestamp: UInt32 = 0
+  let msgStreamId: MessageStreamId
+  let timestamp: Timestamp = .zero
   let isPause: Bool
   let millSecond: Double
 
   var messageType: MessageType { .command(type: encodeType) }
-  var streamId: UInt16 { RTMPChunkStreamId.command.rawValue }
+  var streamId: ChunkStreamId { RTMPChunkStreamId.command.chunkStreamId }
 
-  init(encodeType: ObjectEncodingType = .amf0, msgStreamId:Int, isPause: Bool, millSecond: Double) {
+  init(encodeType: ObjectEncodingType = .amf0, msgStreamId: MessageStreamId, isPause: Bool, millSecond: Double) {
     self.encodeType = encodeType
     self.msgStreamId = msgStreamId
     self.isPause = isPause
