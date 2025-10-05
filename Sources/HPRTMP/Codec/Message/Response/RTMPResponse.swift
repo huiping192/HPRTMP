@@ -91,18 +91,18 @@ struct StatusResponse: Decodable {
   
 }
 
-public struct SampleDescription {
+public struct SampleDescription: Sendable {
   public let sampletype: String
 }
 
-public struct Trackinfo {
+public struct Trackinfo: Sendable {
   public let sampledescription : [SampleDescription]
   public let language : String
   public let timescale : Double
   public let length : Double
 }
 
-public struct MetaDataResponse {
+public struct MetaDataResponse: Sendable {
   public var duration : Double = 0
   public var height : Int = 0
   public var frameWidth : Int = 0
