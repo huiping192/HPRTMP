@@ -38,7 +38,7 @@ struct MessageHandlerContext: Sendable {
   let resumeConnect: @Sendable (Result<Void, Error>) -> Void
 
   /// Resume the create stream continuation with transaction ID and result
-  let resumeCreateStream: @Sendable (Int, Result<Int, Error>) -> Void
+  let resumeCreateStream: @Sendable (Int, Result<MessageStreamId, Error>) -> Void
 
   /// Update the RTMPConnection status
   let updateStatus: @Sendable (RTMPStatus) -> Void

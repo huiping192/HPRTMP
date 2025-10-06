@@ -100,7 +100,7 @@ struct CommandMessageHandler: RTMPMessageHandler {
       context.updateStatus(.connected)
 
       let streamId = Int(commandMessage.info?.doubleValue ?? 0)
-      context.resumeCreateStream(commandMessage.transactionId, .success(streamId))
+      context.resumeCreateStream(commandMessage.transactionId, .success(MessageStreamId(streamId)))
     } else {
       logger.error("Create Stream failed, \(commandMessage.info.debugDescription)")
       let error = RTMPError.command(desc: "Create Stream error")

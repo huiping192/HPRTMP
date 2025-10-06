@@ -7,7 +7,7 @@
 
 import Foundation
 
-public enum RTMPError: Error, Sendable {
+public enum RTMPError: Error, Sendable, Equatable {
   case handShake(desc: String)
   case stream(desc: String)
   case command(desc: String)
