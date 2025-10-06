@@ -12,6 +12,8 @@ import os
 /// Periodically collects and reports statistics through the event dispatcher
 actor TransmissionMonitor {
   private let priorityQueue: MessagePriorityQueue
+  private let windowControl: WindowControl
+  private let mediaStatistics: MediaStatisticsCollector
   private let eventDispatcher: RTMPEventDispatcher
   private let logger: Logger
 
@@ -19,10 +21,14 @@ actor TransmissionMonitor {
 
   init(
     priorityQueue: MessagePriorityQueue,
+    windowControl: WindowControl,
+    mediaStatistics: MediaStatisticsCollector,
     eventDispatcher: RTMPEventDispatcher,
     logger: Logger
   ) {
     self.priorityQueue = priorityQueue
+    self.windowControl = windowControl
+    self.mediaStatistics = mediaStatistics
     self.eventDispatcher = eventDispatcher
     self.logger = logger
   }
@@ -36,9 +42,7 @@ actor TransmissionMonitor {
       while !Task.isCancelled {
         try? await Task.sleep(nanoseconds: interval)
 
-        let pendingMessageCount = await priorityQueue.pendingMessageCount
-        let statistics = TransmissionStatistics(pendingMessageCount: pendingMessageCount)
-
+        let statistics = await collectStatistics()
         await eventDispatcher.yieldConnection(.statistics(statistics))
       }
     }
@@ -48,5 +52,43 @@ actor TransmissionMonitor {
   func stop() {
     task?.cancel()
     task = nil
+  }
+
+  private func collectStatistics() async -> TransmissionStatistics {
+    let pendingMessageCount = await priorityQueue.pendingMessageCount
+    let pendingVideoFrames = await priorityQueue.pendingVideoFrames
+    let pendingAudioFrames = await priorityQueue.pendingAudioFrames
+    let pendingOtherMessages = await priorityQueue.pendingOtherMessages
+
+    let totalBytesReceived = await windowControl.totalInBytesCount
+    let totalBytesSent = await windowControl.totalOutBytesCount
+    let receivedAcknowledgement = await windowControl.receivedAcknowledgement
+    let windowSize = await windowControl.windowSize
+
+    let unacknowledgedBytes = Int64(totalBytesSent) - Int64(receivedAcknowledgement)
+    let windowUtilization = windowSize > 0 ? Double(unacknowledgedBytes) / Double(windowSize) : 0.0
+
+    let mediaStats = await mediaStatistics.getStatistics()
+
+    return TransmissionStatistics(
+      pendingMessageCount: pendingMessageCount,
+      totalBytesReceived: totalBytesReceived,
+      totalBytesSent: totalBytesSent,
+      unacknowledgedBytes: unacknowledgedBytes,
+      windowSize: windowSize,
+      windowUtilization: windowUtilization,
+      videoFramesSent: mediaStats.videoFramesSent,
+      videoKeyFramesSent: mediaStats.videoKeyFramesSent,
+      audioFramesSent: mediaStats.audioFramesSent,
+      videoBytesSent: mediaStats.videoBytesSent,
+      audioBytesSent: mediaStats.audioBytesSent,
+      videoBitrate: mediaStats.videoBitrate,
+      audioBitrate: mediaStats.audioBitrate,
+      currentVideoTimestamp: mediaStats.currentVideoTimestamp,
+      currentAudioTimestamp: mediaStats.currentAudioTimestamp,
+      pendingVideoFrames: pendingVideoFrames,
+      pendingAudioFrames: pendingAudioFrames,
+      pendingOtherMessages: pendingOtherMessages
+    )
   }
 }

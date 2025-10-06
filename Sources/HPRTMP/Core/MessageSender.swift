@@ -15,6 +15,7 @@ actor MessageSender {
   private let encoder: MessageEncoder
   private let windowControl: WindowControl
   private let tokenBucket: TokenBucket
+  private let mediaStatistics: MediaStatisticsCollector
   private let sendData: @Sendable (Data) async throws -> Void
   private let logger: Logger
 
@@ -26,6 +27,7 @@ actor MessageSender {
     encoder: MessageEncoder,
     windowControl: WindowControl,
     tokenBucket: TokenBucket,
+    mediaStatistics: MediaStatisticsCollector,
     sendData: @escaping @Sendable (Data) async throws -> Void,
     logger: Logger
   ) {
@@ -33,6 +35,7 @@ actor MessageSender {
     self.encoder = encoder
     self.windowControl = windowControl
     self.tokenBucket = tokenBucket
+    self.mediaStatistics = mediaStatistics
     self.sendData = sendData
     self.logger = logger
   }
@@ -86,6 +89,7 @@ actor MessageSender {
 
         // Resume continuation after sending
         if sendSuccess {
+          await recordMessageStatistics(message: message)
           messageContainer.continuation?.resume()
         } else {
           // Error already handled in sendChunk, just resume continuation
@@ -94,6 +98,28 @@ actor MessageSender {
         }
       }
     }
+  }
+
+  private func recordMessageStatistics(message: RTMPMessage) async {
+    if let videoMessage = message as? VideoMessage {
+      let isKeyFrame = isVideoKeyFrame(data: videoMessage.data)
+      await mediaStatistics.recordVideoFrame(
+        bytes: videoMessage.data.count,
+        timestamp: videoMessage.timestamp.value,
+        isKeyFrame: isKeyFrame
+      )
+    } else if let audioMessage = message as? AudioMessage {
+      await mediaStatistics.recordAudioFrame(
+        bytes: audioMessage.data.count,
+        timestamp: audioMessage.timestamp.value
+      )
+    }
+  }
+
+  private func isVideoKeyFrame(data: Data) -> Bool {
+    guard !data.isEmpty else { return false }
+    let frameType = (data[0] >> 4) & 0x0F
+    return frameType == 1
   }
 
   /// Stop the message sending loop

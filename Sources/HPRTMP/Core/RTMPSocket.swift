@@ -52,13 +52,6 @@ public enum RTMPError: Error, Sendable {
   }
 }
 
-public struct TransmissionStatistics: Sendable {
-  // todo
-//  let rtt: Int
-
-  let pendingMessageCount: Int
-}
-
 public actor RTMPSocket {
 
   private let connection: NetworkConnectable = NetworkClient()
@@ -101,6 +94,7 @@ public actor RTMPSocket {
   private let logger = Logger(subsystem: "HPRTMP", category: "RTMPSocket")
 
   // Background task actors
+  private let mediaStatisticsCollector = MediaStatisticsCollector()
   private let messageSender: MessageSender
   private let messageReceiver: MessageReceiver
   private let transmissionMonitor: TransmissionMonitor
@@ -141,6 +135,7 @@ public actor RTMPSocket {
       encoder: encoder,
       windowControl: windowControl,
       tokenBucket: tokenBucket,
+      mediaStatistics: mediaStatisticsCollector,
       sendData: { [connection, windowControl] data in
         try await connection.sendData(data)
         await windowControl.addOutBytesCount(UInt32(data.count))
@@ -159,6 +154,8 @@ public actor RTMPSocket {
 
     self.transmissionMonitor = TransmissionMonitor(
       priorityQueue: messagePriorityQueue,
+      windowControl: windowControl,
+      mediaStatistics: mediaStatisticsCollector,
       eventDispatcher: eventDispatcher,
       logger: logger
     )
