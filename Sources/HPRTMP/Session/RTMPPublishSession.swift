@@ -82,12 +82,12 @@ public actor RTMPPublishSession: RTMPPublishSessionProtocol {
 
       // Send publish message
       let publishMsg = PublishMessage(encodeType: encodeType, streamName: await connection.urlInfo?.key ?? "", type: .live, msgStreamId: streamId)
-      await connection.send(message: publishMsg, firstType: true)
+      await connection.sendAndWait(message: publishMsg, firstType: true)
 
       // Send chunk size
       let chunkSize: UInt32 = 128 * 6
       let size = ChunkSizeMessage(size: chunkSize)
-      await connection.send(message: size, firstType: true)
+      await connection.sendAndWait(message: size, firstType: true)
     } catch let rtmpError as RTMPError {
       publishStatus = .failed(err: rtmpError)
     } catch {
@@ -163,7 +163,7 @@ public actor RTMPPublishSession: RTMPPublishSessionProtocol {
 
     // send closeStream
     let closeStreamMessage = CloseStreamMessage(msgStreamId: streamId)
-    await connection.send(message: closeStreamMessage, firstType: true)
+    await connection.sendAndWait(message: closeStreamMessage, firstType: true)
 
     // send deleteStream and wait for it to be sent
     let deleteStreamMessage = DeleteStreamMessage(msgStreamId: streamId)
