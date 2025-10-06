@@ -6,9 +6,12 @@
 //
 
 import Foundation
+import os
 
 /// Handles media messages (video and audio)
 struct MediaMessageHandler: RTMPMessageHandler {
+  private let logger = Logger(subsystem: "HPRTMP", category: "MediaMessageHandler")
+
   func canHandle(_ message: RTMPMessage) -> Bool {
     return message is VideoMessage || message is AudioMessage
   }
@@ -27,14 +30,14 @@ struct MediaMessageHandler: RTMPMessageHandler {
   }
 
   private func handleVideo(_ message: VideoMessage, context: MessageHandlerContext) async {
-    context.logger.info("VideoMessage, message Type: \(message.messageType.rawValue)")
+    logger.info("VideoMessage, message Type: \(message.messageType.rawValue)")
     await context.eventDispatcher.yieldMedia(
       .video(data: message.data, timestamp: Int64(message.timestamp.value))
     )
   }
 
   private func handleAudio(_ message: AudioMessage, context: MessageHandlerContext) async {
-    context.logger.info("AudioMessage, message Type: \(message.messageType.rawValue)")
+    logger.info("AudioMessage, message Type: \(message.messageType.rawValue)")
     await context.eventDispatcher.yieldMedia(
       .audio(data: message.data, timestamp: Int64(message.timestamp.value))
     )

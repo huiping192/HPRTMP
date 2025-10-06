@@ -14,7 +14,7 @@ actor MessageReceiver {
   private let receiveData: @Sendable () async throws -> Data
   private let windowControl: WindowControl
   private let decoder: MessageDecoder
-  private let logger: Logger
+  private let logger = Logger(subsystem: "HPRTMP", category: "MessageReceiver")
 
   private var task: Task<Void, Never>?
   private var messageHandler: (@Sendable (Data) async -> Void)?
@@ -22,13 +22,11 @@ actor MessageReceiver {
   init(
     receiveData: @escaping @Sendable () async throws -> Data,
     windowControl: WindowControl,
-    decoder: MessageDecoder,
-    logger: Logger
+    decoder: MessageDecoder
   ) {
     self.receiveData = receiveData
     self.windowControl = windowControl
     self.decoder = decoder
-    self.logger = logger
   }
 
   /// Set the handler to be called when data is received

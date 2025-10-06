@@ -6,10 +6,13 @@
 //
 
 import Foundation
+import os
 
 /// Handles control messages
 /// Currently only logs the message, but can be extended for future functionality
 struct ControlMessageHandler: RTMPMessageHandler {
+  private let logger = Logger(subsystem: "HPRTMP", category: "ControlMessageHandler")
+
   func canHandle(_ message: RTMPMessage) -> Bool {
     return message is ControlMessage
   }
@@ -17,7 +20,7 @@ struct ControlMessageHandler: RTMPMessageHandler {
   func handle(_ message: RTMPMessage, context: MessageHandlerContext) async {
     guard let controlMessage = message as? ControlMessage else { return }
 
-    context.logger.info("ControlMessage, message Type: \(controlMessage.messageType.rawValue)")
+    logger.info("ControlMessage, message Type: \(controlMessage.messageType.rawValue)")
 
     // TODO: Add specific control message handling logic here when needed
   }

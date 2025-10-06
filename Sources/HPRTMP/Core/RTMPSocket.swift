@@ -139,8 +139,7 @@ public actor RTMPSocket {
       sendData: { [connection, windowControl] data in
         try await connection.sendData(data)
         await windowControl.addOutBytesCount(UInt32(data.count))
-      },
-      logger: logger
+      }
     )
 
     self.messageReceiver = MessageReceiver(
@@ -148,16 +147,14 @@ public actor RTMPSocket {
         try await connection.receiveData()
       },
       windowControl: windowControl,
-      decoder: decoder,
-      logger: logger
+      decoder: decoder
     )
 
     self.transmissionMonitor = TransmissionMonitor(
       priorityQueue: messagePriorityQueue,
       windowControl: windowControl,
       mediaStatistics: mediaStatisticsCollector,
-      eventDispatcher: eventDispatcher,
-      logger: logger
+      eventDispatcher: eventDispatcher
     )
 
     await windowControl.setInBytesWindowEvent { [weak self] inbytesCount in
@@ -343,8 +340,7 @@ extension RTMPSocket {
         Task { [weak self] in
           await self?.updateStatus(newStatus)
         }
-      },
-      logger: logger
+      }
     )
 
     // Route message to appropriate handler

@@ -42,9 +42,4 @@ struct MessageHandlerContext: Sendable {
 
   /// Update the RTMPSocket status
   let updateStatus: @Sendable (RTMPStatus) -> Void
-
-  // MARK: - Logging
-
-  /// Logger for debugging and error reporting
-  let logger: Logger
 }

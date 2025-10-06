@@ -15,7 +15,7 @@ actor TransmissionMonitor {
   private let windowControl: WindowControl
   private let mediaStatistics: MediaStatisticsCollector
   private let eventDispatcher: RTMPEventDispatcher
-  private let logger: Logger
+  private let logger = Logger(subsystem: "HPRTMP", category: "TransmissionMonitor")
 
   private var task: Task<Void, Never>?
 
@@ -23,14 +23,12 @@ actor TransmissionMonitor {
     priorityQueue: MessagePriorityQueue,
     windowControl: WindowControl,
     mediaStatistics: MediaStatisticsCollector,
-    eventDispatcher: RTMPEventDispatcher,
-    logger: Logger
+    eventDispatcher: RTMPEventDispatcher
   ) {
     self.priorityQueue = priorityQueue
     self.windowControl = windowControl
     self.mediaStatistics = mediaStatistics
     self.eventDispatcher = eventDispatcher
-    self.logger = logger
   }
 
   /// Start monitoring with the specified interval

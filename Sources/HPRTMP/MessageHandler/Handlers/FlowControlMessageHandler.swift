@@ -6,9 +6,11 @@
 //
 
 import Foundation
+import os
 
 /// Handles flow control related messages (window acknowledgement, bandwidth, chunk size)
 struct FlowControlMessageHandler: RTMPMessageHandler {
+  private let logger = Logger(subsystem: "HPRTMP", category: "FlowControlMessageHandler")
   func canHandle(_ message: RTMPMessage) -> Bool {
     return message is WindowAckMessage
       || message is AcknowledgementMessage
@@ -36,17 +38,17 @@ struct FlowControlMessageHandler: RTMPMessageHandler {
   }
 
   private func handleWindowAck(_ message: WindowAckMessage, context: MessageHandlerContext) async {
-    context.logger.info("WindowAckMessage, size \(message.size)")
+    logger.info("WindowAckMessage, size \(message.size)")
     await context.windowControl.setWindowSize(message.size)
   }
 
   private func handleAcknowledgement(_ message: AcknowledgementMessage, context: MessageHandlerContext) async {
-    context.logger.info("AcknowledgementMessage, size \(message.sequence)")
+    logger.info("AcknowledgementMessage, size \(message.sequence)")
     await context.windowControl.updateReceivedAcknowledgement(message.sequence)
   }
 
   private func handlePeerBandwidth(_ message: PeerBandwidthMessage, context: MessageHandlerContext) async {
-    context.logger.info("PeerBandwidthMessage, size \(message.windowSize)")
+    logger.info("PeerBandwidthMessage, size \(message.windowSize)")
     await context.tokenBucket.update(
       rate: Int(message.windowSize),
       capacity: Int(message.windowSize)
@@ -55,7 +57,7 @@ struct FlowControlMessageHandler: RTMPMessageHandler {
   }
 
   private func handleChunkSize(_ message: ChunkSizeMessage, context: MessageHandlerContext) async {
-    context.logger.info("chunkSizeMessage, size \(message.size)")
+    logger.info("chunkSizeMessage, size \(message.size)")
     await context.decoder.setMaxChunkSize(maxChunkSize: Int(message.size))
   }
 }

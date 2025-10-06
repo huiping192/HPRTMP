@@ -17,7 +17,7 @@ actor MessageSender {
   private let tokenBucket: TokenBucket
   private let mediaStatistics: MediaStatisticsCollector
   private let sendData: @Sendable (Data) async throws -> Void
-  private let logger: Logger
+  private let logger = Logger(subsystem: "HPRTMP", category: "MessageSender")
 
   private var task: Task<Void, Never>?
   private var errorHandler: (@Sendable () async -> Void)?
@@ -28,8 +28,7 @@ actor MessageSender {
     windowControl: WindowControl,
     tokenBucket: TokenBucket,
     mediaStatistics: MediaStatisticsCollector,
-    sendData: @escaping @Sendable (Data) async throws -> Void,
-    logger: Logger
+    sendData: @escaping @Sendable (Data) async throws -> Void
   ) {
     self.priorityQueue = priorityQueue
     self.encoder = encoder
@@ -37,7 +36,6 @@ actor MessageSender {
     self.tokenBucket = tokenBucket
     self.mediaStatistics = mediaStatistics
     self.sendData = sendData
-    self.logger = logger
   }
 
   /// Set the error handler to be called when sending fails

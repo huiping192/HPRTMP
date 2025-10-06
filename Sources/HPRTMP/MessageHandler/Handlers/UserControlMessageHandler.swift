@@ -6,9 +6,12 @@
 //
 
 import Foundation
+import os
 
 /// Handles user control messages (ping, stream recording, etc.)
 struct UserControlMessageHandler: RTMPMessageHandler {
+  private let logger = Logger(subsystem: "HPRTMP", category: "UserControlMessageHandler")
+
   func canHandle(_ message: RTMPMessage) -> Bool {
     return message is UserControlMessage
   }
@@ -16,7 +19,7 @@ struct UserControlMessageHandler: RTMPMessageHandler {
   func handle(_ message: RTMPMessage, context: MessageHandlerContext) async {
     guard let userControlMessage = message as? UserControlMessage else { return }
 
-    context.logger.info("UserControlMessage, message Type: \(userControlMessage.type.rawValue)")
+    logger.info("UserControlMessage, message Type: \(userControlMessage.type.rawValue)")
 
     switch userControlMessage.type {
     case .pingRequest:
