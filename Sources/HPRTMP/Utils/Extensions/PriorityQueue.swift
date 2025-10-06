@@ -70,6 +70,24 @@ actor MessagePriorityQueue {
     highPriorityQueue.count + mediumPriorityQueue.count + lowPriorityQueue.count
   }
 
+  var pendingVideoFrames: Int {
+    countMessages(where: { $0.message.messageType == .video })
+  }
+
+  var pendingAudioFrames: Int {
+    countMessages(where: { $0.message.messageType == .audio })
+  }
+
+  var pendingOtherMessages: Int {
+    countMessages(where: { $0.message.messageType != .video && $0.message.messageType != .audio })
+  }
+
+  private func countMessages(where predicate: (MessageContainer) -> Bool) -> Int {
+    highPriorityQueue.filter(predicate).count +
+    mediumPriorityQueue.filter(predicate).count +
+    lowPriorityQueue.filter(predicate).count
+  }
+
   private func resumeWaitContinuationIfNeeded() {
     guard let waitMessageContinuation else { return }
     waitMessageContinuation.resume()
