@@ -41,21 +41,22 @@ public actor RTMPPublishSession {
   
   public var publishStatus: Status = .unknown {
     didSet {
-      Task {
+      Task { [weak self] in
+        guard let self = self else { return }
         await delegate?.sessionStatusChange(self, status: publishStatus)
       }
     }
   }
   
   public let encodeType: ObjectEncodingType = .amf0
-  
-  private var connection: RTMPConnection!
+
+  private var connection: RTMPConnection?
   
   private let transactionIdGenerator = TransactionIdGenerator()
   
   private var configure: PublishConfigure?
-  
-  private var connectId: MessageStreamId = .zero
+
+  private var streamId: MessageStreamId = .zero
 
   private let logger = Logger(subsystem: "HPRTMP", category: "Publish")
 
@@ -65,7 +66,12 @@ public actor RTMPPublishSession {
   
   public func publish(url: String, configure: PublishConfigure) async {
     self.configure = configure
-    if connection != nil {
+
+    // Reset media header flags
+    videoHeaderSended = false
+    audioHeaderSended = false
+
+    if let connection = connection {
       await connection.invalidate()
     }
 
@@ -74,19 +80,19 @@ public actor RTMPPublishSession {
     eventTasks.removeAll()
 
     connection = await RTMPConnection()
-    let connectionRef = connection!
+    guard let connection = connection else { return }
 
     // Subscribe to stream events
-    let streamTask = Task { [connectionRef] in
-      for await event in connectionRef.streamEvents {
+    let streamTask = Task { [connection] in
+      for await event in connection.streamEvents {
         await handleStreamEvent(event)
       }
     }
     eventTasks.append(streamTask)
 
     // Subscribe to connection events
-    let connectionTask = Task { [connectionRef] in
-      for await event in connectionRef.connectionEvents {
+    let connectionTask = Task { [connection] in
+      for await event in connection.connectionEvents {
         await handleConnectionEvent(event)
       }
     }
@@ -98,47 +104,78 @@ public actor RTMPPublishSession {
       publishStatus = .handShakeDone
 
       let streamId = try await connection.createStream()
-      self.connectId = MessageStreamId(streamId)
+      self.streamId = streamId
       publishStatus = .connect
 
       // Send publish message
-      let publishMsg = PublishMessage(encodeType: encodeType, streamName: await connection.urlInfo?.key ?? "", type: .live, msgStreamId: connectId)
+      let publishMsg = PublishMessage(encodeType: encodeType, streamName: await connection.urlInfo?.key ?? "", type: .live, msgStreamId: streamId)
       await connection.send(message: publishMsg, firstType: true)
 
       // Send chunk size
       let chunkSize: UInt32 = 128 * 6
       let size = ChunkSizeMessage(size: chunkSize)
       await connection.send(message: size, firstType: true)
+    } catch let rtmpError as RTMPError {
+      publishStatus = .failed(err: rtmpError)
+      await delegate?.sessionError(self, error: rtmpError)
     } catch {
-      publishStatus = .failed(err: error as? RTMPError ?? .uknown(desc: error.localizedDescription))
-      await delegate?.sessionError(self, error: error as? RTMPError ?? .uknown(desc: error.localizedDescription))
+      let wrappedError = RTMPError.uknown(desc: error.localizedDescription)
+      publishStatus = .failed(err: wrappedError)
+      await delegate?.sessionError(self, error: wrappedError)
     }
   }
   
   private var videoHeaderSended = false
   private var audioHeaderSended = false
 
+  private enum MediaType {
+    case video
+    case audio
+  }
+
   public func publishVideoHeader(data: Data) async {
-    let message = VideoMessage(data: data, msgStreamId: connectId, timestamp: .zero)
-    await connection.send(message: message, firstType: true)
-    videoHeaderSended = true
+    await publishMediaHeader(data: data, type: .video)
   }
 
   public func publishVideo(data: Data, delta: UInt32) async {
-    guard videoHeaderSended else { return }
-    let message = VideoMessage(data: data, msgStreamId: connectId, timestamp: Timestamp(delta))
-    await connection.send(message: message, firstType: false)
+    await publishMediaData(data: data, delta: delta, type: .video, headerSent: videoHeaderSended)
   }
 
   public func publishAudioHeader(data: Data) async {
-    let message = AudioMessage(data: data, msgStreamId: connectId, timestamp: .zero)
-    await connection.send(message: message, firstType: true)
-    audioHeaderSended = true
+    await publishMediaHeader(data: data, type: .audio)
   }
 
   public func publishAudio(data: Data, delta: UInt32) async {
-    guard audioHeaderSended else { return }
-    let message = AudioMessage(data: data, msgStreamId: connectId, timestamp: Timestamp(delta))
+    await publishMediaData(data: data, delta: delta, type: .audio, headerSent: audioHeaderSended)
+  }
+
+  private func publishMediaHeader(data: Data, type: MediaType) async {
+    guard let connection = connection else { return }
+
+    let message: any RTMPMessage
+    switch type {
+    case .video:
+      message = VideoMessage(data: data, msgStreamId: streamId, timestamp: .zero)
+      videoHeaderSended = true
+    case .audio:
+      message = AudioMessage(data: data, msgStreamId: streamId, timestamp: .zero)
+      audioHeaderSended = true
+    }
+
+    await connection.send(message: message, firstType: true)
+  }
+
+  private func publishMediaData(data: Data, delta: UInt32, type: MediaType, headerSent: Bool) async {
+    guard headerSent, let connection = connection else { return }
+
+    let message: any RTMPMessage
+    switch type {
+    case .video:
+      message = VideoMessage(data: data, msgStreamId: streamId, timestamp: Timestamp(delta))
+    case .audio:
+      message = AudioMessage(data: data, msgStreamId: streamId, timestamp: Timestamp(delta))
+    }
+
     await connection.send(message: message, firstType: false)
   }
   
@@ -147,29 +184,41 @@ public actor RTMPPublishSession {
     eventTasks.forEach { $0.cancel() }
     eventTasks.removeAll()
 
+    guard let connection = connection else {
+      self.publishStatus = .disconnected
+      return
+    }
+
     // send closeStream
-    let closeStreamMessage = CloseStreamMessage(msgStreamId: connectId)
+    let closeStreamMessage = CloseStreamMessage(msgStreamId: streamId)
     await connection.send(message: closeStreamMessage, firstType: true)
 
     // send deleteStream and wait for it to be sent
-    let deleteStreamMessage = DeleteStreamMessage(msgStreamId: connectId)
+    let deleteStreamMessage = DeleteStreamMessage(msgStreamId: streamId)
     await connection.sendAndWait(message: deleteStreamMessage, firstType: true)
 
-    await self.connection.invalidate()
+    await connection.invalidate()
+
+    // Reset media header flags
+    videoHeaderSended = false
+    audioHeaderSended = false
+
     self.publishStatus = .disconnected
   }
 
   private func handleStreamEvent(_ event: RTMPStreamEvent) async {
+    guard let connection = connection else { return }
+
     switch event {
     case .publishStart:
       logger.debug("publishStart event received")
       publishStatus = .publishStart
       guard let configure = configure else { return }
-      let metaMessage = MetaMessage(encodeType: encodeType, msgStreamId: connectId, meta: configure.metaData)
+      let metaMessage = MetaMessage(encodeType: encodeType, msgStreamId: streamId, meta: configure.metaData)
       await connection.send(message: metaMessage, firstType: true)
 
     case .pingRequest(let data):
-      let message = UserControlMessage(type: .pingResponse, data: data, streamId: ChunkStreamId(UInt16(connectId.value)))
+      let message = UserControlMessage(type: .pingResponse, data: data, streamId: ChunkStreamId(UInt16(streamId.value)))
       await connection.send(message: message, firstType: true)
 
     case .playStart, .record, .pause:
@@ -179,6 +228,8 @@ public actor RTMPPublishSession {
   }
 
   private func handleConnectionEvent(_ event: RTMPConnectionEvent) async {
+    guard let connection = connection else { return }
+
     switch event {
     case .peerBandwidthChanged(let size):
       // send window ack message to server

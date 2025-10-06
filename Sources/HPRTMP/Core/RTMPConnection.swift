@@ -34,7 +34,7 @@ public actor RTMPConnection {
 
   // Continuations for async operations
   private var connectContinuation: CheckedContinuation<Void, Error>?
-  private var streamCreationContinuations: [Int: CheckedContinuation<Int, Error>] = [:]
+  private var streamCreationContinuations: [Int: CheckedContinuation<MessageStreamId, Error>] = [:]
   
   private(set) var urlInfo: RTMPURLInfo?
 
@@ -206,7 +206,7 @@ extension RTMPConnection {
     status = .connected
   }
 
-  public func createStream() async throws -> Int {
+  public func createStream() async throws -> MessageStreamId {
     guard status == .connected else {
       throw RTMPError.connectionNotEstablished
     }
@@ -217,7 +217,7 @@ extension RTMPConnection {
     await messageHolder.register(transactionId: msg.transactionId, message: msg)
     await send(message: msg, firstType: true)
 
-    return try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Int, Error>) in
+    return try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<MessageStreamId, Error>) in
       self.streamCreationContinuations[transactionId] = continuation
     }
   }
@@ -321,7 +321,7 @@ extension RTMPConnection {
     }
   }
 
-  private func handleCreateStreamResult(transactionId: Int, result: Result<Int, Error>) {
+  private func handleCreateStreamResult(transactionId: Int, result: Result<MessageStreamId, Error>) {
     switch result {
     case .success(let streamId):
       streamCreationContinuations[transactionId]?.resume(returning: streamId)
