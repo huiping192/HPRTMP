@@ -145,7 +145,8 @@ final class MessageEncoderTests: XCTestCase {
     XCTAssertTrue(chunks2[0].chunkHeader.messageHeader is MessageHeaderType2)
 
     let header2 = chunks2[0].chunkHeader.messageHeader as! MessageHeaderType2
-    XCTAssertEqual(header2.timestampDelta.value, 1033)
+    // Delta should be calculated as: message2.timestamp - message1.timestamp = 1033 - 1000 = 33
+    XCTAssertEqual(header2.timestampDelta.value, 33)
   }
 
   func testType1WhenMessageLengthChanges() async throws {
