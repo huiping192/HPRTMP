@@ -246,6 +246,7 @@ extension RTMPConnection {
 
     await handshake?.reset()
     await decoder.reset()
+    await encoder.reset()
     try? await connection.close()
     urlInfo = nil
     status = .closed
