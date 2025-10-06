@@ -1,32 +1,22 @@
 import Foundation
 import os
 
-public actor RTMPPublishSession {
-  public enum Status: Equatable, Sendable {
-    case unknown
-    case handShakeStart
-    case handShakeDone
-    case connect
-    case publishStart
-    case failed(err: RTMPError)
-    case disconnected
-  }
-  
+public actor RTMPPublishSession: RTMPPublishSessionProtocol {
   // Status stream
-  private let statusContinuation: AsyncStream<Status>.Continuation
-  public let statusStream: AsyncStream<Status>
+  private let statusContinuation: AsyncStream<RTMPPublishStatus>.Continuation
+  public let statusStream: AsyncStream<RTMPPublishStatus>
 
   // Statistics stream
   private let statisticsContinuation: AsyncStream<TransmissionStatistics>.Continuation
   public let statisticsStream: AsyncStream<TransmissionStatistics>
 
-  public private(set) var publishStatus: Status = .unknown {
+  public private(set) var publishStatus: RTMPPublishStatus = .unknown {
     didSet {
       statusContinuation.yield(publishStatus)
     }
   }
-  
-  public let encodeType: ObjectEncodingType = .amf0
+
+  private let encodeType: ObjectEncodingType = .amf0
 
   private var connection: RTMPConnection?
 
@@ -87,8 +77,7 @@ public actor RTMPPublishSession {
       try await connection.connect(url: url)
       publishStatus = .handShakeDone
 
-      let streamId = try await connection.createStream()
-      self.streamId = streamId
+      self.streamId = try await connection.createStream()
       publishStatus = .connect
 
       // Send publish message
@@ -162,7 +151,7 @@ public actor RTMPPublishSession {
     await connection.send(message: message, firstType: false)
   }
   
-  public func invalidate() async {
+  public func stop() async {
     // Cancel event tasks
     eventTasks.forEach { $0.cancel() }
     eventTasks.removeAll()

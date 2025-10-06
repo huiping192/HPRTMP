@@ -67,7 +67,7 @@ actor RTMPService: ObservableObject {
     isRunning = true
   }
 
-  private func handleStatusChange(_ status: RTMPPublishSession.Status) async {
+  private func handleStatusChange(_ status: RTMPPublishStatus) async {
     if status == .publishStart {
       await reader.start()
     }
@@ -79,7 +79,7 @@ actor RTMPService: ObservableObject {
     await reader.stop()
     lastVideoTimestamp = 0
     lastAudioTimestamp = 0
-    await self.session.invalidate()
+    await self.session.stop()
 
     // Cancel monitoring tasks
     streamMonitoringTasks.forEach { $0.cancel() }
