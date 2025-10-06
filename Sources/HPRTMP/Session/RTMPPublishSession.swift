@@ -1,14 +1,6 @@
 import Foundation
 import os
 
-public protocol RTMPPublishSessionDelegate: Actor {
-  func sessionStatusChange(_ session: RTMPPublishSession,  status: RTMPPublishSession.Status)
-  func sessionError(_ session: RTMPPublishSession,  error: RTMPError)
-  
-  // transmission statistics
-  func sessionTransmissionStatisticsChanged(_ session: RTMPPublishSession,  statistics: TransmissionStatistics)
-}
-
 public actor RTMPPublishSession {
   public enum Status: Equatable, Sendable {
     case unknown
@@ -18,42 +10,26 @@ public actor RTMPPublishSession {
     case publishStart
     case failed(err: RTMPError)
     case disconnected
-    
-    public static func ==(lhs: Status, rhs: Status) -> Bool {
-      switch (lhs, rhs) {
-      case (.unknown, .unknown),
-        (.connect, .connect),
-        (.publishStart, .publishStart),
-        (.disconnected, .disconnected):
-        return true
-      case let (.failed(err1), .failed(err2)):
-        return err1.localizedDescription == err2.localizedDescription
-      default:
-        return false
-      }
-    }
   }
   
-  public weak var delegate: RTMPPublishSessionDelegate?
-  public func setDelegate(_ delegate: RTMPPublishSessionDelegate?) {
-    self.delegate = delegate
-  }
-  
-  public var publishStatus: Status = .unknown {
+  // Status stream
+  private let statusContinuation: AsyncStream<Status>.Continuation
+  public let statusStream: AsyncStream<Status>
+
+  // Statistics stream
+  private let statisticsContinuation: AsyncStream<TransmissionStatistics>.Continuation
+  public let statisticsStream: AsyncStream<TransmissionStatistics>
+
+  public private(set) var publishStatus: Status = .unknown {
     didSet {
-      Task { [weak self] in
-        guard let self = self else { return }
-        await delegate?.sessionStatusChange(self, status: publishStatus)
-      }
+      statusContinuation.yield(publishStatus)
     }
   }
   
   public let encodeType: ObjectEncodingType = .amf0
 
   private var connection: RTMPConnection?
-  
-  private let transactionIdGenerator = TransactionIdGenerator()
-  
+
   private var configure: PublishConfigure?
 
   private var streamId: MessageStreamId = .zero
@@ -62,7 +38,15 @@ public actor RTMPPublishSession {
 
   private var eventTasks: [Task<Void, Never>] = []
 
-  public init() {}
+  public init() {
+    (statusStream, statusContinuation) = AsyncStream.makeStream()
+    (statisticsStream, statisticsContinuation) = AsyncStream.makeStream()
+  }
+
+  deinit {
+    statusContinuation.finish()
+    statisticsContinuation.finish()
+  }
   
   public func publish(url: String, configure: PublishConfigure) async {
     self.configure = configure
@@ -117,11 +101,9 @@ public actor RTMPPublishSession {
       await connection.send(message: size, firstType: true)
     } catch let rtmpError as RTMPError {
       publishStatus = .failed(err: rtmpError)
-      await delegate?.sessionError(self, error: rtmpError)
     } catch {
       let wrappedError = RTMPError.uknown(desc: error.localizedDescription)
       publishStatus = .failed(err: wrappedError)
-      await delegate?.sessionError(self, error: wrappedError)
     }
   }
   
@@ -138,7 +120,7 @@ public actor RTMPPublishSession {
   }
 
   public func publishVideo(data: Data, delta: UInt32) async {
-    await publishMediaData(data: data, delta: delta, type: .video, headerSent: videoHeaderSended)
+    await publishMediaData(data: data, delta: delta, type: .video)
   }
 
   public func publishAudioHeader(data: Data) async {
@@ -146,7 +128,7 @@ public actor RTMPPublishSession {
   }
 
   public func publishAudio(data: Data, delta: UInt32) async {
-    await publishMediaData(data: data, delta: delta, type: .audio, headerSent: audioHeaderSended)
+    await publishMediaData(data: data, delta: delta, type: .audio)
   }
 
   private func publishMediaHeader(data: Data, type: MediaType) async {
@@ -165,7 +147,8 @@ public actor RTMPPublishSession {
     await connection.send(message: message, firstType: true)
   }
 
-  private func publishMediaData(data: Data, delta: UInt32, type: MediaType, headerSent: Bool) async {
+  private func publishMediaData(data: Data, delta: UInt32, type: MediaType) async {
+    let headerSent = type == .video ? videoHeaderSended : audioHeaderSended
     guard headerSent, let connection = connection else { return }
 
     let message: any RTMPMessage
@@ -236,7 +219,7 @@ public actor RTMPPublishSession {
       await connection.send(message: WindowAckMessage(size: size), firstType: true)
 
     case .statistics(let statistics):
-      await delegate?.sessionTransmissionStatisticsChanged(self, statistics: statistics)
+      statisticsContinuation.yield(statistics)
 
     case .disconnected:
       publishStatus = .disconnected

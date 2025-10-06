@@ -9,25 +9,9 @@ import Foundation
 import HPRTMP
 import Combine
 
-actor RTMPService: ObservableObject, RTMPPublishSessionDelegate {
-  func sessionTransmissionStatisticsChanged(_ session: HPRTMP.RTMPPublishSession, statistics: HPRTMP.TransmissionStatistics) {
-    print("[test] \(statistics)")
-  }
-  
-  func sessionStatusChange(_ session: HPRTMP.RTMPPublishSession, status: HPRTMP.RTMPPublishSession.Status) {
-    if status == .publishStart {
-      Task {
-        await reader.start()
-      }
-    }
-  }
-  
-  func sessionError(_ session: HPRTMP.RTMPPublishSession, error: HPRTMP.RTMPError) {
-    
-  }
-  
-  
+actor RTMPService: ObservableObject {
   private var session = RTMPPublishSession()
+  private var streamMonitoringTasks: [Task<Void, Never>] = []
   
   let reader: MP4Reader
   
@@ -57,11 +41,36 @@ actor RTMPService: ObservableObject, RTMPPublishSessionDelegate {
   }
   
   func run() async {
-    await session.setDelegate(self)
+    // Cancel previous monitoring tasks if any
+    streamMonitoringTasks.forEach { $0.cancel() }
+    streamMonitoringTasks.removeAll()
+
+    // Monitor status stream
+    let statusTask = Task { [session] in
+      for await status in await session.statusStream {
+        await handleStatusChange(status)
+      }
+    }
+    streamMonitoringTasks.append(statusTask)
+
+    // Monitor statistics stream
+    let statisticsTask = Task { [session] in
+      for await statistics in await session.statisticsStream {
+        print("[test] \(statistics)")
+      }
+    }
+    streamMonitoringTasks.append(statisticsTask)
+
     let publishConfig = PublishConfigure(width: 1280, height: 720, videocodecid: VideoData.CodecId.avc.rawValue, audiocodecid: AudioData.SoundFormat.aac.rawValue, framerate: 30, videoDatarate: 30, audioDatarate: nil, audioSamplerate: nil)
     await session.publish(url: "rtmp://192.168.11.23:1936/live/haha", configure: publishConfig)
-    
+
     isRunning = true
+  }
+
+  private func handleStatusChange(_ status: RTMPPublishSession.Status) async {
+    if status == .publishStart {
+      await reader.start()
+    }
   }
   
   private let serialQueue = DispatchQueue(label: "com.example.serialQueue")
@@ -71,7 +80,11 @@ actor RTMPService: ObservableObject, RTMPPublishSessionDelegate {
     lastVideoTimestamp = 0
     lastAudioTimestamp = 0
     await self.session.invalidate()
-    
+
+    // Cancel monitoring tasks
+    streamMonitoringTasks.forEach { $0.cancel() }
+    streamMonitoringTasks.removeAll()
+
     isRunning = false
   }
 }
