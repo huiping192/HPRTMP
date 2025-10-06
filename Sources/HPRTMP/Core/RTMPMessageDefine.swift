@@ -36,7 +36,7 @@ enum RTMPVideoCodecsType: UInt16 {
   case all       = 0x00FF
 }
 
-public enum MessageType: Equatable, Sendable {
+public enum MessageType: Equatable, Hashable, Sendable {
 
   // controll
   case chunkSize
