@@ -1,5 +1,5 @@
 //
-//  RTMPSocket.swift
+//  RTMPConnection.swift
 //
 //
 //  Created by Huiping Guo on 2022/09/19.
@@ -15,7 +15,7 @@ public enum RTMPStatus: Sendable {
   case closed
 }
 
-public actor RTMPSocket {
+public actor RTMPConnection {
 
   private let connection: NetworkConnectable = NetworkClient()
 
@@ -54,7 +54,7 @@ public actor RTMPSocket {
   
   private let urlParser = RTMPURLParser()
   
-  private let logger = Logger(subsystem: "HPRTMP", category: "RTMPSocket")
+  private let logger = Logger(subsystem: "HPRTMP", category: "RTMPConnection")
 
   // Background task actors
   private let mediaStatisticsCollector = MediaStatisticsCollector()
@@ -141,7 +141,7 @@ public actor RTMPSocket {
 }
 
 // public func
-extension RTMPSocket {
+extension RTMPConnection {
   public func openTransport(url: String) async throws {
     guard let urlInfo = try? urlParser.parse(url: url) else {
       throw RTMPError.uknown(desc: "Invalid URL")
@@ -253,7 +253,7 @@ extension RTMPSocket {
   }
 }
 
-extension RTMPSocket {
+extension RTMPConnection {
   func send(message: RTMPMessage, firstType: Bool) async {
     await messagePriorityQueue.enqueue(message, firstType: firstType)
   }
@@ -267,7 +267,7 @@ extension RTMPSocket {
   }
 }
 
-extension RTMPSocket {
+extension RTMPConnection {
   private func handleOutputData(data: Data) async {
     guard !data.isEmpty else { return }
     await windowControl.addInBytesCount(UInt32(data.count))

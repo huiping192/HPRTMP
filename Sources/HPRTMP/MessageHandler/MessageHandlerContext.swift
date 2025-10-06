@@ -9,7 +9,7 @@ import Foundation
 import os
 
 /// Context containing all dependencies needed by message handlers
-/// Passed to handlers to access RTMPSocket's internal state without tight coupling
+/// Passed to handlers to access RTMPConnection's internal state without tight coupling
 struct MessageHandlerContext: Sendable {
   // MARK: - Flow Control Dependencies
 
@@ -40,6 +40,6 @@ struct MessageHandlerContext: Sendable {
   /// Resume the create stream continuation with transaction ID and result
   let resumeCreateStream: @Sendable (Int, Result<Int, Error>) -> Void
 
-  /// Update the RTMPSocket status
+  /// Update the RTMPConnection status
   let updateStatus: @Sendable (RTMPStatus) -> Void
 }
