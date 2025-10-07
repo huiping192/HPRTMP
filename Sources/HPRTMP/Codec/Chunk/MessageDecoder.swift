@@ -1,4 +1,5 @@
 import Foundation
+import NIO
 import os
 
 actor MessageDecoder {
@@ -10,7 +11,7 @@ actor MessageDecoder {
     let messageType: MessageType
     let timestamp: Timestamp
     let totalLength: Int
-    var accumulatedData: Data
+    var accumulatedData: ByteBuffer
   }
 
   // MARK: - Properties
@@ -130,17 +131,26 @@ actor MessageDecoder {
     // Check if we're already assembling a message for this chunk stream
     if var assembling = assemblingMessages[chunkStreamId] {
       // Continue assembling existing message
-      assembling.accumulatedData.append(chunk.chunkData)
+      assembling.accumulatedData.writeBytes(chunk.chunkData)
 
-      if assembling.accumulatedData.count >= assembling.totalLength {
+      if assembling.accumulatedData.readableBytes >= assembling.totalLength {
         // Message complete - remove from assembling and return
         assemblingMessages.removeValue(forKey: chunkStreamId)
+        
+        // Convert ByteBuffer to Data for message creation
+        let payloadData: Data
+        if let bytes = assembling.accumulatedData.getBytes(at: 0, length: assembling.accumulatedData.readableBytes) {
+          payloadData = Data(bytes)
+        } else {
+          payloadData = Data()
+        }
+        
         return createMessage(
           chunkStreamId: chunkStreamId,
           msgStreamId: assembling.msgStreamId,
           messageType: assembling.messageType,
           timestamp: assembling.timestamp,
-          chunkPayload: assembling.accumulatedData
+          chunkPayload: payloadData
         )
       } else {
         // Still need more chunks - update the assembling state
@@ -165,7 +175,7 @@ actor MessageDecoder {
           messageType: messageType,
           timestamp: timestamp,
           totalLength: totalLength,
-          accumulatedData: chunk.chunkData
+          accumulatedData: ByteBuffer(bytes: chunk.chunkData)
         )
         return nil
       }
