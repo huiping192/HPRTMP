@@ -27,6 +27,12 @@ public protocol RTMPPublishSessionProtocol: Actor {
   ///   - delta: Timestamp delta in milliseconds
   func publishVideo(data: Data, delta: UInt32) async
 
+  /// Publish video frame data with absolute timestamp
+  /// - Parameters:
+  ///   - data: Video frame data
+  ///   - timestamp: Absolute timestamp in milliseconds
+  func publishVideo(data: Data, timestamp: UInt32) async
+
   /// Publish audio header data (sequence header)
   /// - Parameter data: Audio header data (e.g., AAC config)
   func publishAudioHeader(data: Data) async
@@ -36,6 +42,12 @@ public protocol RTMPPublishSessionProtocol: Actor {
   ///   - data: Audio frame data
   ///   - delta: Timestamp delta in milliseconds
   func publishAudio(data: Data, delta: UInt32) async
+
+  /// Publish audio frame data with absolute timestamp
+  /// - Parameters:
+  ///   - data: Audio frame data
+  ///   - timestamp: Absolute timestamp in milliseconds
+  func publishAudio(data: Data, timestamp: UInt32) async
 
   /// Stop publishing and disconnect from the server
   func stop() async

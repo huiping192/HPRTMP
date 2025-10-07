@@ -24,6 +24,10 @@ public actor RTMPPublishSession: RTMPPublishSessionProtocol {
 
   private var streamId: MessageStreamId = .zero
 
+  // Track accumulated timestamps for delta calculation
+  private var lastVideoTimestamp: Timestamp = .zero
+  private var lastAudioTimestamp: Timestamp = .zero
+
   private let logger = Logger(subsystem: "HPRTMP", category: "Publish")
 
   private var eventTasks: [Task<Void, Never>] = []
@@ -44,6 +48,10 @@ public actor RTMPPublishSession: RTMPPublishSessionProtocol {
     // Reset media header flags
     videoHeaderSended = false
     audioHeaderSended = false
+
+    // Reset timestamps
+    lastVideoTimestamp = .zero
+    lastAudioTimestamp = .zero
 
     if let connection = connection {
       await connection.invalidate()
@@ -109,7 +117,14 @@ public actor RTMPPublishSession: RTMPPublishSessionProtocol {
   }
 
   public func publishVideo(data: Data, delta: UInt32) async {
-    await publishMediaData(data: data, delta: delta, type: .video)
+    lastVideoTimestamp = lastVideoTimestamp + Timestamp(delta)
+    await publishVideo(data: data, timestamp: lastVideoTimestamp.value)
+  }
+
+  public func publishVideo(data: Data, timestamp: UInt32) async {
+    guard videoHeaderSended, let connection = connection else { return }
+    let message = VideoMessage(data: data, msgStreamId: streamId, timestamp: Timestamp(timestamp))
+    await connection.send(message: message, firstType: false)
   }
 
   public func publishAudioHeader(data: Data) async {
@@ -117,7 +132,14 @@ public actor RTMPPublishSession: RTMPPublishSessionProtocol {
   }
 
   public func publishAudio(data: Data, delta: UInt32) async {
-    await publishMediaData(data: data, delta: delta, type: .audio)
+    lastAudioTimestamp = lastAudioTimestamp + Timestamp(delta)
+    await publishAudio(data: data, timestamp: lastAudioTimestamp.value)
+  }
+
+  public func publishAudio(data: Data, timestamp: UInt32) async {
+    guard audioHeaderSended, let connection = connection else { return }
+    let message = AudioMessage(data: data, msgStreamId: streamId, timestamp: Timestamp(timestamp))
+    await connection.send(message: message, firstType: false)
   }
 
   private func publishMediaHeader(data: Data, type: MediaType) async {
@@ -134,21 +156,6 @@ public actor RTMPPublishSession: RTMPPublishSessionProtocol {
     }
 
     await connection.send(message: message, firstType: true)
-  }
-
-  private func publishMediaData(data: Data, delta: UInt32, type: MediaType) async {
-    let headerSent = type == .video ? videoHeaderSended : audioHeaderSended
-    guard headerSent, let connection = connection else { return }
-
-    let message: any RTMPMessage
-    switch type {
-    case .video:
-      message = VideoMessage(data: data, msgStreamId: streamId, timestamp: Timestamp(delta))
-    case .audio:
-      message = AudioMessage(data: data, msgStreamId: streamId, timestamp: Timestamp(delta))
-    }
-
-    await connection.send(message: message, firstType: false)
   }
   
   public func stop() async {
@@ -174,6 +181,10 @@ public actor RTMPPublishSession: RTMPPublishSessionProtocol {
     // Reset media header flags
     videoHeaderSended = false
     audioHeaderSended = false
+
+    // Reset timestamps
+    lastVideoTimestamp = .zero
+    lastAudioTimestamp = .zero
 
     self.publishStatus = .disconnected
   }

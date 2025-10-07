@@ -7,11 +7,14 @@ actor MessageEncoder {
   static let maxChunkSize: UInt32 = 0xFFFFFF  // RTMP spec max: 16777215
   
   private var chunkSize = UInt32(MessageEncoder.defaultChunkSize)
-  
+
   // Track last message state for Type2 header optimization
   private var lastMessageLength: Int?
   private var lastMessageType: MessageType?
   private var lastMessageStreamId: MessageStreamId?
+
+  // Track last timestamps for delta calculation by message type
+  private var lastTimestamps: [MessageType: Timestamp] = [:]
   
   func setChunkSize(chunkSize: UInt32) throws {
     guard chunkSize >= Self.minChunkSize && chunkSize <= Self.maxChunkSize else {
@@ -19,11 +22,19 @@ actor MessageEncoder {
     }
     self.chunkSize = chunkSize
   }
+
+  /// Reset encoder state (useful when reusing encoder or starting new stream)
+  func reset() {
+    lastMessageLength = nil
+    lastMessageType = nil
+    lastMessageStreamId = nil
+    lastTimestamps.removeAll()
+  }
   
   func encode(message: RTMPMessage, isFirstType0: Bool) -> [Chunk] {
     let payload = message.payload
     let payloadChunks = payload.split(size: Int(chunkSize))
-    
+
     let chunks = payloadChunks.enumerated().map { chunkIndex, chunkData in
       let messageHeader = createMessageHeader(
         for: message,
@@ -34,12 +45,13 @@ actor MessageEncoder {
       let header = ChunkHeader(streamId: message.streamId, messageHeader: messageHeader)
       return Chunk(chunkHeader: header, chunkData: chunkData)
     }
-    
+
     // Update state for next message
     lastMessageLength = message.payload.count
     lastMessageType = message.messageType
     lastMessageStreamId = message.msgStreamId
-    
+    lastTimestamps[message.messageType] = message.timestamp
+
     return chunks
   }
   
@@ -48,7 +60,7 @@ actor MessageEncoder {
       // Subsequent chunks use Type3 (no header information, reuse previous)
       return MessageHeaderType3()
     }
-    
+
     if useType0 {
       // Type0: Full message header with absolute timestamp
       return MessageHeaderType0(
@@ -58,7 +70,15 @@ actor MessageEncoder {
         messageStreamId: message.msgStreamId
       )
     }
-    
+
+    // Calculate timestamp delta based on last timestamp of same message type
+    let timestampDelta: Timestamp
+    if let lastTimestamp = lastTimestamps[message.messageType] {
+      timestampDelta = message.timestamp - lastTimestamp
+    } else {
+      timestampDelta = message.timestamp
+    }
+
     // Check if we can use Type2 (only timestamp delta, same length/type/streamId)
     if let lastLength = lastMessageLength,
        let lastType = lastMessageType,
@@ -67,12 +87,12 @@ actor MessageEncoder {
        lastType == message.messageType,
        lastStreamId == message.msgStreamId {
       // Type2: Only timestamp delta (3 bytes)
-      return MessageHeaderType2(timestampDelta: message.timestamp)
+      return MessageHeaderType2(timestampDelta: timestampDelta)
     }
-    
+
     // Type1: Timestamp delta + length + type (7 bytes)
     return MessageHeaderType1(
-      timestampDelta: message.timestamp,
+      timestampDelta: timestampDelta,
       messageLength: message.payload.count,
       type: message.messageType
     )
