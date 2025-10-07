@@ -1,4 +1,5 @@
 import Foundation
+import NIO
 
 actor ChunkDecoder {
 
@@ -23,11 +24,16 @@ actor ChunkDecoder {
 
   // MARK: - Properties
 
-  private var buffer = Data()
+  private var buffer: ByteBuffer
+  private let allocator = ByteBufferAllocator()
   private var state: State = .waitingBasicHeader
   private(set) var streamContexts: [ChunkStreamId: StreamContext] = [:]
   var maxChunkSize: Int = 128
   private let maxTimestampValue = Timestamp(16777215)
+
+  init() {
+    buffer = allocator.buffer(capacity: 4096)
+  }
 
   // MARK: - Public API
 
@@ -36,15 +42,15 @@ actor ChunkDecoder {
   }
 
   func append(_ data: Data) {
-    buffer.append(data)
+    buffer.writeBytes(data)
   }
 
   var hasBufferedData: Bool {
-    !buffer.isEmpty
+    buffer.readableBytes > 0
   }
 
   func reset() {
-    buffer = Data()
+    buffer.clear()
     state = .waitingBasicHeader
     streamContexts = [:]
   }
@@ -73,13 +79,20 @@ actor ChunkDecoder {
   // MARK: - State Transition Methods
 
   private func tryDecodeBasicHeader() -> Chunk? {
-    guard let byte = buffer.first else {
+    guard buffer.readableBytes >= 1 else {
       return nil // Need more data
+    }
+
+    let savedReaderIndex = buffer.readerIndex
+    guard let byte = buffer.readInteger(as: UInt8.self) else {
+      buffer.moveReaderIndex(to: savedReaderIndex)
+      return nil
     }
 
     // Parse format (first 2 bits)
     let fmt = byte >> 6
     guard let headerType = MessageHeaderType(rawValue: fmt) else {
+      buffer.moveReaderIndex(to: savedReaderIndex)
       return nil // Invalid format
     }
 
@@ -90,16 +103,29 @@ actor ChunkDecoder {
 
     switch compare & byte {
     case 0:
-      guard buffer.count >= 2 else { return nil }
+      guard buffer.readableBytes >= 1 else {
+        buffer.moveReaderIndex(to: savedReaderIndex)
+        return nil
+      }
       basicHeaderLength = 2
-      let startIndex = buffer.startIndex
-      streamIdValue = UInt16(buffer[startIndex + 1] + 64)
+      guard let byte1 = buffer.readInteger(as: UInt8.self) else {
+        buffer.moveReaderIndex(to: savedReaderIndex)
+        return nil
+      }
+      streamIdValue = UInt16(byte1) + 64
 
     case 1:
-      guard buffer.count >= 3 else { return nil }
+      guard buffer.readableBytes >= 2 else {
+        buffer.moveReaderIndex(to: savedReaderIndex)
+        return nil
+      }
       basicHeaderLength = 3
-      let startIndex = buffer.startIndex
-      streamIdValue = UInt16(Data(buffer[startIndex + 1...startIndex + 2].reversed()).uint16) + 64
+      guard let byte1 = buffer.readInteger(as: UInt8.self),
+            let byte2 = buffer.readInteger(as: UInt8.self) else {
+        buffer.moveReaderIndex(to: savedReaderIndex)
+        return nil
+      }
+      streamIdValue = UInt16(byte2) << 8 | UInt16(byte1) + 64
 
     default:
       basicHeaderLength = 1
@@ -110,32 +136,57 @@ actor ChunkDecoder {
 
     // Transition to next state
     state = .waitingMessageHeader(basicHeader: basicHeader, basicHeaderSize: basicHeaderLength)
-    buffer.removeFirst(basicHeaderLength)
 
     // Continue decoding
     return decodeChunk()
   }
 
   private func tryDecodeMessageHeader(basicHeader: BasicHeader, basicHeaderSize: Int) -> Chunk? {
-    let headerData = buffer
     let messageHeader: (any MessageHeader)?
     let messageHeaderSize: Int
 
     switch basicHeader.type {
     case .type0:
-      guard headerData.count >= 11 else { return nil }
-      let startIndex = headerData.startIndex
-      let timestampValue = Data(headerData[startIndex...startIndex+2].reversed() + [0x00]).uint32
-      let messageLength = Data(headerData[startIndex+3...startIndex+5].reversed() + [0x00]).uint32
-      let messageType = MessageType(rawValue: headerData[startIndex+6])
-      let messageStreamIdValue = Data(headerData[startIndex+7...startIndex+10]).uint32
+      guard buffer.readableBytes >= 11 else { return nil }
+
+      let savedReaderIndex = buffer.readerIndex
+
+      // Read timestamp (3 bytes, big-endian)
+      guard let byte0 = buffer.readInteger(as: UInt8.self),
+            let byte1 = buffer.readInteger(as: UInt8.self),
+            let byte2 = buffer.readInteger(as: UInt8.self) else {
+        buffer.moveReaderIndex(to: savedReaderIndex)
+        return nil
+      }
+      let timestampValue = UInt32(byte0) << 16 | UInt32(byte1) << 8 | UInt32(byte2)
+
+      // Read message length (3 bytes, big-endian)
+      guard let len0 = buffer.readInteger(as: UInt8.self),
+            let len1 = buffer.readInteger(as: UInt8.self),
+            let len2 = buffer.readInteger(as: UInt8.self) else {
+        buffer.moveReaderIndex(to: savedReaderIndex)
+        return nil
+      }
+      let messageLength = UInt32(len0) << 16 | UInt32(len1) << 8 | UInt32(len2)
+
+      // Read message type (1 byte)
+      guard let typeValue = buffer.readInteger(as: UInt8.self) else {
+        buffer.moveReaderIndex(to: savedReaderIndex)
+        return nil
+      }
+      let messageType = MessageType(rawValue: typeValue)
+
+      // Read message stream ID (4 bytes, little-endian)
+      guard let messageStreamIdValue = buffer.readInteger(endianness: .little, as: UInt32.self) else {
+        buffer.moveReaderIndex(to: savedReaderIndex)
+        return nil
+      }
 
       // Check for extended timestamp
       if timestampValue == maxTimestampValue.value {
         messageHeader = MessageHeaderType0(timestamp: Timestamp(0), messageLength: Int(messageLength), type: messageType, messageStreamId: MessageStreamId(Int(messageStreamIdValue)))
         messageHeaderSize = 11
         state = .waitingExtendedTimestamp(basicHeader: basicHeader, messageHeader: messageHeader!, headerSize: basicHeaderSize + messageHeaderSize)
-        buffer.removeFirst(messageHeaderSize)
         return decodeChunk()
       }
 
@@ -152,11 +203,34 @@ actor ChunkDecoder {
       )
 
     case .type1:
-      guard headerData.count >= 7 else { return nil }
-      let startIndex = headerData.startIndex
-      let timestampDeltaValue = Data(headerData[startIndex...startIndex+2].reversed() + [0x00]).uint32
-      let messageLength = Data(headerData[startIndex+3...startIndex+5].reversed() + [0x00]).uint32
-      let messageType = MessageType(rawValue: headerData[startIndex+6])
+      guard buffer.readableBytes >= 7 else { return nil }
+
+      let savedReaderIndex = buffer.readerIndex
+
+      // Read timestamp delta (3 bytes, big-endian)
+      guard let byte0 = buffer.readInteger(as: UInt8.self),
+            let byte1 = buffer.readInteger(as: UInt8.self),
+            let byte2 = buffer.readInteger(as: UInt8.self) else {
+        buffer.moveReaderIndex(to: savedReaderIndex)
+        return nil
+      }
+      let timestampDeltaValue = UInt32(byte0) << 16 | UInt32(byte1) << 8 | UInt32(byte2)
+
+      // Read message length (3 bytes, big-endian)
+      guard let len0 = buffer.readInteger(as: UInt8.self),
+            let len1 = buffer.readInteger(as: UInt8.self),
+            let len2 = buffer.readInteger(as: UInt8.self) else {
+        buffer.moveReaderIndex(to: savedReaderIndex)
+        return nil
+      }
+      let messageLength = UInt32(len0) << 16 | UInt32(len1) << 8 | UInt32(len2)
+
+      // Read message type (1 byte)
+      guard let typeValue = buffer.readInteger(as: UInt8.self) else {
+        buffer.moveReaderIndex(to: savedReaderIndex)
+        return nil
+      }
+      let messageType = MessageType(rawValue: typeValue)
 
       messageHeader = MessageHeaderType1(timestampDelta: Timestamp(timestampDeltaValue), messageLength: Int(messageLength), type: messageType)
       messageHeaderSize = 7
@@ -180,9 +254,18 @@ actor ChunkDecoder {
       }
 
     case .type2:
-      guard headerData.count >= 3 else { return nil }
-      let startIndex = headerData.startIndex
-      let timestampDeltaValue = Data(headerData[startIndex...startIndex+2].reversed() + [0x00]).uint32
+      guard buffer.readableBytes >= 3 else { return nil }
+
+      let savedReaderIndex = buffer.readerIndex
+
+      // Read timestamp delta (3 bytes, big-endian)
+      guard let byte0 = buffer.readInteger(as: UInt8.self),
+            let byte1 = buffer.readInteger(as: UInt8.self),
+            let byte2 = buffer.readInteger(as: UInt8.self) else {
+        buffer.moveReaderIndex(to: savedReaderIndex)
+        return nil
+      }
+      let timestampDeltaValue = UInt32(byte0) << 16 | UInt32(byte1) << 8 | UInt32(byte2)
 
       messageHeader = MessageHeaderType2(timestampDelta: Timestamp(timestampDeltaValue))
       messageHeaderSize = 3
@@ -210,17 +293,18 @@ actor ChunkDecoder {
 
     let chunkHeader = ChunkHeader(basicHeader: basicHeader, messageHeader: messageHeader)
     state = .waitingPayload(chunkHeader: chunkHeader, headerSize: basicHeaderSize + messageHeaderSize, payloadLength: payloadLength)
-    buffer.removeFirst(messageHeaderSize)
 
     return decodeChunk()
   }
 
   private func tryDecodeExtendedTimestamp(basicHeader: BasicHeader, messageHeader: any MessageHeader, headerSize: Int) -> Chunk? {
-    guard buffer.count >= 4 else { return nil }
+    guard buffer.readableBytes >= 4 else { return nil }
 
-    let startIndex = buffer.startIndex
-    let extendedTimestampValue = Data(buffer[startIndex...startIndex+3].reversed()).uint32
-    buffer.removeFirst(4)
+    let savedReaderIndex = buffer.readerIndex
+    guard let extendedTimestampValue = buffer.readInteger(endianness: .big, as: UInt32.self) else {
+      buffer.moveReaderIndex(to: savedReaderIndex)
+      return nil
+    }
 
     // Update message header with extended timestamp
     let updatedMessageHeader: any MessageHeader
@@ -253,10 +337,12 @@ actor ChunkDecoder {
   }
 
   private func tryDecodePayload(chunkHeader: ChunkHeader, headerSize: Int, payloadLength: Int) -> Chunk? {
-    guard buffer.count >= payloadLength else { return nil }
+    guard buffer.readableBytes >= payloadLength else { return nil }
 
-    let chunkData = buffer.prefix(payloadLength)
-    buffer.removeFirst(payloadLength)
+    guard let bytes = buffer.readBytes(length: payloadLength) else {
+      return nil
+    }
+    let chunkData = Data(bytes)
 
     // Update remaining length in stream context
     let streamId = chunkHeader.basicHeader.streamId
@@ -275,7 +361,7 @@ actor ChunkDecoder {
     // Reset state for next chunk
     state = .waitingBasicHeader
 
-    return Chunk(chunkHeader: chunkHeader, chunkData: Data(chunkData))
+    return Chunk(chunkHeader: chunkHeader, chunkData: chunkData)
   }
 
   // MARK: - Helper Methods
