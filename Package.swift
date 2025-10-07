@@ -14,12 +14,14 @@ let package = Package(
     ],
     dependencies: [
         .package(url: "https://github.com/apple/swift-nio", from: "2.0.0"),
+        .package(url: "https://github.com/apple/swift-nio-ssl", from: "2.0.0"),
     ],
     targets: [
         .target(
             name: "HPRTMP",
             dependencies: [
-                .product(name: "NIO", package: "swift-nio")
+                .product(name: "NIO", package: "swift-nio"),
+                .product(name: "NIOSSL", package: "swift-nio-ssl")
             ],
             swiftSettings: [
                 .enableUpcomingFeature("StrictConcurrency")
