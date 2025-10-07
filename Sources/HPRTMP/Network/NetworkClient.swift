@@ -1,5 +1,6 @@
 import Foundation
 import NIO
+import NIOSSL
 import os
 
 actor NetworkClient: NetworkConnectable {
@@ -19,19 +20,29 @@ actor NetworkClient: NetworkConnectable {
     self.group = MultiThreadedEventLoopGroup(numberOfThreads: numberOfThreads)
   }
   
-  func connect(host: String, port: Int) async throws {
+  func connect(host: String, port: Int, enableTLS: Bool = false) async throws {
     self.host = host
     self.port = port
 
     let handler = RTMPClientHandler()
     let bootstrap = ClientBootstrap(group: group)
       .channelInitializer { channel in
-        channel.pipeline.addHandlers([handler])
+        if enableTLS {
+          do {
+            let sslContext = try NIOSSLContext(configuration: .makeClientConfiguration())
+            let sslHandler = try NIOSSLClientHandler(context: sslContext, serverHostname: host)
+            return channel.pipeline.addHandlers([sslHandler, handler])
+          } catch {
+            return channel.eventLoop.makeFailedFuture(error)
+          }
+        } else {
+          return channel.pipeline.addHandlers([handler])
+        }
       }
 
     do {
       self.channel = try await bootstrap.connect(host: host, port: Int(port)).get()
-      logger.info("[HPRTMP] Connected to \(host):\(port)")
+      logger.info("[HPRTMP] Connected to \(host):\(port) (TLS: \(enableTLS))")
 
       streamConsumerTask = Task { [weak self] in
         for await data in handler.stream {

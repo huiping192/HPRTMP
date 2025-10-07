@@ -18,7 +18,7 @@ actor MockNetworkClient: NetworkConnectable {
     self.currentIndex = 0
   }
 
-  func connect(host: String, port: Int) async throws {
+  func connect(host: String, port: Int, enableTLS: Bool) async throws {
     // Mock implementation
   }
 
