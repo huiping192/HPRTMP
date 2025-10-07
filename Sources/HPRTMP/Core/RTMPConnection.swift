@@ -149,7 +149,7 @@ extension RTMPConnection {
     self.urlInfo = urlInfo
 
     do {
-      try await connection.connect(host: urlInfo.host, port: urlInfo.port)
+      try await connection.connect(host: urlInfo.host, port: urlInfo.port, enableTLS: urlInfo.isSecure)
       status = .open
     } catch {
       logger.error("[HPRTMP] connection error: \(error.localizedDescription)")
@@ -228,10 +228,12 @@ extension RTMPConnection {
     try await establishConnection()
   }
 
-  public func connect(streamURL: URL, streamKey: String, port: Int = 1935) async throws {
-    let urlInfo = RTMPURLInfo(url: streamURL, appName: "", key: streamKey, port: port)
+  public func connect(streamURL: URL, streamKey: String, port: Int = 1935, enableTLS: Bool = false) async throws {
+    let scheme = enableTLS ? "rtmps" : "rtmp"
+    let urlInfo = RTMPURLInfo(url: streamURL, scheme: scheme, isSecure: enableTLS, appName: "", key: streamKey, port: port)
     self.urlInfo = urlInfo
-    try await openTransport(url: streamURL.absoluteString)
+    try await connection.connect(host: streamURL.host ?? "", port: port, enableTLS: enableTLS)
+    status = .open
     try await performHandshake()
     try await establishConnection()
   }
