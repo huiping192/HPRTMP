@@ -15,9 +15,9 @@ The main goals of this library are:
 
 ## Features
 
-- [ ] Connect to RTMP servers and authenticate using various methods
+- [x] Connect to RTMP servers and authenticate using various methods
     - [x] RTMP
-    - [ ] RTMPS
+    - [x] RTMPS
 - [x] Publish and play streams with different media types (audio, video, data)
 - [x] Send and receive metadata and event messages
 - [x] Handle different message types and chunk sizes for efficient streaming
@@ -45,7 +45,7 @@ Alternatively, you can clone this repository and use the included HPRTMP.xcodepr
 ## Usage
 
 ### Publishing Example
-``` 
+```
 let session = RTMPPublishSession()
 session.delegate = self
 
@@ -63,6 +63,15 @@ session.publishVideo(data: videoData, delta: delta)
 
 // Invalidate the session when done
 session.invalidate()
+```
+
+### RTMPS (Secure RTMP) Example
+```swift
+// Use rtmps:// for secure streaming (default port 443)
+session.publish(url: "rtmps://your.rtmp.server/app/key", configure: configure)
+
+// Or use custom port
+session.publish(url: "rtmps://your.rtmp.server:8443/app/key", configure: configure)
 ```
 
 ## Contributing
