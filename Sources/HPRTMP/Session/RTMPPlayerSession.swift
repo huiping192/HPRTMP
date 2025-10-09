@@ -81,17 +81,13 @@ public actor RTMPPlayerSession {
     }
     errorContinuation = errorCont
 
-    var videoCont: AsyncStream<(Data, Int64)>.Continuation!
-    videoStream = AsyncStream { continuation in
-      videoCont = continuation
-    }
-    videoContinuation = videoCont
-
-    var audioCont: AsyncStream<(Data, Int64)>.Continuation!
-    audioStream = AsyncStream { continuation in
-      audioCont = continuation
-    }
-    audioContinuation = audioCont
+    let (videoStream, videoContinuation) = AsyncStream<(Data, Int64)>.makeStream()
+    self.videoStream = videoStream
+    self.videoContinuation = videoContinuation
+    
+    let (audioStream, audioContinuation) = AsyncStream<(Data, Int64)>.makeStream()
+    self.audioStream = audioStream
+    self.audioContinuation = audioContinuation
 
     var metaCont: AsyncStream<MetaDataResponse>.Continuation!
     metaStream = AsyncStream { continuation in
@@ -205,6 +201,7 @@ public actor RTMPPlayerSession {
   }
   
   // MARK: - Event Handlers
+  var prevTimeStamp: Int64 = 0
   
   private func handleMediaEvent(_ event: RTMPMediaEvent) async {
     switch event {
@@ -212,6 +209,9 @@ public actor RTMPPlayerSession {
       audioContinuation.yield((data, timestamp))
       
     case .video(let data, let timestamp):
+      let diff = timestamp - prevTimeStamp ?? 0
+      prevTimeStamp = timestamp
+      print("[test] video timestampe: \(diff)")
       videoContinuation.yield((data, timestamp))
       
     case .metadata(let meta):
