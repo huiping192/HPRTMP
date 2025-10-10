@@ -23,11 +23,10 @@ public actor RTMPPlayerSession {
   private let metaContinuation: AsyncStream<MetaDataResponse>.Continuation
   private let statisticsContinuation: AsyncStream<TransmissionStatistics>.Continuation
 
-  public private(set) var status: RTMPSessionStatus = .unknown
-
-  private func updateStatus(_ newStatus: RTMPSessionStatus) {
-    status = newStatus
-    statusContinuation.yield(newStatus)
+  public private(set) var status: RTMPSessionStatus = .unknown {
+    didSet {
+      statusContinuation.yield(status)
+    }
   }
   
   private let encodeType: ObjectEncodingType = .amf0
@@ -100,12 +99,12 @@ public actor RTMPPlayerSession {
     eventTasks.append(connectionTask)
     
     do {
-      updateStatus(.handShakeStart)
+      status = .handShakeStart
       try await connection.connect(url: url)
-      updateStatus(.handShakeDone)
-      
+      status = .handShakeDone
+
       self.streamId = try await connection.createStream()
-      updateStatus(.connect)
+      status = .connect
       
       // Send play message
       let playMsg = PlayMessage(
@@ -119,10 +118,10 @@ public actor RTMPPlayerSession {
       let size = ChunkSizeMessage(size: Self.defaultChunkSize)
       await connection.send(message: size, firstType: true)
     } catch let rtmpError as RTMPError {
-      updateStatus(.failed(err: rtmpError))
+      status = .failed(err: rtmpError)
     } catch {
       let wrappedError = RTMPError.unknown(desc: error.localizedDescription)
-      updateStatus(.failed(err: wrappedError))
+      status = .failed(err: wrappedError)
     }
   }
   
@@ -132,7 +131,7 @@ public actor RTMPPlayerSession {
     eventTasks.removeAll()
 
     guard let connection = connection else {
-      updateStatus(.disconnected)
+      status = .disconnected
       return
     }
 
@@ -146,7 +145,7 @@ public actor RTMPPlayerSession {
 
     await connection.invalidate()
     self.connection = nil
-    updateStatus(.disconnected)
+    status = .disconnected
 
     // Note: continuations are finished in deinit to support session reuse
   }
@@ -168,11 +167,11 @@ public actor RTMPPlayerSession {
   
   private func handleStreamEvent(_ event: RTMPStreamEvent) async {
     guard let connection = connection else { return }
-    
+
     switch event {
     case .playStart:
       logger.debug("playStart event received")
-      updateStatus(.playStart)
+      status = .playStart
       
     case .pingRequest(let data):
       let message = UserControlMessage(
@@ -190,17 +189,17 @@ public actor RTMPPlayerSession {
   
   private func handleConnectionEvent(_ event: RTMPConnectionEvent) async {
     guard let connection = connection else { return }
-    
+
     switch event {
     case .peerBandwidthChanged(let size):
       // send window ack message to server
       await connection.send(message: WindowAckMessage(size: size), firstType: true)
-      
+
     case .statistics(let statistics):
       statisticsContinuation.yield(statistics)
-      
+
     case .disconnected:
-      updateStatus(.disconnected)
+      status = .disconnected
     }
   }
 }
