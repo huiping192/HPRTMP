@@ -144,7 +144,7 @@ public actor RTMPConnection {
 extension RTMPConnection {
   public func openTransport(url: String) async throws {
     guard let urlInfo = try? urlParser.parse(url: url) else {
-      throw RTMPError.uknown(desc: "Invalid URL")
+      throw RTMPError.unknown(desc: "Invalid URL")
     }
     self.urlInfo = urlInfo
 
@@ -153,7 +153,7 @@ extension RTMPConnection {
       status = .open
     } catch {
       logger.error("[HPRTMP] connection error: \(error.localizedDescription)")
-      throw RTMPError.uknown(desc: error.localizedDescription)
+      throw RTMPError.unknown(desc: error.localizedDescription)
     }
   }
 

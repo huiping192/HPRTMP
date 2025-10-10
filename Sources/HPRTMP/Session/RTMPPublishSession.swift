@@ -3,14 +3,14 @@ import os
 
 public actor RTMPPublishSession: RTMPPublishSessionProtocol {
   // Status stream
-  private let statusContinuation: AsyncStream<RTMPPublishStatus>.Continuation
-  public let statusStream: AsyncStream<RTMPPublishStatus>
+  private let statusContinuation: AsyncStream<RTMPSessionStatus>.Continuation
+  public let statusStream: AsyncStream<RTMPSessionStatus>
 
   // Statistics stream
   private let statisticsContinuation: AsyncStream<TransmissionStatistics>.Continuation
   public let statisticsStream: AsyncStream<TransmissionStatistics>
 
-  public private(set) var publishStatus: RTMPPublishStatus = .unknown {
+  public private(set) var publishStatus: RTMPSessionStatus = .unknown {
     didSet {
       statusContinuation.yield(publishStatus)
     }
@@ -31,6 +31,10 @@ public actor RTMPPublishSession: RTMPPublishSessionProtocol {
   private let logger = Logger(subsystem: "HPRTMP", category: "Publish")
 
   private var eventTasks: [Task<Void, Never>] = []
+
+  // RTMP chunk size configuration
+  // Using 4096 bytes (FFmpeg/OBS standard) for optimal compatibility and performance
+  private static let defaultChunkSize: UInt32 = 4096
 
   public init() {
     (statusStream, statusContinuation) = AsyncStream.makeStream()
@@ -93,13 +97,12 @@ public actor RTMPPublishSession: RTMPPublishSessionProtocol {
       await connection.sendAndWait(message: publishMsg, firstType: true)
 
       // Send chunk size
-      let chunkSize: UInt32 = 128 * 6
-      let size = ChunkSizeMessage(size: chunkSize)
+      let size = ChunkSizeMessage(size: Self.defaultChunkSize)
       await connection.sendAndWait(message: size, firstType: true)
     } catch let rtmpError as RTMPError {
       publishStatus = .failed(err: rtmpError)
     } catch {
-      let wrappedError = RTMPError.uknown(desc: error.localizedDescription)
+      let wrappedError = RTMPError.unknown(desc: error.localizedDescription)
       publishStatus = .failed(err: wrappedError)
     }
   }

@@ -9,32 +9,8 @@ import Foundation
 import os
 
 public actor RTMPPlayerSession {
-  public enum Status: Equatable, Sendable {
-    case unknown
-    case handShakeStart
-    case handShakeDone
-    case connect
-    case playStart
-    case failed(err: RTMPError)
-    case disconnected
-
-    public static func ==(lhs: Status, rhs: Status) -> Bool {
-      switch (lhs, rhs) {
-      case (.unknown, .unknown),
-        (.connect, .connect),
-        (.playStart, .playStart),
-        (.disconnected, .disconnected):
-        return true
-      case let (.failed(err1), .failed(err2)):
-        return err1.localizedDescription == err2.localizedDescription
-      default:
-        return false
-      }
-    }
-  }
-
   // AsyncStreams for data flow
-  public let statusStream: AsyncStream<Status>
+  public let statusStream: AsyncStream<RTMPSessionStatus>
   public let errorStream: AsyncStream<RTMPError>
   public let videoStream: AsyncStream<(Data, Int64)>
   public let audioStream: AsyncStream<(Data, Int64)>
@@ -42,16 +18,16 @@ public actor RTMPPlayerSession {
   public let statisticsStream: AsyncStream<TransmissionStatistics>
 
   // Continuations for sending data
-  private let statusContinuation: AsyncStream<Status>.Continuation
+  private let statusContinuation: AsyncStream<RTMPSessionStatus>.Continuation
   private let errorContinuation: AsyncStream<RTMPError>.Continuation
   private let videoContinuation: AsyncStream<(Data, Int64)>.Continuation
   private let audioContinuation: AsyncStream<(Data, Int64)>.Continuation
   private let metaContinuation: AsyncStream<MetaDataResponse>.Continuation
   private let statisticsContinuation: AsyncStream<TransmissionStatistics>.Continuation
 
-  public private(set) var status: Status = .unknown
-  
-  private func updateStatus(_ newStatus: Status) {
+  public private(set) var status: RTMPSessionStatus = .unknown
+
+  private func updateStatus(_ newStatus: RTMPSessionStatus) {
     status = newStatus
     statusContinuation.yield(newStatus)
   }
@@ -63,45 +39,33 @@ public actor RTMPPlayerSession {
   private var streamId: MessageStreamId = .zero
   
   private let logger = Logger(subsystem: "HPRTMP", category: "Player")
-  
+
   private var eventTasks: [Task<Void, Never>] = []
+
+  // RTMP chunk size configuration
+  // Using 4096 bytes (FFmpeg/OBS standard) for optimal compatibility and performance
+  private static let defaultChunkSize: UInt32 = 4096
 
 
   public init() {
-    // Initialize AsyncStreams and their continuations
-    var statusCont: AsyncStream<Status>.Continuation!
-    statusStream = AsyncStream { continuation in
-      statusCont = continuation
-    }
-    statusContinuation = statusCont
-
-    var errorCont: AsyncStream<RTMPError>.Continuation!
-    errorStream = AsyncStream { continuation in
-      errorCont = continuation
-    }
-    errorContinuation = errorCont
-
-    let (videoStream, videoContinuation) = AsyncStream<(Data, Int64)>.makeStream()
-    self.videoStream = videoStream
-    self.videoContinuation = videoContinuation
-    
-    let (audioStream, audioContinuation) = AsyncStream<(Data, Int64)>.makeStream()
-    self.audioStream = audioStream
-    self.audioContinuation = audioContinuation
-
-    var metaCont: AsyncStream<MetaDataResponse>.Continuation!
-    metaStream = AsyncStream { continuation in
-      metaCont = continuation
-    }
-    metaContinuation = metaCont
-
-    var statisticsCont: AsyncStream<TransmissionStatistics>.Continuation!
-    statisticsStream = AsyncStream { continuation in
-      statisticsCont = continuation
-    }
-    statisticsContinuation = statisticsCont
+    // Initialize AsyncStreams and their continuations using makeStream()
+    (statusStream, statusContinuation) = AsyncStream.makeStream()
+    (errorStream, errorContinuation) = AsyncStream.makeStream()
+    (videoStream, videoContinuation) = AsyncStream.makeStream()
+    (audioStream, audioContinuation) = AsyncStream.makeStream()
+    (metaStream, metaContinuation) = AsyncStream.makeStream()
+    (statisticsStream, statisticsContinuation) = AsyncStream.makeStream()
   }
-  
+
+  deinit {
+    statusContinuation.finish()
+    errorContinuation.finish()
+    videoContinuation.finish()
+    audioContinuation.finish()
+    metaContinuation.finish()
+    statisticsContinuation.finish()
+  }
+
   public func play(url: String) async {
     // Clean up existing connection if any
     if let connection = connection {
@@ -154,66 +118,55 @@ public actor RTMPPlayerSession {
         streamName: await connection.urlInfo?.key ?? ""
       )
       await connection.send(message: playMsg, firstType: true)
-      
+
       // Send chunk size
-      let chunkSize: UInt32 = 128 * 60
-      let size = ChunkSizeMessage(size: chunkSize)
+      let size = ChunkSizeMessage(size: Self.defaultChunkSize)
       await connection.send(message: size, firstType: true)
     } catch let rtmpError as RTMPError {
       updateStatus(.failed(err: rtmpError))
       errorContinuation.yield(rtmpError)
     } catch {
-      let wrappedError = RTMPError.uknown(desc: error.localizedDescription)
+      let wrappedError = RTMPError.unknown(desc: error.localizedDescription)
       updateStatus(.failed(err: wrappedError))
       errorContinuation.yield(wrappedError)
     }
   }
   
- 
-  public func invalidate() async {
+  public func stop() async {
     // Cancel event tasks
     eventTasks.forEach { $0.cancel() }
     eventTasks.removeAll()
-    
+
     guard let connection = connection else {
       updateStatus(.disconnected)
       return
     }
-    
+
     // send closeStream
-    let closeStreamMessage = CloseStreamMessage(encodeType: encodeType, msgStreamId: streamId)
+    let closeStreamMessage = CloseStreamMessage(msgStreamId: streamId)
     await connection.sendAndWait(message: closeStreamMessage, firstType: true)
 
     // send deleteStream
-    let deleteStreamMessage = DeleteStreamMessage(encodeType: encodeType, msgStreamId: streamId)
+    let deleteStreamMessage = DeleteStreamMessage(msgStreamId: streamId)
     await connection.sendAndWait(message: deleteStreamMessage, firstType: true)
 
     await connection.invalidate()
+    self.connection = nil
     updateStatus(.disconnected)
 
-    // Finish all continuations
-    statusContinuation.finish()
-    errorContinuation.finish()
-    videoContinuation.finish()
-    audioContinuation.finish()
-    metaContinuation.finish()
-    statisticsContinuation.finish()
+    // Note: continuations are finished in deinit to support session reuse
   }
   
   // MARK: - Event Handlers
-  var prevTimeStamp: Int64 = 0
-  
+
   private func handleMediaEvent(_ event: RTMPMediaEvent) async {
     switch event {
     case .audio(let data, let timestamp):
       audioContinuation.yield((data, timestamp))
-      
+
     case .video(let data, let timestamp):
-      let diff = timestamp - prevTimeStamp ?? 0
-      prevTimeStamp = timestamp
-      print("[test] video timestampe: \(diff)")
       videoContinuation.yield((data, timestamp))
-      
+
     case .metadata(let meta):
       metaContinuation.yield(meta)
     }
