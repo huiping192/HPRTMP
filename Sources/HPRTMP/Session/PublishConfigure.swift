@@ -1,6 +1,6 @@
 
 
-public struct PublishConfigure {
+public struct PublishConfigure: Sendable {
   let width: Int
   let height: Int
   let videocodecid: Int
