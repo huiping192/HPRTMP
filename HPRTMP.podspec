@@ -10,6 +10,9 @@ Pod::Spec.new do |s|
   s.swift_version    = '5.5'
   
   s.source_files = 'Sources/**/*.swift'
-  
+
   s.frameworks = "Foundation","Network"
+
+  s.dependency 'SwiftNIO', '~> 2.0'
+  s.dependency 'SwiftNIOSSL', '~> 2.0'
 end
