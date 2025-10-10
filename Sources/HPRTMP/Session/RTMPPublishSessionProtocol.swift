@@ -3,10 +3,10 @@ import Foundation
 /// Protocol defining the public interface for RTMP publishing sessions
 public protocol RTMPPublishSessionProtocol: Actor {
   /// Current publishing status
-  var publishStatus: RTMPPublishStatus { get }
+  var publishStatus: RTMPSessionStatus { get }
 
   /// Stream of status updates
-  var statusStream: AsyncStream<RTMPPublishStatus> { get }
+  var statusStream: AsyncStream<RTMPSessionStatus> { get }
 
   /// Stream of transmission statistics
   var statisticsStream: AsyncStream<TransmissionStatistics> { get }

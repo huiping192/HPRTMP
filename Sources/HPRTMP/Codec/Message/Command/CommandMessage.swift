@@ -380,3 +380,48 @@ struct PauseMessage: RTMPBaseMessage {
   }
 }
 
+struct PlayMessage: RTMPBaseMessage {
+  let encodeType: ObjectEncodingType
+  let commandName: String = "play"
+  let transactionId: Int = commonTransactionId.stream
+  let msgStreamId: MessageStreamId
+  let timestamp: Timestamp = .zero
+  let streamName: String
+  let start: Double
+  let duration: Double
+  let reset: Bool
+
+  var messageType: MessageType { .command(type: encodeType) }
+  var streamId: ChunkStreamId { RTMPChunkStreamId.command.chunkStreamId }
+
+  init(encodeType: ObjectEncodingType = .amf0, msgStreamId: MessageStreamId, streamName: String, start: Double = -1, duration: Double = -1, reset: Bool = false) {
+    self.encodeType = encodeType
+    self.msgStreamId = msgStreamId
+    self.streamName = streamName
+    self.start = start
+    self.duration = duration
+    self.reset = reset
+  }
+
+  var payload: Data {
+    var data = Data()
+
+    let commandNameValue = AMFValue.string(commandName)
+    let transactionIdValue = AMFValue.double(Double(transactionId))
+    let nullValue = AMFValue.null
+    let streamNameValue = AMFValue.string(streamName)
+    let startValue = AMFValue.double(start)
+    let durationValue = AMFValue.double(duration)
+    let resetValue = AMFValue.bool(reset)
+
+    data.append(encodeType == .amf0 ? commandNameValue.amf0Value : commandNameValue.amf3Value)
+    data.append(encodeType == .amf0 ? transactionIdValue.amf0Value : transactionIdValue.amf3Value)
+    data.append(encodeType == .amf0 ? nullValue.amf0Value : nullValue.amf3Value)
+    data.append(encodeType == .amf0 ? streamNameValue.amf0Value : streamNameValue.amf3Value)
+    data.append(encodeType == .amf0 ? startValue.amf0Value : startValue.amf3Value)
+    data.append(encodeType == .amf0 ? durationValue.amf0Value : durationValue.amf3Value)
+    data.append(encodeType == .amf0 ? resetValue.amf0Value : resetValue.amf3Value)
+
+    return data
+  }
+}

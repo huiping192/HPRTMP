@@ -67,7 +67,7 @@ actor RTMPService: ObservableObject {
     isRunning = true
   }
 
-  private func handleStatusChange(_ status: RTMPPublishStatus) async {
+  private func handleStatusChange(_ status: RTMPSessionStatus) async {
     if status == .publishStart {
       await reader.start()
     }

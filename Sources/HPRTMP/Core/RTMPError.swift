@@ -11,7 +11,7 @@ public enum RTMPError: Error, Sendable, Equatable {
   case handShake(desc: String)
   case stream(desc: String)
   case command(desc: String)
-  case uknown(desc: String)
+  case unknown(desc: String)
   case connectionNotEstablished
   case connectionInvalidated
   case dataRetrievalFailed
@@ -27,7 +27,7 @@ public enum RTMPError: Error, Sendable, Equatable {
         return desc
       case .command(let desc):
         return desc
-      case .uknown(let desc):
+      case .unknown(let desc):
         return desc
       case .connectionNotEstablished:
         return "Connection not established"

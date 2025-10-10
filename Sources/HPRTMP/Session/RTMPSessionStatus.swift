@@ -1,7 +1,7 @@
 import Foundation
 
-/// Represents the current status of an RTMP publishing session
-public enum RTMPPublishStatus: Equatable, Sendable {
+/// Represents the current status of an RTMP session (both publishing and playing)
+public enum RTMPSessionStatus: Equatable, Sendable {
   /// Initial state before any connection attempt
   case unknown
 
@@ -16,6 +16,9 @@ public enum RTMPPublishStatus: Equatable, Sendable {
 
   /// Publishing has started successfully
   case publishStart
+
+  /// Playing has started successfully
+  case playStart
 
   /// Session failed with an error
   case failed(err: RTMPError)
