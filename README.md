@@ -54,7 +54,7 @@ You can install HPRTMP using [Swift Package Manager](https://swift.org/package-m
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/huiping192/HPRTMP.git", from: "0.0.1")
+    .package(url: "https://github.com/huiping192/HPRTMP.git", from: "0.0.3")
 ]
 ```
 Alternatively, you can clone this repository and use the included HPRTMP.xcodeproj file, or you can copy the source files directly into your project.
