@@ -11,7 +11,6 @@ import os
 public actor RTMPPlayerSession {
   // AsyncStreams for data flow
   public let statusStream: AsyncStream<RTMPSessionStatus>
-  public let errorStream: AsyncStream<RTMPError>
   public let videoStream: AsyncStream<(Data, Int64)>
   public let audioStream: AsyncStream<(Data, Int64)>
   public let metaStream: AsyncStream<MetaDataResponse>
@@ -19,7 +18,6 @@ public actor RTMPPlayerSession {
 
   // Continuations for sending data
   private let statusContinuation: AsyncStream<RTMPSessionStatus>.Continuation
-  private let errorContinuation: AsyncStream<RTMPError>.Continuation
   private let videoContinuation: AsyncStream<(Data, Int64)>.Continuation
   private let audioContinuation: AsyncStream<(Data, Int64)>.Continuation
   private let metaContinuation: AsyncStream<MetaDataResponse>.Continuation
@@ -50,7 +48,6 @@ public actor RTMPPlayerSession {
   public init() {
     // Initialize AsyncStreams and their continuations using makeStream()
     (statusStream, statusContinuation) = AsyncStream.makeStream()
-    (errorStream, errorContinuation) = AsyncStream.makeStream()
     (videoStream, videoContinuation) = AsyncStream.makeStream()
     (audioStream, audioContinuation) = AsyncStream.makeStream()
     (metaStream, metaContinuation) = AsyncStream.makeStream()
@@ -59,7 +56,6 @@ public actor RTMPPlayerSession {
 
   deinit {
     statusContinuation.finish()
-    errorContinuation.finish()
     videoContinuation.finish()
     audioContinuation.finish()
     metaContinuation.finish()
@@ -124,11 +120,9 @@ public actor RTMPPlayerSession {
       await connection.send(message: size, firstType: true)
     } catch let rtmpError as RTMPError {
       updateStatus(.failed(err: rtmpError))
-      errorContinuation.yield(rtmpError)
     } catch {
       let wrappedError = RTMPError.unknown(desc: error.localizedDescription)
       updateStatus(.failed(err: wrappedError))
-      errorContinuation.yield(wrappedError)
     }
   }
   
