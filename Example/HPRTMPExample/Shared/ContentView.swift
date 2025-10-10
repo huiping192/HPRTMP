@@ -12,6 +12,7 @@ class ViewModel: ObservableObject {
   @Published var isServiceRunning: Bool = false
   var cancellables = Set<AnyCancellable>()
   
+  @MainActor
   func subscribeToRTMPService(rtmpService: RTMPService) {
     rtmpService.isRunningSubject
       .receive(on: DispatchQueue.main)

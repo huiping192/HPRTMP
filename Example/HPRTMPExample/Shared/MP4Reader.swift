@@ -9,38 +9,38 @@ import Foundation
 import AVFoundation
 import HPRTMP
  
-protocol MP4ReaderDelegate: AnyObject {
+protocol MP4ReaderDelegate: AnyObject, Sendable {
   func output(reader: MP4Reader, videoHeader: Data) async
   func output(reader: MP4Reader, audioHeader: Data) async
-  
+
   func output(reader: MP4Reader, videoFrame: VideoFrame) async
   func output(reader: MP4Reader, audioFrame: AudioFrame) async
-  
+
   func output(stopped reader: MP4Reader) async
 }
 
 
-protocol Frame {
+protocol Frame: Sendable {
   var data: Data { get }
   var ts: UInt64 { get }
 }
 
-struct VideoFrame: Frame {
+struct VideoFrame: Frame, Sendable {
   var data: Data
   let isKeyframe: Bool
   let pts: UInt64
   let dts: UInt64
-  
+
   var ts: UInt64 {
     dts
   }
 }
 
-struct AudioFrame: Frame {
+struct AudioFrame: Frame, Sendable {
   var data: Data
   let adtsHeader: Data
   let pts: UInt64
-  
+
   var ts: UInt64 {
     pts
   }

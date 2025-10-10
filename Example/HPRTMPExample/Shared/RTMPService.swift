@@ -9,7 +9,8 @@ import Foundation
 import HPRTMP
 import Combine
 
-actor RTMPService: ObservableObject {
+@MainActor
+class RTMPService: ObservableObject {
   private var session = RTMPPublishSession()
   private var streamMonitoringTasks: [Task<Void, Never>] = []
   
