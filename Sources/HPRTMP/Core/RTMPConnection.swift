@@ -293,19 +293,13 @@ extension RTMPConnection {
       messageHolder: messageHolder,
       eventDispatcher: eventDispatcher,
       resumeConnect: { @Sendable [weak self] result in
-        Task { [weak self] in
-          await self?.handleConnectResult(result)
-        }
+        await self?.handleConnectResult(result)
       },
       resumeCreateStream: { @Sendable [weak self] transactionId, result in
-        Task { [weak self] in
-          await self?.handleCreateStreamResult(transactionId: transactionId, result: result)
-        }
+        await self?.handleCreateStreamResult(transactionId: transactionId, result: result)
       },
       updateStatus: { @Sendable [weak self] newStatus in
-        Task { [weak self] in
-          await self?.updateStatus(newStatus)
-        }
+        await self?.updateStatus(newStatus)
       }
     )
 
