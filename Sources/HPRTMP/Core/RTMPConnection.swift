@@ -246,6 +246,16 @@ extension RTMPConnection {
     await messageReceiver.stop()
     await transmissionMonitor.stop()
 
+    // Clean up pending continuations to prevent resource leaks
+    // Resume all waiting continuations with an error
+    connectContinuation?.resume(throwing: RTMPError.connectionInvalidated)
+    connectContinuation = nil
+    
+    for (transactionId, continuation) in streamCreationContinuations {
+      continuation.resume(throwing: RTMPError.connectionInvalidated)
+    }
+    streamCreationContinuations.removeAll()
+
     await handshake?.reset()
     await decoder.reset()
     await encoder.reset()
