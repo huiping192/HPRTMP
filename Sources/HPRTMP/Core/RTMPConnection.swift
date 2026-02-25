@@ -20,6 +20,9 @@ public actor RTMPConnection {
   private let connection: NetworkConnectable = NetworkClient()
 
   private var status: RTMPStatus = .none
+  
+  // Timeout configuration for operations (30 seconds default)
+  private let operationTimeout: Duration = .seconds(30)
 
   // AsyncStream for events (public)
   public let mediaEvents: AsyncStream<RTMPMediaEvent>
@@ -199,8 +202,11 @@ extension RTMPConnection {
     await messageHolder.register(transactionId: connectMsg.transactionId, message: connectMsg)
     await send(message: connectMsg, firstType: true)
 
-    try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
-      self.connectContinuation = continuation
+    // Use timeout to prevent infinite hang if server doesn't respond
+    try await withTimeout(operationTimeout) {
+      try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+        self.connectContinuation = continuation
+      }
     }
 
     status = .connected
@@ -217,8 +223,11 @@ extension RTMPConnection {
     await messageHolder.register(transactionId: msg.transactionId, message: msg)
     await send(message: msg, firstType: true)
 
-    return try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<MessageStreamId, Error>) in
-      self.streamCreationContinuations[transactionId] = continuation
+    // Use timeout to prevent infinite hang if server doesn't respond
+    return try await withTimeout(operationTimeout) {
+      try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<MessageStreamId, Error>) in
+        self.streamCreationContinuations[transactionId] = continuation
+      }
     }
   }
 
@@ -337,5 +346,31 @@ extension RTMPConnection {
 
   private func updateStatus(_ newStatus: RTMPStatus) {
     status = newStatus
+  }
+  
+  /// Execute an operation with a timeout
+  private func withTimeout<T>(_ timeout: Duration, operation: @escaping @Sendable () async throws -> T) async throws -> T {
+    try await withThrowingTaskGroup(of: T.self) { group in
+      // Add the actual operation
+      group.addTask {
+        try await operation()
+      }
+      
+      // Add the timeout task
+      group.addTask {
+        try await Task.sleep(for: timeout)
+        throw RTMPError.unknown(desc: "Operation timed out after \(timeout.components.seconds) seconds")
+      }
+      
+      // Wait for first result (either operation completes or timeout)
+      guard let result = try await group.next() else {
+        throw RTMPError.unknown(desc: "Operation failed unexpectedly")
+      }
+      
+      // Cancel remaining tasks
+      group.cancelAll()
+      
+      return result
+    }
   }
 }
