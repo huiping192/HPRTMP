@@ -230,7 +230,13 @@ extension RTMPConnection {
 
   public func connect(streamURL: URL, streamKey: String, port: Int = 1935, enableTLS: Bool = false) async throws {
     let scheme = enableTLS ? "rtmps" : "rtmp"
-    let urlInfo = RTMPURLInfo(url: streamURL, scheme: scheme, isSecure: enableTLS, appName: "", key: streamKey, port: port)
+    
+    // Extract appName from URL path
+    // Example: /live/stream -> appName = "live"
+    let pathComponents = streamURL.pathComponents.filter { $0 != "/" }
+    let appName = pathComponents.first ?? "live"  // Default to "live" if no path
+    
+    let urlInfo = RTMPURLInfo(url: streamURL, scheme: scheme, isSecure: enableTLS, appName: appName, key: streamKey, port: port)
     self.urlInfo = urlInfo
     try await connection.connect(host: streamURL.host ?? "", port: port, enableTLS: enableTLS)
     status = .open
