@@ -61,35 +61,50 @@ final class RTMPHandshakeTests: XCTestCase {
     XCTAssertEqual(c0c1Packet.count, expectedLength, "C0/C1 packet length is incorrect")
   }
   
-  private func generateS1Packet() -> Data {
+  /// Generate a complete S0S1 packet (S0: 1 byte + S1: 1536 bytes)
+  private func generateS0S1Packet() -> Data {
       var data = Data()
 
-      // s1 timestamp
+      // S0: RTMP version (1 byte)
+      data.write(UInt8(3))
+
+      // S1: timestamp (4 bytes)
       let timestamp = UInt32(Date().timeIntervalSince1970).bigEndian
       data.write(timestamp)
 
-      // s1 random data
-      let randomSize = RTMPHandshake.c1PacketSize - 4 // S1 timestamp is 4 bytes
+      // S1: zero (4 bytes)
+      data.write([0x00, 0x00, 0x00, 0x00])
+
+      // S1: random data (1536 - 8 = 1528 bytes)
+      let randomSize = RTMPHandshake.c1PacketSize - 8
       (0..<randomSize).forEach { _ in
           data.write(UInt8(arc4random_uniform(0xff)))
       }
 
       return data
   }
+  
   func testC2Packet() async throws {
     let mockClient = MockNetworkClient()
     let handshake = RTMPHandshake(client: mockClient)
 
-    let s1Packet = generateS1Packet()
-    let c2Packet = try await handshake.c2Packet(s0s1Packet: s1Packet)
+    // Generate a complete S0S1 packet
+    let s0s1Packet = generateS0S1Packet()
+    XCTAssertEqual(s0s1Packet.count, 1537, "S0S1 packet should be 1537 bytes")
+    
+    let c2Packet = try await handshake.c2Packet(s0s1Packet: s0s1Packet)
 
     XCTAssertEqual(c2Packet.count, 1536, "C2 packet length is incorrect")
 
-    let s1Timestamp = s1Packet.subdata(in: 0..<4)
+    // Verify C2 contains S1's timestamp (bytes 1-4 of S0S1)
+    let s1Timestamp = s0s1Packet.subdata(in: 1..<5)
     let c2Timestamp = c2Packet.subdata(in: 0..<4)
-
-    XCTAssertEqual(c2Timestamp, Data(s1Timestamp), "C2 timestamp is incorrect")
-    XCTAssertEqual(c2Packet.subdata(in: 8..<1536), s1Packet.subdata(in: 8..<RTMPHandshake.c1PacketSize), "C2 random data is incorrect")
+    XCTAssertEqual(c2Timestamp, s1Timestamp, "C2 should echo S1 timestamp")
+    
+    // Verify C2 contains S1's random data (bytes 9-1536 of S0S1)
+    let s1RandomData = s0s1Packet.subdata(in: 9..<1537)
+    let c2RandomData = c2Packet.subdata(in: 8..<1536)
+    XCTAssertEqual(c2RandomData, s1RandomData, "C2 should echo S1 random data")
   }
 
   func testC2PacketWithInvalidS0S1Size() async {
