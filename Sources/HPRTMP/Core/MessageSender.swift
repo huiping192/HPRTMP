@@ -54,13 +54,14 @@ actor MessageSender {
         let message = messageContainer.message
         let isFirstType = messageContainer.isFirstType
 
-        // Wait if window size is reached
-        if await windowControl.shouldWaitAcknowledgement {
+        // Wait if window size is reached (FIXED: don't requeue, just wait)
+        while await windowControl.shouldWaitAcknowledgement && !Task.isCancelled {
           logger.info("[HPRTMP] Window size reached, waiting for acknowledgement...")
-          await priorityQueue.requeue(messageContainer)
           try? await Task.sleep(nanoseconds: 100_000_000)  // Wait 100ms
-          continue
         }
+
+        // Check if cancelled after waiting
+        guard !Task.isCancelled else { break }
 
         logger.debug("send message start: \(type(of: message))")
 
@@ -88,13 +89,27 @@ actor MessageSender {
         // Resume continuation after sending
         if sendSuccess {
           await recordMessageStatistics(message: message)
-          messageContainer.continuation?.resume()
+          if let continuation = messageContainer.continuation {
+            continuation.resume()
+          } else {
+            logger.debug("[HPRTMP] Message sent without continuation")
+          }
         } else {
-          // Error already handled in sendChunk, just resume continuation
-          messageContainer.continuation?.resume()
+          // Error already handled in sendChunk
+          if let continuation = messageContainer.continuation {
+            continuation.resume()
+          } else {
+            logger.warning("[HPRTMP] Send failed but no continuation to notify")
+          }
+          // Clean up task state before exiting
+          task?.cancel()
+          task = nil
           return  // Exit the loop
         }
       }
+      
+      // Clean up task reference when loop exits normally
+      task = nil
     }
   }
 
@@ -120,10 +135,17 @@ actor MessageSender {
     return frameType == 1
   }
 
-  /// Stop the message sending loop
-  func stop() {
-    task?.cancel()
+  /// Stop the message sending loop and wait for completion
+  func stop() async {
+    guard let runningTask = task else { return }
+    
+    runningTask.cancel()
+    
+    // Wait for task to complete gracefully
+    await runningTask.value
+    
     task = nil
+    logger.info("[HPRTMP] MessageSender stopped")
   }
 
   /// Send a single chunk with token bucket rate limiting
