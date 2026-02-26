@@ -251,7 +251,7 @@ extension RTMPConnection {
     connectContinuation?.resume(throwing: RTMPError.connectionInvalidated)
     connectContinuation = nil
     
-    for (transactionId, continuation) in streamCreationContinuations {
+    for continuation in streamCreationContinuations.values {
       continuation.resume(throwing: RTMPError.connectionInvalidated)
     }
     streamCreationContinuations.removeAll()
