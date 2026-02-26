@@ -17,7 +17,6 @@ actor MessageReceiver {
   private let logger = Logger(subsystem: "HPRTMP", category: "MessageReceiver")
 
   private var task: Task<Void, Never>?
-  private var isRunning = false
   private var messageHandler: (@Sendable (Data) async -> Void)?
   private var errorHandler: (@Sendable (Error) async -> Void)?
 
@@ -44,43 +43,28 @@ actor MessageReceiver {
   /// Start the message receiving loop
   /// - Note: This method is idempotent - calling it multiple times has no effect if already running
   func start() {
-    // Prevent multiple concurrent receive loops
-    guard !isRunning else {
+    // Prevent multiple concurrent receive loops; task == nil is the single source of truth
+    guard task == nil else {
       logger.debug("MessageReceiver already running, ignoring start() call")
       return
     }
 
-    isRunning = true
-
-    task = Task { [weak self] in
-      guard let self else { return }
-
-      defer {
-        Task { [weak self] in
-          await self?.markStopped()
-        }
-      }
-
+    task = Task {
       while !Task.isCancelled {
         do {
-          let data = try await self.receiveData()
-          self.logger.debug("receive data count: \(data.count)")
+          let data = try await receiveData()
+          logger.debug("receive data count: \(data.count)")
 
-          // Read the latest messageHandler on each iteration
-          let handler = await self.messageHandler
-          if let handler {
+          if let handler = messageHandler {
             await handler(data)
           }
         } catch {
-          self.logger.error("[HPRTMP] receive message failed: error: \(error)")
+          logger.error("[HPRTMP] receive message failed: error: \(error)")
 
-          // Notify error handler if set
-          let errorHandler = await self.errorHandler
-          if let errorHandler {
-            await errorHandler(error)
+          if let handler = errorHandler {
+            await handler(error)
           }
 
-          // Exit loop on error
           return
         }
       }
@@ -88,22 +72,10 @@ actor MessageReceiver {
   }
 
   /// Stop the message receiving loop
-  /// - Note: This method waits for the receive loop to fully terminate
+  /// - Note: This method waits for the receive loop to fully terminate before returning
   func stop() async {
-    guard let currentTask = task else { return }
-
-    isRunning = false
-    currentTask.cancel()
-
-    // Wait for task to complete cleanup
-    await currentTask.value
-
+    task?.cancel()
+    await task?.value
     task = nil
-  }
-
-  // MARK: - Private Helpers
-
-  private func markStopped() {
-    isRunning = false
   }
 }
