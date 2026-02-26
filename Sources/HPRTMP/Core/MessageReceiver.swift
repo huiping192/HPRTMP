@@ -18,6 +18,7 @@ actor MessageReceiver {
 
   private var task: Task<Void, Never>?
   private var messageHandler: (@Sendable (Data) async -> Void)?
+  private var errorHandler: (@Sendable (Error) async -> Void)?
 
   init(
     receiveData: @escaping @Sendable () async throws -> Data,
@@ -34,20 +35,36 @@ actor MessageReceiver {
     self.messageHandler = handler
   }
 
+  /// Set the handler to be called when an error occurs during reception
+  func setErrorHandler(_ handler: @escaping @Sendable (Error) async -> Void) {
+    self.errorHandler = handler
+  }
+
   /// Start the message receiving loop
+  /// - Note: This method is idempotent - calling it multiple times has no effect if already running
   func start() {
-    guard task == nil else { return }
+    // Prevent multiple concurrent receive loops; task == nil is the single source of truth
+    guard task == nil else {
+      logger.debug("MessageReceiver already running, ignoring start() call")
+      return
+    }
 
     task = Task {
       while !Task.isCancelled {
         do {
           let data = try await receiveData()
           logger.debug("receive data count: \(data.count)")
-          if let messageHandler = messageHandler {
-            await messageHandler(data)
+
+          if let handler = messageHandler {
+            await handler(data)
           }
         } catch {
           logger.error("[HPRTMP] receive message failed: error: \(error)")
+
+          if let handler = errorHandler {
+            await handler(error)
+          }
+
           return
         }
       }
@@ -55,8 +72,10 @@ actor MessageReceiver {
   }
 
   /// Stop the message receiving loop
-  func stop() {
+  /// - Note: This method waits for the receive loop to fully terminate before returning
+  func stop() async {
     task?.cancel()
+    await task?.value
     task = nil
   }
 }
