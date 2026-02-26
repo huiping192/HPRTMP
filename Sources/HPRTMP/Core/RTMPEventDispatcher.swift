@@ -38,4 +38,12 @@ actor RTMPEventDispatcher {
   func yieldConnection(_ event: RTMPConnectionEvent) {
     connectionContinuation.yield(event)
   }
+
+  /// Finish all streams to signal no more events will be produced.
+  /// Must be called after connection invalidation so consumers' `for await` loops can terminate.
+  func finish() {
+    mediaContinuation.finish()
+    streamContinuation.finish()
+    connectionContinuation.finish()
+  }
 }
