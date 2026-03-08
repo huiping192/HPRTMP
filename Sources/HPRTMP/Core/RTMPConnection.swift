@@ -263,6 +263,7 @@ extension RTMPConnection {
     urlInfo = nil
     status = .closed
     await eventDispatcher.yieldConnection(.disconnected)
+    await eventDispatcher.finish()
   }
 }
 
