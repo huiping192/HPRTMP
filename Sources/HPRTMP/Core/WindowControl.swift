@@ -25,6 +25,7 @@ actor WindowControl {
   }
 
   private var lastReceivedAcknowledgement: UInt32 = 0
+  private var lastIncrementValue: UInt32 = 0  // Track the actual last increment for comparison
   private var ackCount: Int = 0
   private var ackMode: AckMode = .detecting
 
@@ -60,6 +61,9 @@ actor WindowControl {
     // Second ACK determines the mode
     if size == lastReceivedAcknowledgement {
       ackMode = .incremental
+      // In incremental mode, the received value equals the increment
+      // So we start with the first increment, then add subsequent increments
+      lastIncrementValue = size  // Store the increment value
       receivedAcknowledgement += size
       logger.info("[WindowControl] Detected incremental ACK mode (YouTube)")
     } else if size > lastReceivedAcknowledgement {
@@ -75,10 +79,13 @@ actor WindowControl {
 
   private func handleIncrementalMode(_ size: UInt32) {
     receivedAcknowledgement += size
-
-    if size != lastReceivedAcknowledgement {
-      logger.warning("[WindowControl] Increment value changed: \(self.lastReceivedAcknowledgement) → \(size)")
+    
+    // Compare with the last increment value to detect changes
+    if lastIncrementValue > 0 && size != lastIncrementValue {
+      logger.warning("[WindowControl] Increment value changed: \(self.lastIncrementValue) → \(size)")
     }
+    
+    lastIncrementValue = size
   }
 
   private func handleCumulativeMode(_ size: UInt32) {
@@ -92,7 +99,9 @@ actor WindowControl {
 
   func addInBytesCount(_ count: UInt32) async {
     totalInBytesCount += count
-    if totalInBytesCount >= windowSize * totalInBytesSeq {
+    // Use UInt64 to prevent overflow when multiplying
+    let threshold = UInt64(windowSize) * UInt64(totalInBytesSeq)
+    if UInt64(totalInBytesCount) >= threshold {
       await inBytesWindowEvent?(totalInBytesCount)
       totalInBytesSeq += 1
     }
@@ -100,7 +109,9 @@ actor WindowControl {
 
   func addOutBytesCount(_ count: UInt32) {
     totalOutBytesCount += count
-    if totalOutBytesCount >= windowSize * totalOutBytesSeq {
+    // Use UInt64 to prevent overflow when multiplying
+    let threshold = UInt64(windowSize) * UInt64(totalOutBytesSeq)
+    if UInt64(totalOutBytesCount) >= threshold {
       totalOutBytesSeq += 1
     }
   }
