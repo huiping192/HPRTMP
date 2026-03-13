@@ -7,8 +7,6 @@ actor MessageHolder {
   }
 
   func removeMessage(transactionId: Int) -> (any RTMPMessage)? {
-    let value = raw[transactionId]
-    raw[transactionId] = nil
-    return value
+    return raw.removeValue(forKey: transactionId)
   }
 }
