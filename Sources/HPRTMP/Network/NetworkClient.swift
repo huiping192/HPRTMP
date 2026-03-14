@@ -67,15 +67,13 @@ actor NetworkClient: NetworkConnectable {
   }
 
   func receiveData() async throws -> Data {
-    guard let channel = self.channel else {
-      throw RTMPError.connectionNotEstablished
-    }
+    // First try to get cached data
     if let cache = await dataReservoir.tryRetrieveCache() {
       return cache
     }
 
-    let waitPromise = channel.eventLoop.makePromise(of: Data.self)
-    return try await dataReservoir.waitData(with:waitPromise)
+    // No cached data, wait for new data to arrive
+    return try await dataReservoir.waitData()
   }
 
   func close() async throws {

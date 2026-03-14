@@ -5,10 +5,12 @@ import NIO
  Data Reservoir. If data is available, use that data exactly once.
  If data is not available, wait data is coming with promise.
  When data is coming, client must call dataArrived.
+
+ Uses CheckedContinuation instead of NIO's EventLoopPromise for Swift 6 Sendable compliance.
  */
 actor DataReservoir {
   private var cachedData: Data = .init()
-  private var dataPromise: EventLoopPromise<Data>?
+  private var pendingContinuation: CheckedContinuation<Data, Error>?
 
   /**
    return cached data if it's not empty.
@@ -25,45 +27,30 @@ actor DataReservoir {
     }
   }
 
-  func waitData(with promise: EventLoopPromise<Data>) async throws -> Data {
-    self.dataPromise = promise
+  func waitData() async throws -> Data {
+    if let cached = tryRetrieveCache() {
+      return cached
+    }
     return try await withCheckedThrowingContinuation { continuation in
-      promise.futureResult.whenComplete { result in
-        switch result {
-        case .success(let data):
-          continuation.resume(returning: data)
-        case .failure(let error):
-          continuation.resume(throwing: error)
-        }
-      }
+      self.pendingContinuation = continuation
     }
   }
 
   func dataArrived(data: Data) {
     cachedData.append(data)
-    if let promise = dataPromise {
-      self.dataPromise = nil
+    if let continuation = pendingContinuation {
+      pendingContinuation = nil
       guard let current = tryRetrieveCache() else {
-        promise.fail(RTMPError.dataRetrievalFailed)
+        continuation.resume(throwing: RTMPError.dataRetrievalFailed)
         return
       }
-      promise.succeed(current)
+      continuation.resume(returning: current)
     }
-  }
-
-  /// Signals that the data stream has completed (e.g., channel became inactive).
-  /// Fails any pending promise to prevent hanging waits.
-  func finish() {
-    if let promise = dataPromise {
-      dataPromise = nil
-      promise.fail(RTMPError.connectionInvalidated)
-    }
-    cachedData = Data()
   }
 
   func close() {
-    dataPromise?.fail(RTMPError.connectionInvalidated)
-    dataPromise = nil
+    pendingContinuation?.resume(throwing: RTMPError.connectionInvalidated)
+    pendingContinuation = nil
     cachedData = Data()
   }
 }
