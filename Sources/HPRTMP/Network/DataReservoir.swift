@@ -27,7 +27,16 @@ actor DataReservoir {
 
   func waitData(with promise: EventLoopPromise<Data>) async throws -> Data {
     self.dataPromise = promise
-    return try await promise.futureResult.get()
+    return try await withCheckedThrowingContinuation { continuation in
+      promise.futureResult.whenComplete { result in
+        switch result {
+        case .success(let data):
+          continuation.resume(returning: data)
+        case .failure(let error):
+          continuation.resume(throwing: error)
+        }
+      }
+    }
   }
 
   func dataArrived(data: Data) {
