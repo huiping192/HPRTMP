@@ -232,6 +232,14 @@ actor ChunkDecoder {
       }
       let messageType = MessageType(rawValue: typeValue)
 
+      // Check for extended timestamp
+      if timestampDeltaValue == maxTimestampValue.value {
+        messageHeader = MessageHeaderType1(timestampDelta: Timestamp(0), messageLength: Int(messageLength), type: messageType)
+        messageHeaderSize = 7
+        state = .waitingExtendedTimestamp(basicHeader: basicHeader, messageHeader: messageHeader!, headerSize: basicHeaderSize + messageHeaderSize)
+        return decodeChunk()
+      }
+
       messageHeader = MessageHeaderType1(timestampDelta: Timestamp(timestampDeltaValue), messageLength: Int(messageLength), type: messageType)
       messageHeaderSize = 7
 
@@ -266,6 +274,14 @@ actor ChunkDecoder {
         return nil
       }
       let timestampDeltaValue = UInt32(byte0) << 16 | UInt32(byte1) << 8 | UInt32(byte2)
+
+      // Check for extended timestamp
+      if timestampDeltaValue == maxTimestampValue.value {
+        messageHeader = MessageHeaderType2(timestampDelta: Timestamp(0))
+        messageHeaderSize = 3
+        state = .waitingExtendedTimestamp(basicHeader: basicHeader, messageHeader: messageHeader!, headerSize: basicHeaderSize + messageHeaderSize)
+        return decodeChunk()
+      }
 
       messageHeader = MessageHeaderType2(timestampDelta: Timestamp(timestampDeltaValue))
       messageHeaderSize = 3
@@ -324,6 +340,44 @@ actor ChunkDecoder {
         timestamp: Timestamp(extendedTimestampValue),
         remainingLength: header0.messageLength
       )
+    } else if let header1 = messageHeader as? MessageHeaderType1 {
+      updatedMessageHeader = MessageHeaderType1(
+        timestampDelta: Timestamp(extendedTimestampValue),
+        messageLength: header1.messageLength,
+        type: header1.type
+      )
+
+      // Update stream context for Type1 with extended timestamp
+      if var context = streamContexts[basicHeader.streamId] {
+        // Calculate absolute timestamp from delta
+        let absoluteTimestamp = context.timestamp + Timestamp(extendedTimestampValue)
+        context.timestamp = absoluteTimestamp
+        context.messageLength = header1.messageLength
+        context.messageType = header1.type
+        context.remainingLength = header1.messageLength
+        streamContexts[basicHeader.streamId] = context
+      } else {
+        // Create new context if none exists
+        streamContexts[basicHeader.streamId] = StreamContext(
+          messageLength: header1.messageLength,
+          messageType: header1.type,
+          messageStreamId: MessageStreamId.zero,
+          timestamp: Timestamp(extendedTimestampValue),
+          remainingLength: header1.messageLength
+        )
+      }
+    } else if messageHeader is MessageHeaderType2 {
+      updatedMessageHeader = MessageHeaderType2(
+        timestampDelta: Timestamp(extendedTimestampValue)
+      )
+
+      // Update stream context for Type2 with extended timestamp delta
+      if var context = streamContexts[basicHeader.streamId] {
+        // Type2 adds delta to existing timestamp
+        let absoluteTimestamp = context.timestamp + Timestamp(extendedTimestampValue)
+        context.timestamp = absoluteTimestamp
+        streamContexts[basicHeader.streamId] = context
+      }
     } else {
       updatedMessageHeader = messageHeader
     }

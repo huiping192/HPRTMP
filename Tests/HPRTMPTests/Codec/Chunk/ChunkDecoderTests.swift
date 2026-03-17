@@ -343,4 +343,139 @@ class ChunkDecoderTests: XCTestCase {
     XCTAssertEqual(messageHeader2?.timestampDelta.value, 100)
     XCTAssertEqual(chunk2?.chunkData, payload2)
   }
+
+  
+  // MARK: - Extended Timestamp Tests
+  
+  /// Test Type0 with extended timestamp (when timestamp = 0xFFFFFF)
+  func testDecodeChunkWithExtendedTimestampType0() async {
+    let decoder = ChunkDecoder()
+    
+    // Type0 with timestamp = 0xFFFFFF (16777215) triggers extended timestamp
+    // Basic header (1 byte): format=0, streamId=10 -> 0b00_001010 = 0x0A
+    // Message header (11 bytes): timestamp=0xFFFFFF, length=128, type=audio(8), streamId=1
+    // Extended timestamp (4 bytes): actual timestamp
+    
+    var data = Data()
+    // Basic header
+    data.append(0x0A)
+    // Timestamp (3 bytes) - all 0xFF to trigger extended timestamp
+    data.append(contentsOf: [0xFF, 0xFF, 0xFF])
+    // Message length (3 bytes) = 128
+    data.append(contentsOf: [0x00, 0x00, 0x80])
+    // Message type = audio (8)
+    data.append(0x08)
+    // Message stream ID (4 bytes, little-endian) = 1
+    data.append(contentsOf: [0x01, 0x00, 0x00, 0x00])
+    // Extended timestamp (4 bytes, big-endian) = 200000
+    data.append(contentsOf: [0x00, 0x03, 0x0D, 0x40])
+    // Payload (128 bytes)
+    (0..<128).forEach { _ in data.append(UInt8(1)) }
+    
+    await decoder.append(data)
+    let chunk = await decoder.decodeChunk()
+    
+    XCTAssertNotNil(chunk)
+    XCTAssertEqual(chunk?.chunkHeader.basicHeader.type, .type0)
+    XCTAssertEqual(chunk?.chunkHeader.basicHeader.streamId.value, 10)
+    
+    // Verify extended timestamp was correctly applied
+    let messageHeader = chunk?.chunkHeader.messageHeader as? MessageHeaderType0
+    XCTAssertEqual(messageHeader?.timestamp.value, 200000)
+    XCTAssertEqual(messageHeader?.messageLength, 128)
+    XCTAssertEqual(messageHeader?.type, .audio)
+    XCTAssertEqual(chunk?.chunkData.count, 128)
+  }
+  
+  /// Test Type1 with extended timestamp
+  func testDecodeChunkWithExtendedTimestampType1() async {
+    let decoder = ChunkDecoder()
+    
+    // First, send a Type0 to establish context
+    let basicHeader0 = BasicHeader(streamId: ChunkStreamId(10), type: .type0)
+    let header0 = MessageHeaderType0(timestamp: Timestamp(100), messageLength: 128, type: .audio, messageStreamId: MessageStreamId(15))
+    var payload0 = Data()
+    (0..<128).forEach { _ in payload0.append(UInt8(1)) }
+    let chunk0 = Chunk(chunkHeader: ChunkHeader(basicHeader: basicHeader0, messageHeader: header0), chunkData: payload0)
+    await decoder.append(chunk0.encode())
+    _ = await decoder.decodeChunk()
+    
+    // Now send Type1 with extended timestamp delta
+    var data = Data()
+    // Basic header: format=1, streamId=10 -> 0b01_001010 = 0x4A
+    data.append(0x4A)
+    // Timestamp delta (3 bytes) - all 0xFF to trigger extended timestamp
+    data.append(contentsOf: [0xFF, 0xFF, 0xFF])
+    // Message length (3 bytes) = 64
+    data.append(contentsOf: [0x00, 0x00, 0x40])
+    // Message type = video (9)
+    data.append(0x09)
+    // Extended timestamp delta (4 bytes, big-endian) = 50000
+    data.append(contentsOf: [0x00, 0x00, 0xC3, 0x50])
+    // Payload (64 bytes)
+    (0..<64).forEach { _ in data.append(UInt8(2)) }
+    
+    await decoder.append(data)
+    let chunk = await decoder.decodeChunk()
+    
+    XCTAssertNotNil(chunk)
+    XCTAssertEqual(chunk?.chunkHeader.basicHeader.type, .type1)
+    
+    // Verify extended timestamp delta was correctly applied
+    let messageHeader = chunk?.chunkHeader.messageHeader as? MessageHeaderType1
+    XCTAssertEqual(messageHeader?.timestampDelta.value, 50000)
+    XCTAssertEqual(messageHeader?.messageLength, 64)
+    XCTAssertEqual(messageHeader?.type, .video)
+    XCTAssertEqual(chunk?.chunkData.count, 64)
+    
+    // Verify stream context was updated correctly
+    let contexts = await decoder.streamContexts
+    let context = contexts[ChunkStreamId(10)]
+    XCTAssertNotNil(context)
+    // Absolute timestamp should be 100 (initial) + 50000 (delta) = 50100
+    XCTAssertEqual(context?.timestamp.value, 50100)
+  }
+  
+  /// Test Type2 with extended timestamp
+  func testDecodeChunkWithExtendedTimestampType2() async {
+    let decoder = ChunkDecoder()
+    
+    // First, send a Type0 to establish context
+    let basicHeader0 = BasicHeader(streamId: ChunkStreamId(10), type: .type0)
+    let header0 = MessageHeaderType0(timestamp: Timestamp(100), messageLength: 128, type: .audio, messageStreamId: MessageStreamId(15))
+    var payload0 = Data()
+    (0..<128).forEach { _ in payload0.append(UInt8(1)) }
+    let chunk0 = Chunk(chunkHeader: ChunkHeader(basicHeader: basicHeader0, messageHeader: header0), chunkData: payload0)
+    await decoder.append(chunk0.encode())
+    _ = await decoder.decodeChunk()
+    
+    // Now send Type2 with extended timestamp delta
+    var data = Data()
+    // Basic header: format=2, streamId=10 -> 0b10_001010 = 0x8A
+    data.append(0x8A)
+    // Timestamp delta (3 bytes) - all 0xFF to trigger extended timestamp
+    data.append(contentsOf: [0xFF, 0xFF, 0xFF])
+    // Extended timestamp delta (4 bytes, big-endian) = 30000
+    data.append(contentsOf: [0x00, 0x00, 0x75, 0x30])
+    // Payload (128 bytes)
+    (0..<128).forEach { _ in data.append(UInt8(3)) }
+    
+    await decoder.append(data)
+    let chunk = await decoder.decodeChunk()
+    
+    XCTAssertNotNil(chunk)
+    XCTAssertEqual(chunk?.chunkHeader.basicHeader.type, .type2)
+    
+    // Verify extended timestamp delta was correctly applied
+    let messageHeader = chunk?.chunkHeader.messageHeader as? MessageHeaderType2
+    XCTAssertEqual(messageHeader?.timestampDelta.value, 30000)
+    XCTAssertEqual(chunk?.chunkData.count, 128)
+    
+    // Verify stream context was updated correctly
+    let contexts = await decoder.streamContexts
+    let context = contexts[ChunkStreamId(10)]
+    XCTAssertNotNil(context)
+    // Absolute timestamp should be 100 (initial) + 30000 (delta) = 30100
+    XCTAssertEqual(context?.timestamp.value, 30100)
+  }
 }
