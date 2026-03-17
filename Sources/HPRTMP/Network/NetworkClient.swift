@@ -49,6 +49,8 @@ actor NetworkClient: NetworkConnectable {
           if Task.isCancelled { return }
           await self?.dataReservoir.dataArrived(data: data)
         }
+        // Stream completed (channel became inactive) - fail any pending promise to prevent hang
+        await self?.dataReservoir.finish()
       }
     } catch {
       logger.error("[HPRTMP]  Failed to connect: \(error)")
