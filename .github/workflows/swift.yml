@@ -23,4 +23,10 @@ jobs:
     steps:
     - uses: actions/checkout@v2
     - name: Test
-      run: swift test -v
+      run: swift test --filter HPRTMPTests -v
+  integration-test:
+    runs-on: self-hosted
+    steps:
+    - uses: actions/checkout@v2
+    - name: Integration Tests
+      run: swift test --filter HPRTMPIntegrationTests -v
