@@ -157,7 +157,7 @@ public enum AudioData {
     case mono16KHZ = 4
     case mono8KHZ = 5
     case nellymoser = 6
-    case g711Ａ = 7
+    case g711A = 7
     case g711muLaw = 8
     case reserved = 9
     case aac = 10

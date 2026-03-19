@@ -17,7 +17,7 @@ public enum RTMPStatus: Sendable {
 
 public actor RTMPConnection {
 
-  private let connection: NetworkConnectable = NetworkClient()
+  private let connection: any NetworkConnectable
 
   private var status: RTMPStatus = .none
 
@@ -62,7 +62,9 @@ public actor RTMPConnection {
   private let messageReceiver: MessageReceiver
   private let transmissionMonitor: TransmissionMonitor
 
-  public init() async {
+  public init(connection: (any NetworkConnectable)? = nil) async {
+    let resolvedConnection: any NetworkConnectable = connection ?? NetworkClient()
+    self.connection = resolvedConnection
     // Initialize AsyncStreams and capture continuations
     let (mediaEvents, mediaCont) = AsyncStream<RTMPMediaEvent>.makeStream()
     self.mediaEvents = mediaEvents
@@ -99,15 +101,15 @@ public actor RTMPConnection {
       windowControl: windowControl,
       tokenBucket: tokenBucket,
       mediaStatistics: mediaStatisticsCollector,
-      sendData: { [connection, windowControl] data in
-        try await connection.sendData(data)
+      sendData: { [resolvedConnection, windowControl] data in
+        try await resolvedConnection.sendData(data)
         await windowControl.addOutBytesCount(UInt32(data.count))
       }
     )
 
     self.messageReceiver = MessageReceiver(
-      receiveData: { [connection] in
-        try await connection.receiveData()
+      receiveData: { [resolvedConnection] in
+        try await resolvedConnection.receiveData()
       },
       windowControl: windowControl,
       decoder: decoder
@@ -161,11 +163,7 @@ extension RTMPConnection {
     guard status == .open else {
       throw RTMPError.handShake(desc: "Transport not open")
     }
-    guard let client = connection as? NetworkClient else {
-      throw RTMPError.handShake(desc: "Invalid connection type")
-    }
-
-    self.handshake = RTMPHandshake(client: client)
+    self.handshake = RTMPHandshake(client: connection)
 
     do {
       try await self.handshake?.start()
@@ -246,6 +244,16 @@ extension RTMPConnection {
     await messageReceiver.stop()
     await transmissionMonitor.stop()
 
+    // Clean up pending continuations to prevent resource leaks
+    // Resume all waiting continuations with an error
+    connectContinuation?.resume(throwing: RTMPError.connectionInvalidated)
+    connectContinuation = nil
+    
+    for continuation in streamCreationContinuations.values {
+      continuation.resume(throwing: RTMPError.connectionInvalidated)
+    }
+    streamCreationContinuations.removeAll()
+
     await handshake?.reset()
     await decoder.reset()
     await encoder.reset()
@@ -253,6 +261,7 @@ extension RTMPConnection {
     urlInfo = nil
     status = .closed
     await eventDispatcher.yieldConnection(.disconnected)
+    await eventDispatcher.finish()
   }
 }
 
