@@ -18,6 +18,7 @@ public actor RTMPPublishSession: RTMPPublishSessionProtocol {
 
   private let encodeType: ObjectEncodingType = .amf0
 
+  private let connectionFactory: @Sendable () async -> RTMPConnection
   private var connection: RTMPConnection?
 
   private var configure: PublishConfigure?
@@ -36,7 +37,8 @@ public actor RTMPPublishSession: RTMPPublishSessionProtocol {
   // Using 4096 bytes (FFmpeg/OBS standard) for optimal compatibility and performance
   private static let defaultChunkSize: UInt32 = 4096
 
-  public init() {
+  public init(connectionFactory: (@Sendable () async -> RTMPConnection)? = nil) {
+    self.connectionFactory = connectionFactory ?? { await RTMPConnection() }
     (statusStream, statusContinuation) = AsyncStream.makeStream()
     (statisticsStream, statisticsContinuation) = AsyncStream.makeStream()
   }
@@ -65,7 +67,7 @@ public actor RTMPPublishSession: RTMPPublishSessionProtocol {
     eventTasks.forEach { $0.cancel() }
     eventTasks.removeAll()
 
-    connection = await RTMPConnection()
+    connection = await connectionFactory()
     guard let connection = connection else { return }
 
     // Subscribe to stream events
