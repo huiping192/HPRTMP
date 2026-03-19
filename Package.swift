@@ -26,5 +26,9 @@ let package = Package(
         .testTarget(
             name: "HPRTMPTests",
             dependencies: ["HPRTMP"]),
+        .testTarget(
+            name: "HPRTMPIntegrationTests",
+            dependencies: ["HPRTMP"],
+            resources: [.copy("Resources/test.mp4")]),
     ]
 )
