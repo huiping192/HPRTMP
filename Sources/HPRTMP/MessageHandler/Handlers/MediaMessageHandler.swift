@@ -6,11 +6,13 @@
 //
 
 import Foundation
-import os
 
-/// Handles media messages (video and audio)
 struct MediaMessageHandler: RTMPMessageHandler {
-  private let logger = Logger(subsystem: "HPRTMP", category: "MediaMessageHandler")
+  private let logger: RTMPLogger
+
+  init(logger: RTMPLogger = RTMPLogger(category: "MediaMessageHandler")) {
+    self.logger = logger
+  }
 
   func canHandle(_ message: RTMPMessage) -> Bool {
     return message is VideoMessage || message is AudioMessage

@@ -3,7 +3,7 @@ import XCTest
 @testable import HPRTMP
 
 final class WindowControlTests: XCTestCase {
-      
+
   func testAddInBytesCount() async {
     actor Counter {
       var value: UInt32 = 0
@@ -16,45 +16,45 @@ final class WindowControlTests: XCTestCase {
     await windowControl.setInBytesWindowEvent { totalInBytes in
       await counter.update(totalInBytes)
     }
-        
+
     await windowControl.addInBytesCount(250000)
 
     let count = await windowControl.totalInBytesCount
     let seq = await windowControl.totalInBytesSeq
     let inbytesCount = await counter.value
-    XCTAssertEqual(count, 250000)
-    XCTAssertEqual(seq, 2)
-    XCTAssertEqual(inbytesCount, 250000)
+    XCTAssertEqual(count, 250000 as UInt64)
+    XCTAssertEqual(seq, 2 as UInt64)
+    XCTAssertEqual(inbytesCount, 250000 as UInt32)
 
 
     await windowControl.addInBytesCount(250000)
     let count2 = await windowControl.totalInBytesCount
     let seq2 = await windowControl.totalInBytesSeq
     let inbytesCount2 = await counter.value
-    XCTAssertEqual(count2, 500000)
-    XCTAssertEqual(seq2, 3)
-    XCTAssertEqual(inbytesCount2, 500000)
+    XCTAssertEqual(count2, 500000 as UInt64)
+    XCTAssertEqual(seq2, 3 as UInt64)
+    XCTAssertEqual(inbytesCount2, 500000 as UInt32)
   }
-  
+
   func testAddOutBytesCount() async {
     let windowControl = WindowControl()
     await windowControl.setWindowSize(250000)
 
     await windowControl.addOutBytesCount(250000)
-    
+
     let count = await windowControl.totalOutBytesCount
     let seq = await windowControl.totalOutBytesSeq
-    XCTAssertEqual(count, 250000)
-    XCTAssertEqual(seq, 2)
+    XCTAssertEqual(count, 250000 as UInt64)
+    XCTAssertEqual(seq, 2 as UInt64)
 
-    
+
     await windowControl.addOutBytesCount(250000)
     let count2 = await windowControl.totalOutBytesCount
     let seq2 = await windowControl.totalOutBytesSeq
-    XCTAssertEqual(count2, 500000)
-    XCTAssertEqual(seq2, 3)
+    XCTAssertEqual(count2, 500000 as UInt64)
+    XCTAssertEqual(seq2, 3 as UInt64)
   }
-  
+
   func testShouldWaitAcknowledgement() async {
     let windowControl = WindowControl()
 
@@ -69,6 +69,68 @@ final class WindowControlTests: XCTestCase {
     await windowControl.updateReceivedAcknowledgement(250000)
     shouldWaitAcknowledgement = await windowControl.shouldWaitAcknowledgement
     XCTAssertFalse(shouldWaitAcknowledgement)
+  }
+
+  // MARK: - ACK Timeout Tests
+
+  func testAckTimeoutDisablesFlowControl() async throws {
+    let windowControl = WindowControl(ackTimeout: 0.1)
+    await windowControl.setWindowSize(240000)
+
+    for _ in 0..<5 {
+      await windowControl.addOutBytesCount(50000)
+    }
+
+    // Initially should wait (window exceeded)
+    let shouldWaitBefore = await windowControl.shouldWaitAcknowledgement
+    XCTAssertTrue(shouldWaitBefore)
+
+    // Wait past the timeout
+    try await Task.sleep(nanoseconds: 200_000_000)
+
+    // After timeout, flow control should be disabled
+    let shouldWaitAfter = await windowControl.shouldWaitAcknowledgement
+    XCTAssertFalse(shouldWaitAfter)
+
+    let ackDisabled = await windowControl.ackDisabled
+    XCTAssertTrue(ackDisabled)
+  }
+
+  func testAckRecoveryReenablesFlowControl() async throws {
+    let windowControl = WindowControl(ackTimeout: 0.1)
+    await windowControl.setWindowSize(240000)
+
+    for _ in 0..<5 {
+      await windowControl.addOutBytesCount(50000)
+    }
+
+    // Trigger timeout
+    _ = await windowControl.shouldWaitAcknowledgement
+    try await Task.sleep(nanoseconds: 200_000_000)
+    _ = await windowControl.shouldWaitAcknowledgement  // actually disables
+
+    let ackDisabledBefore = await windowControl.ackDisabled
+    XCTAssertTrue(ackDisabledBefore)
+
+    // Server sends an ACK — flow control should be re-enabled
+    await windowControl.updateReceivedAcknowledgement(250000)
+
+    let ackDisabledAfter = await windowControl.ackDisabled
+    XCTAssertFalse(ackDisabledAfter)
+  }
+
+  func testUInt64NoOverflow() async {
+    let windowControl = WindowControl()
+    await windowControl.setWindowSize(2500000)
+
+    // Add more than UInt32.max bytes total
+    await windowControl.addOutBytesCount(UInt32.max)
+    await windowControl.addOutBytesCount(1)
+
+    let count = await windowControl.totalOutBytesCount
+    let expected: UInt64 = UInt64(UInt32.max) + 1
+    XCTAssertEqual(count, expected)
+    XCTAssertGreaterThan(count, UInt64(UInt32.max))
   }
 
   // MARK: - ACK Mode Tests

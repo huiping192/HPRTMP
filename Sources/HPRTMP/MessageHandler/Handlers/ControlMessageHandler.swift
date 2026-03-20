@@ -6,12 +6,13 @@
 //
 
 import Foundation
-import os
 
-/// Handles control messages
-/// Currently only logs the message, but can be extended for future functionality
 struct ControlMessageHandler: RTMPMessageHandler {
-  private let logger = Logger(subsystem: "HPRTMP", category: "ControlMessageHandler")
+  private let logger: RTMPLogger
+
+  init(logger: RTMPLogger = RTMPLogger(category: "ControlMessageHandler")) {
+    self.logger = logger
+  }
 
   func canHandle(_ message: RTMPMessage) -> Bool {
     return message is ControlMessage

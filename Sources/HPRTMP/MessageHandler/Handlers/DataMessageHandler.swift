@@ -6,12 +6,13 @@
 //
 
 import Foundation
-import os
 
-/// Handles data messages (non-audio/video data)
-/// Currently only logs the message, but can be extended for future functionality
 struct DataMessageHandler: RTMPMessageHandler {
-  private let logger = Logger(subsystem: "HPRTMP", category: "DataMessageHandler")
+  private let logger: RTMPLogger
+
+  init(logger: RTMPLogger = RTMPLogger(category: "DataMessageHandler")) {
+    self.logger = logger
+  }
 
   func canHandle(_ message: RTMPMessage) -> Bool {
     return message is DataMessage

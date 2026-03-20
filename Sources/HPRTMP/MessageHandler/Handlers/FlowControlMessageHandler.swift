@@ -6,11 +6,13 @@
 //
 
 import Foundation
-import os
 
-/// Handles flow control related messages (window acknowledgement, bandwidth, chunk size)
 struct FlowControlMessageHandler: RTMPMessageHandler {
-  private let logger = Logger(subsystem: "HPRTMP", category: "FlowControlMessageHandler")
+  private let logger: RTMPLogger
+
+  init(logger: RTMPLogger = RTMPLogger(category: "FlowControlMessageHandler")) {
+    self.logger = logger
+  }
   func canHandle(_ message: RTMPMessage) -> Bool {
     return message is WindowAckMessage
       || message is AcknowledgementMessage

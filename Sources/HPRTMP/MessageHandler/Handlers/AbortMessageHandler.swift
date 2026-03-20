@@ -6,12 +6,13 @@
 //
 
 import Foundation
-import os
 
-/// Handles abort messages
-/// Currently only logs the message, but can be extended for future functionality
 struct AbortMessageHandler: RTMPMessageHandler {
-  private let logger = Logger(subsystem: "HPRTMP", category: "AbortMessageHandler")
+  private let logger: RTMPLogger
+
+  init(logger: RTMPLogger = RTMPLogger(category: "AbortMessageHandler")) {
+    self.logger = logger
+  }
 
   func canHandle(_ message: RTMPMessage) -> Bool {
     return message is AbortMessage

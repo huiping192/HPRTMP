@@ -6,11 +6,13 @@
 //
 
 import Foundation
-import os
 
-/// Handles RTMP command messages (onStatus, onMetaData, _result, _error)
 struct CommandMessageHandler: RTMPMessageHandler {
-  private let logger = Logger(subsystem: "HPRTMP", category: "CommandMessageHandler")
+  private let logger: RTMPLogger
+
+  init(logger: RTMPLogger = RTMPLogger(category: "CommandMessageHandler")) {
+    self.logger = logger
+  }
   func canHandle(_ message: RTMPMessage) -> Bool {
     return message is CommandMessage
   }

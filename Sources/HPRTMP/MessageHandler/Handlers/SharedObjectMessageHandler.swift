@@ -6,12 +6,13 @@
 //
 
 import Foundation
-import os
 
-/// Handles shared object messages
-/// Currently only logs the message, but can be extended for future functionality
 struct SharedObjectMessageHandler: RTMPMessageHandler {
-  private let logger = Logger(subsystem: "HPRTMP", category: "SharedObjectMessageHandler")
+  private let logger: RTMPLogger
+
+  init(logger: RTMPLogger = RTMPLogger(category: "SharedObjectMessageHandler")) {
+    self.logger = logger
+  }
 
   func canHandle(_ message: RTMPMessage) -> Bool {
     return message is SharedObjectMessage

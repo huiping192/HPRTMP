@@ -8,28 +8,28 @@
 import Foundation
 
 public struct TransmissionStatistics: Sendable {
-  let pendingMessageCount: Int
+  public let pendingMessageCount: Int
 
-  let totalBytesReceived: UInt32
-  let totalBytesSent: UInt32
-  let unacknowledgedBytes: Int64
-  let windowSize: UInt32
-  let windowUtilization: Double
+  public let totalBytesReceived: UInt64
+  public let totalBytesSent: UInt64
+  public let unacknowledgedBytes: Int64
+  public let windowSize: UInt32
+  public let windowUtilization: Double
 
-  let videoFramesSent: UInt64
-  let videoKeyFramesSent: UInt64
-  let audioFramesSent: UInt64
+  public let videoFramesSent: UInt64
+  public let videoKeyFramesSent: UInt64
+  public let audioFramesSent: UInt64
 
-  let videoBytesSent: UInt64
-  let audioBytesSent: UInt64
+  public let videoBytesSent: UInt64
+  public let audioBytesSent: UInt64
 
-  let videoBitrate: Double
-  let audioBitrate: Double
+  public let videoBitrate: Double
+  public let audioBitrate: Double
 
-  let currentVideoTimestamp: UInt32
-  let currentAudioTimestamp: UInt32
+  public let currentVideoTimestamp: UInt32
+  public let currentAudioTimestamp: UInt32
 
-  let pendingVideoFrames: Int
-  let pendingAudioFrames: Int
-  let pendingOtherMessages: Int
+  public let pendingVideoFrames: Int
+  public let pendingAudioFrames: Int
+  public let pendingOtherMessages: Int
 }

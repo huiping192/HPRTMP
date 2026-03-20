@@ -6,7 +6,6 @@
 //
 
 import Foundation
-import os
 
 /// Multi-publish RTMP session that broadcasts to multiple destinations
 public actor RTMPMultiPublishSession {
@@ -39,7 +38,7 @@ public actor RTMPMultiPublishSession {
   private let statusContinuation: AsyncStream<MultiPublishStatus>.Continuation
   private let statisticsContinuation: AsyncStream<MultiPublishStatistics>.Continuation
 
-  private let logger = Logger(subsystem: "HPRTMP", category: "MultiPublish")
+  private let logger = RTMPLogger(category: "MultiPublish")
 
   // MARK: - Initialization
 

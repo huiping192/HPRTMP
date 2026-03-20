@@ -1,15 +1,15 @@
 import Foundation
 import NIO
-import os
 
 final class RTMPClientHandler: ChannelInboundHandler, Sendable {
   typealias InboundIn = ByteBuffer
   private let continuation: AsyncStream<Data>.Continuation
   let stream: AsyncStream<Data>
-  private let logger = Logger(subsystem: "HPRTMP", category: "RTMPClientHandler")
+  private let logger: RTMPLogger
 
-  init() {
+  init(logger: RTMPLogger = RTMPLogger(category: "RTMPClientHandler")) {
     (stream, continuation) = AsyncStream<Data>.makeStream()
+    self.logger = logger
   }
 
   func channelRead(context: ChannelHandlerContext, data: NIOAny) {

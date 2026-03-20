@@ -6,16 +6,14 @@
 //
 
 import Foundation
-import os
 
-/// Routes RTMP messages to appropriate handlers
 actor MessageRouter {
   private let handlers: [RTMPMessageHandler]
-  private let logger: Logger
+  private let logger: RTMPLogger
 
-  init(handlers: [RTMPMessageHandler]) {
+  init(handlers: [RTMPMessageHandler], logger: RTMPLogger = RTMPLogger(category: "MessageRouter")) {
     self.handlers = handlers
-    self.logger = Logger(subsystem: "HPRTMP", category: "MessageRouter")
+    self.logger = logger
   }
 
   /// Route a message to the first handler that can handle it

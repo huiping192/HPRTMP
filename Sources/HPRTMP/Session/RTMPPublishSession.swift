@@ -1,5 +1,4 @@
 import Foundation
-import os
 
 public actor RTMPPublishSession: RTMPPublishSessionProtocol {
   // Status stream
@@ -9,6 +8,10 @@ public actor RTMPPublishSession: RTMPPublishSessionProtocol {
   // Statistics stream
   private let statisticsContinuation: AsyncStream<TransmissionStatistics>.Continuation
   public let statisticsStream: AsyncStream<TransmissionStatistics>
+
+  // Log stream
+  private let logContinuation: AsyncStream<RTMPLogEvent>.Continuation
+  public let logStream: AsyncStream<RTMPLogEvent>
 
   public private(set) var publishStatus: RTMPSessionStatus = .unknown {
     didSet {
@@ -29,7 +32,7 @@ public actor RTMPPublishSession: RTMPPublishSessionProtocol {
   private var lastVideoTimestamp: Timestamp = .zero
   private var lastAudioTimestamp: Timestamp = .zero
 
-  private let logger = Logger(subsystem: "HPRTMP", category: "Publish")
+  private let logger: RTMPLogger
 
   private var eventTasks: [Task<Void, Never>] = []
 
@@ -41,13 +44,16 @@ public actor RTMPPublishSession: RTMPPublishSessionProtocol {
     self.connectionFactory = connectionFactory ?? { await RTMPConnection() }
     (statusStream, statusContinuation) = AsyncStream.makeStream()
     (statisticsStream, statisticsContinuation) = AsyncStream.makeStream()
+    (logStream, logContinuation) = AsyncStream.makeStream()
+    self.logger = RTMPLogger(category: "PublishSession", continuation: logContinuation)
   }
 
   deinit {
     statusContinuation.finish()
     statisticsContinuation.finish()
+    logContinuation.finish()
   }
-  
+
   public func publish(url: String, configure: PublishConfigure) async {
     self.configure = configure
 
@@ -69,6 +75,14 @@ public actor RTMPPublishSession: RTMPPublishSessionProtocol {
 
     connection = await connectionFactory()
     guard let connection = connection else { return }
+
+    // Forward connection log events to our log stream
+    let logTask = Task { [connection, logContinuation] in
+      for await event in connection.logEvents {
+        logContinuation.yield(event)
+      }
+    }
+    eventTasks.append(logTask)
 
     // Subscribe to stream events
     let streamTask = Task { [connection] in
@@ -108,7 +122,7 @@ public actor RTMPPublishSession: RTMPPublishSessionProtocol {
       publishStatus = .failed(err: wrappedError)
     }
   }
-  
+
   private var videoHeaderSended = false
   private var audioHeaderSended = false
 
@@ -162,7 +176,7 @@ public actor RTMPPublishSession: RTMPPublishSessionProtocol {
 
     await connection.send(message: message, firstType: true)
   }
-  
+
   public func stop() async {
     // Cancel event tasks
     eventTasks.forEach { $0.cancel() }
@@ -231,5 +245,3 @@ public actor RTMPPublishSession: RTMPPublishSessionProtocol {
     }
   }
 }
-
-

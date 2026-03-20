@@ -1,6 +1,5 @@
 
 import Foundation
-import os
 
 enum AMF0DecodeError: Error {
   case rangeError
@@ -16,7 +15,11 @@ extension Data {
 
 class AMF0Decoder {
   private var data: Data = Data()
-  private let logger = Logger(subsystem: "HPRTMP", category: "AMF0Decoder")
+  private let logger: RTMPLogger
+
+  init(logger: RTMPLogger = RTMPLogger(category: "AMF0Decoder")) {
+    self.logger = logger
+  }
   
   func decode(_ data: Data) -> [AMFValue]? {
     self.data = data

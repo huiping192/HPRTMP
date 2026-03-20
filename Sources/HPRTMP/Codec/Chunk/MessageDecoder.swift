@@ -1,6 +1,5 @@
 import Foundation
 import NIO
-import os
 
 actor MessageDecoder {
 
@@ -19,8 +18,12 @@ actor MessageDecoder {
   private let chunkDecoder = ChunkDecoder()
   private var maxChunkSize: Int = 128
   private(set) var isDecoding = false
-  private let logger = Logger(subsystem: "HPRTMP", category: "MessageDecoder")
+  private let logger: RTMPLogger
   private var assemblingMessages: [ChunkStreamId: AssemblingMessage] = [:]
+
+  init(logger: RTMPLogger = RTMPLogger(category: "MessageDecoder")) {
+    self.logger = logger
+  }
 
   // MARK: - Public API
 

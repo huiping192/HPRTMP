@@ -6,7 +6,6 @@
 //
 
 import Foundation
-import os
 
 public enum RTMPStatus: Sendable {
   case none
@@ -25,6 +24,7 @@ public actor RTMPConnection {
   public let mediaEvents: AsyncStream<RTMPMediaEvent>
   public let streamEvents: AsyncStream<RTMPStreamEvent>
   public let connectionEvents: AsyncStream<RTMPConnectionEvent>
+  public let logEvents: AsyncStream<RTMPLogEvent>
 
   // Event dispatcher (manages continuations internally)
   private let eventDispatcher: RTMPEventDispatcher
@@ -35,26 +35,27 @@ public actor RTMPConnection {
   // Continuations for async operations
   private var connectContinuation: CheckedContinuation<Void, Error>?
   private var streamCreationContinuations: [Int: CheckedContinuation<MessageStreamId, Error>] = [:]
-  
+
   private(set) var urlInfo: RTMPURLInfo?
 
   private let transactionIdGenerator = TransactionIdGenerator()
 
   let messageHolder = MessageHolder()
-  
+
   private let encoder = MessageEncoder()
-  private let decoder = MessageDecoder()
-  
+  private let decoder: MessageDecoder
+
   private var handshake: RTMPHandshake?
-  
-  private let windowControl = WindowControl()
-  
+
+  private let windowControl: WindowControl
+
   private let messagePriorityQueue = MessagePriorityQueue()
   private let tokenBucket: TokenBucket = TokenBucket()
-  
+
   private let urlParser = RTMPURLParser()
-  
-  private let logger = Logger(subsystem: "HPRTMP", category: "RTMPConnection")
+
+  private let logger: RTMPLogger
+  private let logContinuation: AsyncStream<RTMPLogEvent>.Continuation
 
   // Background task actors
   private let mediaStatisticsCollector = MediaStatisticsCollector()
@@ -63,8 +64,16 @@ public actor RTMPConnection {
   private let transmissionMonitor: TransmissionMonitor
 
   public init(connection: (any NetworkConnectable)? = nil) async {
-    let resolvedConnection: any NetworkConnectable = connection ?? NetworkClient()
+    // Create log stream first so all components share the same continuation
+    let (logEvents, logCont) = AsyncStream<RTMPLogEvent>.makeStream()
+    self.logEvents = logEvents
+    self.logContinuation = logCont
+
+    let resolvedConnection: any NetworkConnectable = connection ?? NetworkClient(
+      logger: RTMPLogger(category: "Network", continuation: logCont)
+    )
     self.connection = resolvedConnection
+
     // Initialize AsyncStreams and capture continuations
     let (mediaEvents, mediaCont) = AsyncStream<RTMPMediaEvent>.makeStream()
     self.mediaEvents = mediaEvents
@@ -82,17 +91,24 @@ public actor RTMPConnection {
       connectionContinuation: connCont
     )
 
+    self.logger = RTMPLogger(category: "RTMPConnection", continuation: logCont)
+    self.windowControl = WindowControl(logger: RTMPLogger(category: "WindowControl", continuation: logCont))
+    self.decoder = MessageDecoder(logger: RTMPLogger(category: "MessageDecoder", continuation: logCont))
+
     // Initialize message router with all handlers
-    self.messageRouter = MessageRouter(handlers: [
-      FlowControlMessageHandler(),
-      CommandMessageHandler(),
-      MediaMessageHandler(),
-      UserControlMessageHandler(),
-      ControlMessageHandler(),
-      DataMessageHandler(),
-      SharedObjectMessageHandler(),
-      AbortMessageHandler()
-    ])
+    self.messageRouter = MessageRouter(
+      handlers: [
+        FlowControlMessageHandler(logger: RTMPLogger(category: "FlowControl", continuation: logCont)),
+        CommandMessageHandler(logger: RTMPLogger(category: "Command", continuation: logCont)),
+        MediaMessageHandler(logger: RTMPLogger(category: "Media", continuation: logCont)),
+        UserControlMessageHandler(logger: RTMPLogger(category: "UserControl", continuation: logCont)),
+        ControlMessageHandler(logger: RTMPLogger(category: "Control", continuation: logCont)),
+        DataMessageHandler(logger: RTMPLogger(category: "Data", continuation: logCont)),
+        SharedObjectMessageHandler(logger: RTMPLogger(category: "SharedObject", continuation: logCont)),
+        AbortMessageHandler(logger: RTMPLogger(category: "Abort", continuation: logCont))
+      ],
+      logger: RTMPLogger(category: "MessageRouter", continuation: logCont)
+    )
 
     // Initialize background task actors
     self.messageSender = MessageSender(
@@ -104,7 +120,8 @@ public actor RTMPConnection {
       sendData: { [resolvedConnection, windowControl] data in
         try await resolvedConnection.sendData(data)
         await windowControl.addOutBytesCount(UInt32(data.count))
-      }
+      },
+      logger: RTMPLogger(category: "MessageSender", continuation: logCont)
     )
 
     self.messageReceiver = MessageReceiver(
@@ -112,14 +129,16 @@ public actor RTMPConnection {
         try await resolvedConnection.receiveData()
       },
       windowControl: windowControl,
-      decoder: decoder
+      decoder: decoder,
+      logger: RTMPLogger(category: "MessageReceiver", continuation: logCont)
     )
 
     self.transmissionMonitor = TransmissionMonitor(
       priorityQueue: messagePriorityQueue,
       windowControl: windowControl,
       mediaStatistics: mediaStatisticsCollector,
-      eventDispatcher: eventDispatcher
+      eventDispatcher: eventDispatcher,
+      logger: RTMPLogger(category: "TransmissionMonitor", continuation: logCont)
     )
 
     await windowControl.setInBytesWindowEvent { [weak self] inbytesCount in
@@ -135,7 +154,7 @@ public actor RTMPConnection {
       await self?.handleOutputData(data: data)
     }
   }
-  
+
   private func sendAcknowledgementMessage(sequence: UInt32) async {
     guard status == .connected else { return }
     await self.send(message: AcknowledgementMessage(sequence: UInt32(sequence)), firstType: true)
@@ -163,7 +182,10 @@ extension RTMPConnection {
     guard status == .open else {
       throw RTMPError.handShake(desc: "Transport not open")
     }
-    self.handshake = RTMPHandshake(client: connection)
+    self.handshake = RTMPHandshake(
+      client: connection,
+      logger: RTMPLogger(category: "Handshake", continuation: logContinuation)
+    )
 
     do {
       try await self.handshake?.start()
@@ -249,7 +271,6 @@ extension RTMPConnection {
     await transmissionMonitor.stop()
 
     // Clean up pending continuations to prevent resource leaks
-    // Resume all waiting continuations with an error
     connectContinuation?.resume(throwing: RTMPError.connectionInvalidated)
     connectContinuation = nil
 
@@ -265,6 +286,7 @@ extension RTMPConnection {
     status = .closed
     await eventDispatcher.yieldConnection(.disconnected)
     await eventDispatcher.finish()
+    logContinuation.finish()
   }
 }
 
