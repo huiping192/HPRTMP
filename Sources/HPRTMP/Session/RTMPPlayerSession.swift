@@ -8,20 +8,21 @@
 import Foundation
 
 public actor RTMPPlayerSession {
-  // AsyncStreams for data flow; recreated on each play() to prevent old data leaking into new sessions
-  public nonisolated(unsafe) private(set) var statusStream: AsyncStream<RTMPSessionStatus>
-  public nonisolated(unsafe) private(set) var videoStream: AsyncStream<(Data, Int64)>
-  public nonisolated(unsafe) private(set) var audioStream: AsyncStream<(Data, Int64)>
-  public nonisolated(unsafe) private(set) var metaStream: AsyncStream<MetaDataResponse>
-  public nonisolated(unsafe) private(set) var statisticsStream: AsyncStream<TransmissionStatistics>
-  public nonisolated(unsafe) private(set) var logStream: AsyncStream<RTMPLogEvent>
+  // Streams are kept alive until deinit to support play -> stop -> play session reuse.
+  // stop() cancels event tasks, preventing stale data from being yielded into the streams.
+  public let statusStream: AsyncStream<RTMPSessionStatus>
+  public let videoStream: AsyncStream<(Data, Int64)>
+  public let audioStream: AsyncStream<(Data, Int64)>
+  public let metaStream: AsyncStream<MetaDataResponse>
+  public let statisticsStream: AsyncStream<TransmissionStatistics>
+  public let logStream: AsyncStream<RTMPLogEvent>
 
-  private var statusContinuation: AsyncStream<RTMPSessionStatus>.Continuation
-  private var videoContinuation: AsyncStream<(Data, Int64)>.Continuation
-  private var audioContinuation: AsyncStream<(Data, Int64)>.Continuation
-  private var metaContinuation: AsyncStream<MetaDataResponse>.Continuation
-  private var statisticsContinuation: AsyncStream<TransmissionStatistics>.Continuation
-  private var logContinuation: AsyncStream<RTMPLogEvent>.Continuation
+  private let statusContinuation: AsyncStream<RTMPSessionStatus>.Continuation
+  private let videoContinuation: AsyncStream<(Data, Int64)>.Continuation
+  private let audioContinuation: AsyncStream<(Data, Int64)>.Continuation
+  private let metaContinuation: AsyncStream<MetaDataResponse>.Continuation
+  private let statisticsContinuation: AsyncStream<TransmissionStatistics>.Continuation
+  private let logContinuation: AsyncStream<RTMPLogEvent>.Continuation
 
   public private(set) var status: RTMPSessionStatus = .unknown {
     didSet {
@@ -35,7 +36,7 @@ public actor RTMPPlayerSession {
 
   private var streamId: MessageStreamId = .zero
 
-  private var logger: RTMPLogger
+  private let logger: RTMPLogger
 
   private var eventTasks: [Task<Void, Never>] = []
 
@@ -62,33 +63,13 @@ public actor RTMPPlayerSession {
     logContinuation.finish()
   }
 
-  private func resetStreams() {
-    statusContinuation.finish()
-    videoContinuation.finish()
-    audioContinuation.finish()
-    metaContinuation.finish()
-    statisticsContinuation.finish()
-    logContinuation.finish()
-
-    (statusStream, statusContinuation) = AsyncStream.makeStream()
-    (videoStream, videoContinuation) = AsyncStream.makeStream()
-    (audioStream, audioContinuation) = AsyncStream.makeStream()
-    (metaStream, metaContinuation) = AsyncStream.makeStream()
-    (statisticsStream, statisticsContinuation) = AsyncStream.makeStream()
-    (logStream, logContinuation) = AsyncStream.makeStream()
-    logger = RTMPLogger(category: "PlayerSession", continuation: logContinuation)
-  }
-
   public func play(url: String) async {
-    // Reset streams to prevent old data leaking into new session (play -> stop -> play scenario)
-    resetStreams()
-
     // Clean up existing connection if any
     if let connection = connection {
       await connection.invalidate()
     }
 
-    // Cancel previous event tasks
+    // Cancel previous event tasks to stop stale data from flowing into shared streams
     eventTasks.forEach { $0.cancel() }
     eventTasks.removeAll()
 
@@ -155,7 +136,7 @@ public actor RTMPPlayerSession {
   }
 
   public func stop() async {
-    // Cancel event tasks
+    // Cancel event tasks to stop stale data from flowing into streams
     eventTasks.forEach { $0.cancel() }
     eventTasks.removeAll()
 
