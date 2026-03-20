@@ -94,7 +94,7 @@ actor MediaStatisticsCollector {
     }
 
     let bytesSinceLast = currentBytes - window.bytes
-    let bitrate = (Double(bytesSinceLast) * 8.0) / elapsed / 1000.0
+    let bitrate = (Double(bytesSinceLast) * 8.0) / elapsed
 
     window.bytes = currentBytes
     window.timestamp = now

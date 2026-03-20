@@ -20,7 +20,8 @@ struct FrameConverter {
     guard let attachment = attachments[0] as? NSDictionary else {
       return nil
     }
-    let isKeyframe = !(attachment[kCMSampleAttachmentKey_DependsOnOthers] as? Bool ?? true)
+    let notSync = attachment[kCMSampleAttachmentKey_NotSync] as? Bool ?? false
+    let isKeyframe = !notSync
     
     let pts = buffer.presentationTimeStamp.seconds.isFinite ? UInt64(buffer.presentationTimeStamp.seconds * 1000) :  0
     let dts = buffer.decodeTimeStamp.seconds.isFinite ? UInt64(buffer.decodeTimeStamp.seconds * 1000) :  pts
