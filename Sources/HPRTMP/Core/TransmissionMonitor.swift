@@ -53,40 +53,54 @@ actor TransmissionMonitor {
   }
 
   private func collectStatistics() async -> TransmissionStatistics {
+    // Use async let to collect statistics in parallel for better performance
+    async let pendingMessages: (pendingMessageCount: Int, pendingVideoFrames: Int, pendingAudioFrames: Int, pendingOtherMessages: Int) = collectPendingMessages()
+    async let windowStats: (totalIn: UInt32, totalOut: UInt32, ack: UInt32, windowSize: UInt32) = collectWindowStats()
+    async let mediaStats: (videoFramesSent: UInt64, videoKeyFramesSent: UInt64, audioFramesSent: UInt64, videoBytesSent: UInt64, audioBytesSent: UInt64, videoBitrate: Double, audioBitrate: Double, currentVideoTimestamp: UInt32, currentAudioTimestamp: UInt32) = mediaStatistics.getStatistics()
+
+    let pending = await pendingMessages
+    let window = await windowStats
+    let media = await mediaStats
+
+    // Ensure unacknowledgedBytes is never negative (handles edge case when ack > sent)
+    let unacknowledgedBytes = max(0, Int64(window.totalOut) - Int64(window.ack))
+    let windowUtilization = window.windowSize > 0 ? Double(unacknowledgedBytes) / Double(window.windowSize) : 0.0
+
+    return TransmissionStatistics(
+      pendingMessageCount: pending.pendingMessageCount,
+      totalBytesReceived: window.totalIn,
+      totalBytesSent: window.totalOut,
+      unacknowledgedBytes: unacknowledgedBytes,
+      windowSize: window.windowSize,
+      windowUtilization: windowUtilization,
+      videoFramesSent: media.videoFramesSent,
+      videoKeyFramesSent: media.videoKeyFramesSent,
+      audioFramesSent: media.audioFramesSent,
+      videoBytesSent: media.videoBytesSent,
+      audioBytesSent: media.audioBytesSent,
+      videoBitrate: media.videoBitrate,
+      audioBitrate: media.audioBitrate,
+      currentVideoTimestamp: media.currentVideoTimestamp,
+      currentAudioTimestamp: media.currentAudioTimestamp,
+      pendingVideoFrames: pending.pendingVideoFrames,
+      pendingAudioFrames: pending.pendingAudioFrames,
+      pendingOtherMessages: pending.pendingOtherMessages
+    )
+  }
+
+  private func collectPendingMessages() async -> (pendingMessageCount: Int, pendingVideoFrames: Int, pendingAudioFrames: Int, pendingOtherMessages: Int) {
     let pendingMessageCount = await priorityQueue.pendingMessageCount
     let pendingVideoFrames = await priorityQueue.pendingVideoFrames
     let pendingAudioFrames = await priorityQueue.pendingAudioFrames
     let pendingOtherMessages = await priorityQueue.pendingOtherMessages
+    return (pendingMessageCount, pendingVideoFrames, pendingAudioFrames, pendingOtherMessages)
+  }
 
+  private func collectWindowStats() async -> (totalIn: UInt32, totalOut: UInt32, ack: UInt32, windowSize: UInt32) {
     let totalBytesReceived = await windowControl.totalInBytesCount
     let totalBytesSent = await windowControl.totalOutBytesCount
     let receivedAcknowledgement = await windowControl.receivedAcknowledgement
     let windowSize = await windowControl.windowSize
-
-    let unacknowledgedBytes = Int64(totalBytesSent) - Int64(receivedAcknowledgement)
-    let windowUtilization = windowSize > 0 ? Double(unacknowledgedBytes) / Double(windowSize) : 0.0
-
-    let mediaStats = await mediaStatistics.getStatistics()
-
-    return TransmissionStatistics(
-      pendingMessageCount: pendingMessageCount,
-      totalBytesReceived: totalBytesReceived,
-      totalBytesSent: totalBytesSent,
-      unacknowledgedBytes: unacknowledgedBytes,
-      windowSize: windowSize,
-      windowUtilization: windowUtilization,
-      videoFramesSent: mediaStats.videoFramesSent,
-      videoKeyFramesSent: mediaStats.videoKeyFramesSent,
-      audioFramesSent: mediaStats.audioFramesSent,
-      videoBytesSent: mediaStats.videoBytesSent,
-      audioBytesSent: mediaStats.audioBytesSent,
-      videoBitrate: mediaStats.videoBitrate,
-      audioBitrate: mediaStats.audioBitrate,
-      currentVideoTimestamp: mediaStats.currentVideoTimestamp,
-      currentAudioTimestamp: mediaStats.currentAudioTimestamp,
-      pendingVideoFrames: pendingVideoFrames,
-      pendingAudioFrames: pendingAudioFrames,
-      pendingOtherMessages: pendingOtherMessages
-    )
+    return (totalBytesReceived, totalBytesSent, receivedAcknowledgement, windowSize)
   }
 }
