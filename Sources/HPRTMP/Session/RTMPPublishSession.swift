@@ -122,7 +122,7 @@ public actor RTMPPublishSession: RTMPPublishSessionProtocol {
   }
 
   public func publishVideo(data: Data, delta: UInt32) async {
-    lastVideoTimestamp = lastVideoTimestamp + Timestamp(delta)
+    lastVideoTimestamp = Timestamp(lastVideoTimestamp.value &+ delta)
     await publishVideo(data: data, timestamp: lastVideoTimestamp.value)
   }
 
@@ -137,7 +137,7 @@ public actor RTMPPublishSession: RTMPPublishSessionProtocol {
   }
 
   public func publishAudio(data: Data, delta: UInt32) async {
-    lastAudioTimestamp = lastAudioTimestamp + Timestamp(delta)
+    lastAudioTimestamp = Timestamp(lastAudioTimestamp.value &+ delta)
     await publishAudio(data: data, timestamp: lastAudioTimestamp.value)
   }
 
