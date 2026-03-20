@@ -40,12 +40,18 @@ actor MediaStatisticsCollector {
     if isKeyFrame {
       videoKeyFramesSent += 1
     }
+    
+    // Update window bytes for bitrate calculation
+    videoBitrateWindow.bytes = videoBytesSent
   }
 
   func recordAudioFrame(bytes: Int, timestamp: UInt32) {
     audioFramesSent += 1
     audioBytesSent += UInt64(bytes)
     currentAudioTimestamp = timestamp
+    
+    // Update window bytes for bitrate calculation
+    audioBitrateWindow.bytes = audioBytesSent
   }
 
   func getStatistics() -> (
