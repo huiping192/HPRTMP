@@ -1,16 +1,16 @@
 
 
 public struct PublishConfigure: Sendable {
-  let width: Int
-  let height: Int
-  let videocodecid: Int
-  let audiocodecid: Int
-  let framerate: Int
+  public let width: Int
+  public let height: Int
+  public let videocodecid: Int
+  public let audiocodecid: Int
+  public let framerate: Int
   // kpbss
-  let videoDatarate: Int?
+  public let videoDatarate: Int?
   // kpbss
-  let audioDatarate: Int?
-  let audioSamplerate: Int?
+  public let audioDatarate: Int?
+  public let audioSamplerate: Int?
 
   public init(width: Int, height: Int, videocodecid: Int, audiocodecid: Int, framerate: Int, videoDatarate: Int? = nil, audioDatarate: Int? = nil, audioSamplerate: Int? = nil) {
     self.width = width
