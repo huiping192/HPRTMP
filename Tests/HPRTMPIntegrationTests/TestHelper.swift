@@ -2,6 +2,21 @@ import Foundation
 import XCTest
 import HPRTMP
 
+// MARK: - Unique Stream URL
+
+func uniqueStreamURL(prefix: String = "test") -> String {
+  let base = IntegrationTestConfig.rtmpTestURL
+  guard let url = URL(string: base),
+        var components = URLComponents(url: url, resolvingAgainstBaseURL: false) else {
+    return base
+  }
+  let uuid = UUID().uuidString.prefix(8).lowercased()
+  let pathParts = url.pathComponents.filter { $0 != "/" }
+  let app = pathParts.first ?? "live"
+  components.path = "/\(app)/\(prefix)-\(uuid)"
+  return components.url?.absoluteString ?? base
+}
+
 // MARK: - Configuration
 
 enum IntegrationTestConfig {
@@ -10,7 +25,7 @@ enum IntegrationTestConfig {
   }
 
   static var rtmpStatURL: String {
-    ProcessInfo.processInfo.environment["RTMP_STAT_URL"] ?? "http://192.168.11.23:8008/api/streams"
+    ProcessInfo.processInfo.environment["RTMP_STAT_URL"] ?? "http://192.168.11.23:8008"
   }
 
   static var rtmpAPIUsername: String {
@@ -81,53 +96,76 @@ private struct Socket {
 
 // MARK: - Stream Verification
 
-struct StreamInfo: Decodable {
-  let publisher: PublisherInfo?
-
-  struct PublisherInfo: Decodable {
-    let active: Bool?
-  }
-}
-
-/// Polls Node-Media-Server HTTP API to check if `app/stream` is active.
+/// Polls Node-Media-Server v4 HTTP API to check if `app/stream` is active.
 /// Returns:
 /// - `true`  — stream confirmed active
 /// - `false` — stream confirmed inactive
 /// - `nil`   — API unavailable / unauthorized / parsing failed (inconclusive)
 func verifyStreamActive(app: String, stream: String, retries: Int = 5) async -> Bool? {
-  let urlString = IntegrationTestConfig.rtmpStatURL
-  guard let url = URL(string: urlString) else { return nil }
+  guard let baseURL = URL(string: IntegrationTestConfig.rtmpStatURL) else { return nil }
+
+  guard let token = await fetchJWTToken(baseURL: baseURL) else { return nil }
 
   for _ in 0..<retries {
-    switch await fetchStreamActive(url: url, app: app, stream: stream) {
+    switch await fetchStreamActive(baseURL: baseURL, token: token, app: app, stream: stream) {
     case .some(true):
       return true
     case .some(false):
-      try? await Task.sleep(nanoseconds: 500_000_000) // 0.5s, retry
+      try? await Task.sleep(nanoseconds: 500_000_000)
     case nil:
-      return nil // inconclusive, stop retrying
+      return nil
     }
   }
   return false
 }
 
-/// Returns `true`/`false` if the API gave a parseable answer, `nil` if the API is not usable.
-private func fetchStreamActive(url: URL, app: String, stream: String) async -> Bool? {
-  var request = URLRequest(url: url)
-  let credentials = "\(IntegrationTestConfig.rtmpAPIUsername):\(IntegrationTestConfig.rtmpAPIPassword)"
-  let encoded = Data(credentials.utf8).base64EncodedString()
-  request.setValue("Basic \(encoded)", forHTTPHeaderField: "Authorization")
+/// POST /api/v1/login → JWT token, nil on failure.
+private func fetchJWTToken(baseURL: URL) async -> String? {
+  let loginURL = baseURL.appendingPathComponent("api/v1/login")
+  var request = URLRequest(url: loginURL)
+  request.httpMethod = "POST"
+  request.setValue("application/json", forHTTPHeaderField: "Content-Type")
 
-  guard let (data, response) = try? await URLSession.shared.data(for: request) else { return nil }
-  guard let httpResponse = response as? HTTPURLResponse,
-        httpResponse.statusCode == 200 else { return nil }
-  guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return nil }
+  let body: [String: String] = [
+    "username": IntegrationTestConfig.rtmpAPIUsername,
+    "password": IntegrationTestConfig.rtmpAPIPassword
+  ]
+  guard let bodyData = try? JSONSerialization.data(withJSONObject: body) else { return nil }
+  request.httpBody = bodyData
 
-  // Node-Media-Server response: { "<app>": { "<stream>": { "publisher": { ... } } } }
-  guard let appDict = json[app] as? [String: Any],
-        let streamDict = appDict[stream] as? [String: Any],
-        let publisher = streamDict["publisher"] as? [String: Any] else {
-    return false
+  guard let (data, response) = try? await URLSession.shared.data(for: request),
+        let httpResponse = response as? HTTPURLResponse,
+        httpResponse.statusCode == 200,
+        let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+        let dataDict = json["data"] as? [String: Any],
+        let token = dataDict["token"] as? String else { return nil }
+
+  return token
+}
+
+/// GET /api/v1/streams with Bearer token; handles both NMS v4 response formats.
+private func fetchStreamActive(baseURL: URL, token: String, app: String, stream: String) async -> Bool? {
+  let streamsURL = baseURL.appendingPathComponent("api/v1/streams")
+  var request = URLRequest(url: streamsURL)
+  request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+
+  guard let (data, response) = try? await URLSession.shared.data(for: request),
+        let httpResponse = response as? HTTPURLResponse,
+        httpResponse.statusCode == 200,
+        let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return nil }
+
+  let payload = json["data"] ?? json
+
+  // Format A: {"data": [{"app":"live","stream":"xxx",...}]}
+  if let list = payload as? [[String: Any]] {
+    return list.contains { ($0["app"] as? String) == app && ($0["stream"] as? String) == stream }
   }
-  return publisher["active"] as? Bool ?? true
+
+  // Format B: {"data": {"live": {"xxx": {...}}}} or top-level {"live": {"xxx": {...}}}
+  if let dict = payload as? [String: Any],
+     let appDict = dict[app] as? [String: Any] {
+    return appDict[stream] != nil
+  }
+
+  return nil
 }
