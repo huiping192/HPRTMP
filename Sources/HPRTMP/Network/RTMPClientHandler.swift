@@ -1,37 +1,53 @@
 import Foundation
 import NIO
 
-final class RTMPClientHandler: ChannelInboundHandler, Sendable {
+// NOT Sendable: AsyncStream.Continuation is not thread-safe; only used on a single NIO event loop.
+final class RTMPClientHandler: ChannelInboundHandler {
   typealias InboundIn = ByteBuffer
-  private let continuation: AsyncStream<Data>.Continuation
-  let stream: AsyncStream<Data>
-  private let logger: RTMPLogger
+  typealias BufferingPolicy = AsyncStream<Data>.Continuation.BufferingPolicy
 
-  init(logger: RTMPLogger = RTMPLogger(category: "RTMPClientHandler")) {
-    (stream, continuation) = AsyncStream<Data>.makeStream()
+  let stream: AsyncStream<Data>
+  private var continuation: AsyncStream<Data>.Continuation?
+  private let logger: RTMPLogger
+  private var isFinished = false
+
+  init(bufferingPolicy: BufferingPolicy = .unbounded, logger: RTMPLogger = RTMPLogger(category: "RTMPClientHandler")) {
     self.logger = logger
+    let (stream, continuation) = AsyncStream<Data>.makeStream(bufferingPolicy: bufferingPolicy)
+    self.stream = stream
+    self.continuation = continuation
   }
 
   func channelRead(context: ChannelHandlerContext, data: NIOAny) {
+    guard !isFinished, let continuation = continuation else { return }
+
     var buffer = self.unwrapInboundIn(data)
 
-    var data = Data()
+    var byteData = Data()
     buffer.readWithUnsafeReadableBytes { ptr in
-      data.append(ptr.baseAddress!.assumingMemoryBound(to: UInt8.self), count: ptr.count)
+      byteData.append(ptr.baseAddress!.assumingMemoryBound(to: UInt8.self), count: ptr.count)
       return ptr.count
     }
 
-    guard !data.isEmpty else { return }
-    continuation.yield(data)
+    guard !byteData.isEmpty else { return }
+    continuation.yield(byteData)
   }
 
   func errorCaught(context: ChannelHandlerContext, error: Error) {
     logger.error("[HPRTMP] Channel error: \(error)")
-    continuation.finish()
+    finishStream()
     context.close(promise: nil)
   }
 
   func channelInactive(context: ChannelHandlerContext) {
-    continuation.finish()
+    finishStream()
+  }
+
+  // prevent double-finish when both errorCaught and channelInactive fire
+  private func finishStream() {
+    guard !isFinished else { return }
+    isFinished = true
+    continuation?.finish()
+    continuation = nil
   }
 }

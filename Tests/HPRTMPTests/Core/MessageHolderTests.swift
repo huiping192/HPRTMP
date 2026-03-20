@@ -142,9 +142,9 @@ final class MessageHolderTests: XCTestCase {
     XCTAssertNil(secondRemove)
   }
   
-  // MARK: - GetMessage Tests
-  
-  func testGetMessage() async {
+  // MARK: - Contains Tests
+
+  func testContains() async {
     let message = ConnectMessage(
       encodeType: .amf0,
       tcUrl: "rtmp://localhost/live",
@@ -157,37 +157,9 @@ final class MessageHolderTests: XCTestCase {
     
     await messageHolder.register(transactionId: 1, message: message)
     
-    let retrievedMessage = await messageHolder.getMessage(transactionId: 1)
-    
-    XCTAssertNotNil(retrievedMessage)
-    let count = await messageHolder.count
-    XCTAssertEqual(count, 1) // Message should still be there
-  }
-  
-  func testGetNonExistentMessage() async {
-    let retrievedMessage = await messageHolder.getMessage(transactionId: 999)
-    
-    XCTAssertNil(retrievedMessage)
-  }
-  
-  // MARK: - HasMessage Tests
-  
-  func testHasMessage() async {
-    let message = ConnectMessage(
-      encodeType: .amf0,
-      tcUrl: "rtmp://localhost/live",
-      appName: "live",
-      flashVer: "FMLE/3.0",
-      fpad: false,
-      audio: .aac,
-      video: .h264
-    )
-    
-    await messageHolder.register(transactionId: 1, message: message)
-    
-    let hasMessage = await messageHolder.hasMessage(transactionId: 1)
-    let hasNoMessage = await messageHolder.hasMessage(transactionId: 999)
-    
+    let hasMessage = await messageHolder.contains(transactionId: 1)
+    let hasNoMessage = await messageHolder.contains(transactionId: 999)
+
     XCTAssertTrue(hasMessage)
     XCTAssertFalse(hasNoMessage)
   }
@@ -199,9 +171,9 @@ final class MessageHolderTests: XCTestCase {
     XCTAssertEqual(count, 0)
   }
   
-  // MARK: - Cleanup Tests
-  
-  func testCleanup() async {
+  // MARK: - ClearAll Tests
+
+  func testClearAll() async {
     let message1 = ConnectMessage(
       encodeType: .amf0,
       tcUrl: "rtmp://localhost/live",
@@ -228,14 +200,14 @@ final class MessageHolderTests: XCTestCase {
     var count = await messageHolder.count
     XCTAssertEqual(count, 2)
     
-    await messageHolder.cleanup()
+    await messageHolder.clearAll()
     
     count = await messageHolder.count
     XCTAssertEqual(count, 0)
   }
   
-  func testCleanupEmptyHolder() async {
-    await messageHolder.cleanup()
+  func testClearAllEmptyHolder() async {
+    await messageHolder.clearAll()
     
     let count = await messageHolder.count
     XCTAssertEqual(count, 0)
@@ -277,8 +249,7 @@ final class MessageHolderTests: XCTestCase {
   
   func testConcurrentReadAndWrite() async {
     guard let holder = messageHolder else { return }
-    
-    // Test interleaved read/write operations
+
     for i in 0..<50 {
       let message = ConnectMessage(
         encodeType: .amf0,
@@ -290,12 +261,10 @@ final class MessageHolderTests: XCTestCase {
         video: .h264
       )
       await holder.register(transactionId: i, message: message)
-      
-      // Read without removing
-      let retrieved = await holder.getMessage(transactionId: i)
-      XCTAssertNotNil(retrieved)
+      let exists = await holder.contains(transactionId: i)
+      XCTAssertTrue(exists)
     }
-    
+
     let count = await holder.count
     XCTAssertEqual(count, 50)
   }
