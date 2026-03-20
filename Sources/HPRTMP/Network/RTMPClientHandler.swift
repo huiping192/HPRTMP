@@ -1,8 +1,9 @@
 import Foundation
 import NIO
 
-// NOT Sendable: AsyncStream.Continuation is not thread-safe; only used on a single NIO event loop.
-final class RTMPClientHandler: ChannelInboundHandler {
+// @unchecked Sendable: NIO guarantees all handler callbacks run on the event loop,
+// providing the necessary synchronization for mutable state.
+final class RTMPClientHandler: ChannelInboundHandler, @unchecked Sendable {
   typealias InboundIn = ByteBuffer
   typealias BufferingPolicy = AsyncStream<Data>.Continuation.BufferingPolicy
 
