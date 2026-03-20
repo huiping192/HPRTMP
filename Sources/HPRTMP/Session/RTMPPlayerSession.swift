@@ -8,7 +8,8 @@
 import Foundation
 
 public actor RTMPPlayerSession {
-  // AsyncStreams for data flow
+  // Streams are kept alive until deinit to support play -> stop -> play session reuse.
+  // stop() cancels event tasks, preventing stale data from being yielded into the streams.
   public let statusStream: AsyncStream<RTMPSessionStatus>
   public let videoStream: AsyncStream<(Data, Int64)>
   public let audioStream: AsyncStream<(Data, Int64)>
@@ -16,7 +17,6 @@ public actor RTMPPlayerSession {
   public let statisticsStream: AsyncStream<TransmissionStatistics>
   public let logStream: AsyncStream<RTMPLogEvent>
 
-  // Continuations for sending data
   private let statusContinuation: AsyncStream<RTMPSessionStatus>.Continuation
   private let videoContinuation: AsyncStream<(Data, Int64)>.Continuation
   private let audioContinuation: AsyncStream<(Data, Int64)>.Continuation
@@ -40,7 +40,6 @@ public actor RTMPPlayerSession {
 
   private var eventTasks: [Task<Void, Never>] = []
 
-  // RTMP chunk size configuration
   // Using 4096 bytes (FFmpeg/OBS standard) for optimal compatibility and performance
   private static let defaultChunkSize: UInt32 = 4096
 
@@ -70,7 +69,7 @@ public actor RTMPPlayerSession {
       await connection.invalidate()
     }
 
-    // Cancel previous event tasks
+    // Cancel previous event tasks to stop stale data from flowing into shared streams
     eventTasks.forEach { $0.cancel() }
     eventTasks.removeAll()
 
@@ -137,7 +136,7 @@ public actor RTMPPlayerSession {
   }
 
   public func stop() async {
-    // Cancel event tasks
+    // Cancel event tasks to stop stale data from flowing into streams
     eventTasks.forEach { $0.cancel() }
     eventTasks.removeAll()
 
@@ -157,8 +156,6 @@ public actor RTMPPlayerSession {
     await connection.invalidate()
     self.connection = nil
     status = .disconnected
-
-    // Note: continuations are finished in deinit to support session reuse
   }
 
   // MARK: - Event Handlers
@@ -193,7 +190,6 @@ public actor RTMPPlayerSession {
       await connection.send(message: message, firstType: true)
 
     case .publishStart, .record, .pause:
-      // Player doesn't need to handle these events
       break
     }
   }
@@ -203,7 +199,6 @@ public actor RTMPPlayerSession {
 
     switch event {
     case .peerBandwidthChanged(let size):
-      // send window ack message to server
       await connection.send(message: WindowAckMessage(size: size), firstType: true)
 
     case .statistics(let statistics):
