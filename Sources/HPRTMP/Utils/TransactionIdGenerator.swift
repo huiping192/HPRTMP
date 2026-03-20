@@ -1,7 +1,7 @@
 
 // generator transactionId
 actor TransactionIdGenerator {
-  private var currentId: Int = 1
+  private var currentId: Int = 0
   
   func nextId() -> Int {
     currentId += 1
