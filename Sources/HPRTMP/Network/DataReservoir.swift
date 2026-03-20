@@ -42,6 +42,16 @@ actor DataReservoir {
     }
   }
 
+  /// Signals that the data stream has completed (e.g., channel became inactive).
+  /// Fails any pending promise to prevent hanging waits.
+  func finish() {
+    if let promise = dataPromise {
+      dataPromise = nil
+      promise.fail(RTMPError.connectionInvalidated)
+    }
+    cachedData = Data()
+  }
+
   func close() {
     dataPromise?.fail(RTMPError.connectionInvalidated)
     dataPromise = nil
