@@ -1,68 +1,85 @@
+import Foundation
 import XCTest
-import NIO
+
 @testable import HPRTMP
 
 final class DataReservoirTests: XCTestCase {
-  
-  func testTryRetrieveCache_empty_returnsNil() async {
-    let reservoir = DataReservoir()
+  private var reservoir: DataReservoir!
+
+  override func setUp() {
+    super.setUp()
+    reservoir = DataReservoir()
+  }
+
+  override func tearDown() async throws {
+    await reservoir?.close()
+    reservoir = nil
+    try await super.tearDown()
+  }
+
+  func testTryRetrieveCacheEmpty() async throws {
     let result = await reservoir.tryRetrieveCache()
     XCTAssertNil(result)
   }
-  
-  func testTryRetrieveCache_withData_returnsData() async {
-    let reservoir = DataReservoir()
-    
-    // Simulate data arriving
-    await reservoir.dataArrived(data: Data([1, 2, 3]))
-    
-    let result = await reservoir.tryRetrieveCache()
-    XCTAssertNotNil(result)
-    XCTAssertEqual(result, Data([1, 2, 3]))
-    
-    // Second call should return nil (cache cleared)
-    let result2 = await reservoir.tryRetrieveCache()
-    XCTAssertNil(result2)
+
+  func testWaitDataReturnsCachedData() async throws {
+    let testData = Data([5, 6, 7])
+    await reservoir.dataArrived(data: testData)
+    let result = try await reservoir.waitData()
+    XCTAssertEqual(result, testData)
   }
-  
-  func testMultipleDataArrived_accumulatesData() async {
-    let reservoir = DataReservoir()
-    
-    // Send multiple data chunks
+
+  func testDataArrivedCachesData() async throws {
+    let testData = Data([8, 9, 10])
+    await reservoir.dataArrived(data: testData)
+    let result = await reservoir.tryRetrieveCache()
+    XCTAssertEqual(result, testData)
+  }
+
+  func testWaitDataWaitsForData() async throws {
+    let waitTask = Task.detached { [reservoir] in
+      try await reservoir.waitData()
+    }
+    try await Task.sleep(nanoseconds: 10_000_000)
+    let testData = Data([1, 2, 3])
+    await reservoir.dataArrived(data: testData)
+    let result = try await waitTask.value
+    XCTAssertEqual(result, testData)
+  }
+
+  func testDataArrivesBeforeWaitData() async throws {
+    let testData = Data([1, 2, 3, 4, 5])
+    await reservoir.dataArrived(data: testData)
+    let result = try await reservoir.waitData()
+    XCTAssertEqual(result, testData)
+  }
+
+  func testCloseCleansUp() async throws {
+    await reservoir.close()
+    let result = await reservoir.tryRetrieveCache()
+    XCTAssertNil(result)
+  }
+
+  func testCloseThrowsOnWaitingTask() async throws {
+    let waitTask = Task.detached { [reservoir] in
+      try await reservoir.waitData()
+    }
+    try await Task.sleep(nanoseconds: 10_000_000)
+    await reservoir.close()
+    do {
+      _ = try await waitTask.value
+      XCTFail("Expected to throw RTMPError.connectionInvalidated")
+    } catch let error as RTMPError {
+      XCTAssertEqual(error, RTMPError.connectionInvalidated)
+    } catch {
+      XCTFail("Expected RTMPError, got \(error)")
+    }
+  }
+
+  func testMultipleDataArrivedAccumulate() async throws {
     await reservoir.dataArrived(data: Data([1, 2]))
     await reservoir.dataArrived(data: Data([3, 4]))
-    await reservoir.dataArrived(data: Data([5, 6]))
-    
-    // All data should be accumulated
     let result = await reservoir.tryRetrieveCache()
-    XCTAssertEqual(result, Data([1, 2, 3, 4, 5, 6]))
-  }
-  
-  func testFinish_clearsCachedData() async {
-    let reservoir = DataReservoir()
-    
-    // Add some cached data
-    await reservoir.dataArrived(data: Data([1, 2, 3]))
-    
-    // Finish should clear the cache
-    await reservoir.finish()
-    
-    // Cache should be empty now
-    let result = await reservoir.tryRetrieveCache()
-    XCTAssertNil(result)
-  }
-  
-  func testClose_clearsCachedData() async {
-    let reservoir = DataReservoir()
-    
-    // Add some cached data
-    await reservoir.dataArrived(data: Data([1, 2, 3]))
-    
-    // Close should clear the cache
-    await reservoir.close()
-    
-    // Cache should be empty now
-    let result = await reservoir.tryRetrieveCache()
-    XCTAssertNil(result)
+    XCTAssertEqual(result, Data([1, 2, 3, 4]))
   }
 }
