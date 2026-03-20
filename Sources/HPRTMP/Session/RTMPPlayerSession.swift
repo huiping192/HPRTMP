@@ -1,12 +1,11 @@
 //
 //  RTMPPlayerSession.swift
-//  
+//
 //
 //  Created by 郭 輝平 on 2023/09/25.
 //
 
 import Foundation
-import os
 
 public actor RTMPPlayerSession {
   // AsyncStreams for data flow
@@ -15,6 +14,7 @@ public actor RTMPPlayerSession {
   public let audioStream: AsyncStream<(Data, Int64)>
   public let metaStream: AsyncStream<MetaDataResponse>
   public let statisticsStream: AsyncStream<TransmissionStatistics>
+  public let logStream: AsyncStream<RTMPLogEvent>
 
   // Continuations for sending data
   private let statusContinuation: AsyncStream<RTMPSessionStatus>.Continuation
@@ -22,20 +22,21 @@ public actor RTMPPlayerSession {
   private let audioContinuation: AsyncStream<(Data, Int64)>.Continuation
   private let metaContinuation: AsyncStream<MetaDataResponse>.Continuation
   private let statisticsContinuation: AsyncStream<TransmissionStatistics>.Continuation
+  private let logContinuation: AsyncStream<RTMPLogEvent>.Continuation
 
   public private(set) var status: RTMPSessionStatus = .unknown {
     didSet {
       statusContinuation.yield(status)
     }
   }
-  
+
   private let encodeType: ObjectEncodingType = .amf0
-  
+
   private var connection: RTMPConnection?
-  
+
   private var streamId: MessageStreamId = .zero
-  
-  private let logger = Logger(subsystem: "HPRTMP", category: "Player")
+
+  private let logger: RTMPLogger
 
   private var eventTasks: [Task<Void, Never>] = []
 
@@ -45,12 +46,13 @@ public actor RTMPPlayerSession {
 
 
   public init() {
-    // Initialize AsyncStreams and their continuations using makeStream()
     (statusStream, statusContinuation) = AsyncStream.makeStream()
     (videoStream, videoContinuation) = AsyncStream.makeStream()
     (audioStream, audioContinuation) = AsyncStream.makeStream()
     (metaStream, metaContinuation) = AsyncStream.makeStream()
     (statisticsStream, statisticsContinuation) = AsyncStream.makeStream()
+    (logStream, logContinuation) = AsyncStream.makeStream()
+    self.logger = RTMPLogger(category: "PlayerSession", continuation: logContinuation)
   }
 
   deinit {
@@ -59,6 +61,7 @@ public actor RTMPPlayerSession {
     audioContinuation.finish()
     metaContinuation.finish()
     statisticsContinuation.finish()
+    logContinuation.finish()
   }
 
   public func play(url: String) async {
@@ -66,14 +69,22 @@ public actor RTMPPlayerSession {
     if let connection = connection {
       await connection.invalidate()
     }
-    
+
     // Cancel previous event tasks
     eventTasks.forEach { $0.cancel() }
     eventTasks.removeAll()
-    
+
     connection = await RTMPConnection()
     guard let connection = connection else { return }
-    
+
+    // Forward connection log events to our log stream
+    let logTask = Task { [connection, logContinuation] in
+      for await event in connection.logEvents {
+        logContinuation.yield(event)
+      }
+    }
+    eventTasks.append(logTask)
+
     // Subscribe to media events
     let mediaTask = Task { [connection] in
       for await event in connection.mediaEvents {
@@ -81,7 +92,7 @@ public actor RTMPPlayerSession {
       }
     }
     eventTasks.append(mediaTask)
-    
+
     // Subscribe to stream events
     let streamTask = Task { [connection] in
       for await event in connection.streamEvents {
@@ -89,7 +100,7 @@ public actor RTMPPlayerSession {
       }
     }
     eventTasks.append(streamTask)
-    
+
     // Subscribe to connection events
     let connectionTask = Task { [connection] in
       for await event in connection.connectionEvents {
@@ -97,7 +108,7 @@ public actor RTMPPlayerSession {
       }
     }
     eventTasks.append(connectionTask)
-    
+
     do {
       status = .handShakeStart
       try await connection.connect(url: url)
@@ -105,7 +116,7 @@ public actor RTMPPlayerSession {
 
       self.streamId = try await connection.createStream()
       status = .connect
-      
+
       // Send play message
       let playMsg = PlayMessage(
         encodeType: encodeType,
@@ -124,7 +135,7 @@ public actor RTMPPlayerSession {
       status = .failed(err: wrappedError)
     }
   }
-  
+
   public func stop() async {
     // Cancel event tasks
     eventTasks.forEach { $0.cancel() }
@@ -149,7 +160,7 @@ public actor RTMPPlayerSession {
 
     // Note: continuations are finished in deinit to support session reuse
   }
-  
+
   // MARK: - Event Handlers
 
   private func handleMediaEvent(_ event: RTMPMediaEvent) async {
@@ -164,7 +175,7 @@ public actor RTMPPlayerSession {
       metaContinuation.yield(meta)
     }
   }
-  
+
   private func handleStreamEvent(_ event: RTMPStreamEvent) async {
     guard let connection = connection else { return }
 
@@ -172,7 +183,7 @@ public actor RTMPPlayerSession {
     case .playStart:
       logger.debug("playStart event received")
       status = .playStart
-      
+
     case .pingRequest(let data):
       let message = UserControlMessage(
         type: .pingResponse,
@@ -180,13 +191,13 @@ public actor RTMPPlayerSession {
         streamId: ChunkStreamId(UInt16(streamId.value))
       )
       await connection.send(message: message, firstType: true)
-      
+
     case .publishStart, .record, .pause:
       // Player doesn't need to handle these events
       break
     }
   }
-  
+
   private func handleConnectionEvent(_ event: RTMPConnectionEvent) async {
     guard let connection = connection else { return }
 
@@ -203,4 +214,3 @@ public actor RTMPPlayerSession {
     }
   }
 }
-

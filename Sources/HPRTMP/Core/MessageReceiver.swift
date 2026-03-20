@@ -6,15 +6,12 @@
 //
 
 import Foundation
-import os
 
-/// Actor responsible for receiving data from the RTMP connection
-/// Handles data reception, decoding, and message dispatching
 actor MessageReceiver {
   private let receiveData: @Sendable () async throws -> Data
   private let windowControl: WindowControl
   private let decoder: MessageDecoder
-  private let logger = Logger(subsystem: "HPRTMP", category: "MessageReceiver")
+  private let logger: RTMPLogger
 
   private var task: Task<Void, Never>?
   private var messageHandler: (@Sendable (Data) async -> Void)?
@@ -23,11 +20,13 @@ actor MessageReceiver {
   init(
     receiveData: @escaping @Sendable () async throws -> Data,
     windowControl: WindowControl,
-    decoder: MessageDecoder
+    decoder: MessageDecoder,
+    logger: RTMPLogger = RTMPLogger(category: "MessageReceiver")
   ) {
     self.receiveData = receiveData
     self.windowControl = windowControl
     self.decoder = decoder
+    self.logger = logger
   }
 
   /// Set the handler to be called when data is received

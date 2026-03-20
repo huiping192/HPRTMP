@@ -6,16 +6,13 @@
 //
 
 import Foundation
-import os
 
-/// Actor responsible for monitoring transmission statistics
-/// Periodically collects and reports statistics through the event dispatcher
 actor TransmissionMonitor {
   private let priorityQueue: MessagePriorityQueue
   private let windowControl: WindowControl
   private let mediaStatistics: MediaStatisticsCollector
   private let eventDispatcher: RTMPEventDispatcher
-  private let logger = Logger(subsystem: "HPRTMP", category: "TransmissionMonitor")
+  private let logger: RTMPLogger
 
   private var task: Task<Void, Never>?
 
@@ -23,12 +20,14 @@ actor TransmissionMonitor {
     priorityQueue: MessagePriorityQueue,
     windowControl: WindowControl,
     mediaStatistics: MediaStatisticsCollector,
-    eventDispatcher: RTMPEventDispatcher
+    eventDispatcher: RTMPEventDispatcher,
+    logger: RTMPLogger = RTMPLogger(category: "TransmissionMonitor")
   ) {
     self.priorityQueue = priorityQueue
     self.windowControl = windowControl
     self.mediaStatistics = mediaStatistics
     self.eventDispatcher = eventDispatcher
+    self.logger = logger
   }
 
   /// Start monitoring with the specified interval

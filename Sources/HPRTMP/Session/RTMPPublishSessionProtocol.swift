@@ -11,6 +11,9 @@ public protocol RTMPPublishSessionProtocol: Actor {
   /// Stream of transmission statistics
   var statisticsStream: AsyncStream<TransmissionStatistics> { get }
 
+  /// Stream of log events
+  var logStream: AsyncStream<RTMPLogEvent> { get }
+
   /// Start publishing to the specified RTMP URL
   /// - Parameters:
   ///   - url: The RTMP server URL

@@ -1,9 +1,8 @@
 import Foundation
-import os
 
 actor WindowControl {
 
-  private let logger = Logger(subsystem: "HPRTMP", category: "WindowControl")
+  private let logger: RTMPLogger
 
   private(set) var windowSize: UInt32 = 2500000  // default: 2.4mb
 
@@ -20,8 +19,9 @@ actor WindowControl {
   private var waitingSinceDate: Date? = nil
   private(set) var ackDisabled: Bool = false
 
-  init(ackTimeout: TimeInterval = 5.0) {
+  init(ackTimeout: TimeInterval = 5.0, logger: RTMPLogger = RTMPLogger(category: "WindowControl")) {
     self.ackTimeout = ackTimeout
+    self.logger = logger
   }
 
   func setInBytesWindowEvent(_ inBytesWindowEvent: (@Sendable (UInt32) async -> Void)?) {

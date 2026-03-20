@@ -1,7 +1,6 @@
 import Foundation
 import NIO
 import NIOSSL
-import os
 
 actor NetworkClient: NetworkConnectable {
   private let group: EventLoopGroup
@@ -13,18 +12,18 @@ actor NetworkClient: NetworkConnectable {
 
   private let dataReservoir = DataReservoir()
 
-  private let logger = Logger(subsystem: "HPRTMP", category: "NetworkClient")
+  private let logger: RTMPLogger
 
-
-  init(numberOfThreads: Int = 1) {
+  init(numberOfThreads: Int = 1, logger: RTMPLogger = RTMPLogger(category: "Network")) {
     self.group = MultiThreadedEventLoopGroup(numberOfThreads: numberOfThreads)
+    self.logger = logger
   }
-  
+
   func connect(host: String, port: Int, enableTLS: Bool = false) async throws {
     self.host = host
     self.port = port
 
-    let handler = RTMPClientHandler()
+    let handler = RTMPClientHandler(logger: RTMPLogger(category: "RTMPClientHandler", continuation: logger.continuation))
     let bootstrap = ClientBootstrap(group: group)
       .channelInitializer { channel in
         if enableTLS {

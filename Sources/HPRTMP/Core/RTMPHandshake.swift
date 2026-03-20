@@ -6,7 +6,6 @@
 //
 
 import Foundation
-import os
 
 actor RTMPHandshake {
   enum Status: String {
@@ -32,9 +31,7 @@ actor RTMPHandshake {
   private static let maxBufferSize = 1024 * 1024 // 1MB
 
   private let client: any NetworkConnectable
-
-  private let logger = Logger(subsystem: "HPRTMP", category: "Handshake")
-
+  private let logger: RTMPLogger
   private var handshakeData = Data()
 
   private(set) var status = Status.none {
@@ -43,8 +40,9 @@ actor RTMPHandshake {
     }
   }
 
-  public init(client: any NetworkConnectable) {
+  init(client: any NetworkConnectable, logger: RTMPLogger = RTMPLogger(category: "Handshake")) {
     self.client = client
+    self.logger = logger
   }
   
   var c0c1Packet: Data {

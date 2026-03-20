@@ -21,6 +21,11 @@ struct ContentView: View {
         if rtmpService.isRunning, let stats = rtmpService.statistics {
           StatisticsView(statistics: stats)
         }
+        LogView(
+          entries: rtmpService.filteredLogEntries,
+          logLevel: $rtmpService.logLevel,
+          onClear: { rtmpService.clearLogs() }
+        )
       }
       .padding()
     }
@@ -109,6 +114,74 @@ struct ContentView: View {
     }
     .buttonStyle(.borderedProminent)
     .tint(rtmpService.isRunning ? .red : .green)
+  }
+}
+
+// MARK: - Log View
+
+struct LogView: View {
+  let entries: [RTMPLogEvent]
+  @Binding var logLevel: RTMPLogLevel
+  let onClear: () -> Void
+
+  private static let timeFormatter: DateFormatter = {
+    let f = DateFormatter()
+    f.dateFormat = "HH:mm:ss.SSS"
+    return f
+  }()
+
+  var body: some View {
+    DisclosureGroup("Logs (\(entries.count))") {
+      VStack(alignment: .leading, spacing: 6) {
+        HStack {
+          Picker("Level", selection: $logLevel) {
+            Text("Debug").tag(RTMPLogLevel.debug)
+            Text("Info").tag(RTMPLogLevel.info)
+            Text("Warn").tag(RTMPLogLevel.warning)
+            Text("Error").tag(RTMPLogLevel.error)
+          }
+          .pickerStyle(.segmented)
+          Button("Clear", action: onClear)
+            .buttonStyle(.borderless)
+            .foregroundColor(.secondary)
+        }
+
+        ScrollViewReader { proxy in
+          ScrollView {
+            LazyVStack(alignment: .leading, spacing: 2) {
+              ForEach(Array(entries.enumerated()), id: \.offset) { index, event in
+                Text("[\(Self.timeFormatter.string(from: event.timestamp))] [\(event.category)] \(event.message)")
+                  .font(.system(.caption2, design: .monospaced))
+                  .foregroundColor(color(for: event.level))
+                  .frame(maxWidth: .infinity, alignment: .leading)
+                  .id(index)
+              }
+            }
+            .padding(4)
+          }
+          .frame(maxHeight: 200)
+          .background(Color.secondary.opacity(0.05))
+          .cornerRadius(6)
+          .onChange(of: entries.count) { _ in
+            if let last = entries.indices.last {
+              proxy.scrollTo(last, anchor: .bottom)
+            }
+          }
+        }
+      }
+    }
+    .padding()
+    .background(Color.secondary.opacity(0.1))
+    .cornerRadius(10)
+  }
+
+  private func color(for level: RTMPLogLevel) -> Color {
+    switch level {
+    case .debug: return .gray
+    case .info: return .primary
+    case .warning: return .orange
+    case .error: return .red
+    }
   }
 }
 

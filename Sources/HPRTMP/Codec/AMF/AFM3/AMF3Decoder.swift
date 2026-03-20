@@ -1,13 +1,14 @@
 import Foundation
-import os
 
 public class AMF3Decoder {
   var reference: AMF3ReferenceTable
-  
-  init() {
+  private let logger: RTMPLogger
+
+  init(logger: RTMPLogger = RTMPLogger(category: "AMF3Decoder")) {
     self.reference = AMF3ReferenceTable()
+    self.logger = logger
   }
-  
+
   func decode(_ data: Data) throws -> [AMFValue] {
     var localData = data
     var decodeData = [AMFValue]()
@@ -20,7 +21,7 @@ public class AMF3Decoder {
         let value = try localData.parseValue(type: realType, reference: &reference)
         decodeData.append(value)
       } catch let error {
-        print("Decode Error \(error.localizedDescription)")
+        logger.error("Decode Error \(error.localizedDescription)")
         throw error
       }
     }
@@ -85,7 +86,7 @@ extension Data {
 
 private let nullString = "Null"
 
-private let logger = Logger(subsystem: "HPRTMP", category: "AMF3Decoder")
+private let logger = RTMPLogger(category: "AMF3Decoder")
 
 
 private extension Data {

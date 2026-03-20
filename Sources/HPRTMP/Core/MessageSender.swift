@@ -6,10 +6,7 @@
 //
 
 import Foundation
-import os
 
-/// Actor responsible for sending messages through the RTMP connection
-/// Handles message encoding, flow control, and bandwidth throttling
 actor MessageSender {
   private let priorityQueue: MessagePriorityQueue
   private let encoder: MessageEncoder
@@ -17,7 +14,7 @@ actor MessageSender {
   private let tokenBucket: TokenBucket
   private let mediaStatistics: MediaStatisticsCollector
   private let sendData: @Sendable (Data) async throws -> Void
-  private let logger = Logger(subsystem: "HPRTMP", category: "MessageSender")
+  private let logger: RTMPLogger
 
   private var task: Task<Void, Never>?
   private var errorHandler: (@Sendable () async -> Void)?
@@ -28,7 +25,8 @@ actor MessageSender {
     windowControl: WindowControl,
     tokenBucket: TokenBucket,
     mediaStatistics: MediaStatisticsCollector,
-    sendData: @escaping @Sendable (Data) async throws -> Void
+    sendData: @escaping @Sendable (Data) async throws -> Void,
+    logger: RTMPLogger = RTMPLogger(category: "MessageSender")
   ) {
     self.priorityQueue = priorityQueue
     self.encoder = encoder
@@ -36,6 +34,7 @@ actor MessageSender {
     self.tokenBucket = tokenBucket
     self.mediaStatistics = mediaStatistics
     self.sendData = sendData
+    self.logger = logger
   }
 
   /// Set the error handler to be called when sending fails

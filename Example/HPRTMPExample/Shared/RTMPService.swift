@@ -14,6 +14,8 @@ class RTMPService: ObservableObject {
   @Published var statistics: TransmissionStatistics? = nil
   @Published var isRunning: Bool = false
   @Published var errorMessage: String? = nil
+  @Published var logEntries: [RTMPLogEvent] = []
+  @Published var logLevel: RTMPLogLevel = .info
 
   private var session = RTMPPublishSession()
   private var streamMonitoringTasks: [Task<Void, Never>] = []
@@ -22,6 +24,10 @@ class RTMPService: ObservableObject {
 
   private var lastVideoTimestamp: UInt64 = 0
   private var lastAudioTimestamp: UInt64 = 0
+
+  var filteredLogEntries: [RTMPLogEvent] {
+    logEntries.filter { $0.level >= logLevel }
+  }
 
   init() {
     let url = Bundle.main.url(forResource: "cloud9", withExtension: "mp4")!
@@ -38,6 +44,7 @@ class RTMPService: ObservableObject {
     }
 
     errorMessage = nil
+    logEntries.removeAll()
 
     streamMonitoringTasks.forEach { $0.cancel() }
     streamMonitoringTasks.removeAll()
@@ -63,6 +70,19 @@ class RTMPService: ObservableObject {
       }
     }
     streamMonitoringTasks.append(statisticsTask)
+
+    let logTask = Task { [weak self] in
+      guard let self else { return }
+      for await event in await session.logStream {
+        await MainActor.run {
+          self.logEntries.append(event)
+          if self.logEntries.count > 200 {
+            self.logEntries.removeFirst(self.logEntries.count - 200)
+          }
+        }
+      }
+    }
+    streamMonitoringTasks.append(logTask)
 
     let publishConfig = PublishConfigure(
       width: 1280, height: 720,
@@ -106,6 +126,10 @@ class RTMPService: ObservableObject {
     isRunning = false
     connectionStatus = .unknown
     statistics = nil
+  }
+
+  func clearLogs() {
+    logEntries.removeAll()
   }
 }
 
