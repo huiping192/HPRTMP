@@ -239,6 +239,10 @@ extension RTMPConnection {
   public func invalidate() async {
     guard status != .closed && status != .none else { return }
 
+    // Close TCP first so blocked receiveData() in MessageReceiver throws an error,
+    // allowing messageReceiver.stop() → await task?.value to complete without deadlocking.
+    try? await connection.close()
+
     // Stop all background task actors
     await messageSender.stop()
     await messageReceiver.stop()
@@ -248,7 +252,7 @@ extension RTMPConnection {
     // Resume all waiting continuations with an error
     connectContinuation?.resume(throwing: RTMPError.connectionInvalidated)
     connectContinuation = nil
-    
+
     for continuation in streamCreationContinuations.values {
       continuation.resume(throwing: RTMPError.connectionInvalidated)
     }
@@ -257,7 +261,6 @@ extension RTMPConnection {
     await handshake?.reset()
     await decoder.reset()
     await encoder.reset()
-    try? await connection.close()
     urlInfo = nil
     status = .closed
     await eventDispatcher.yieldConnection(.disconnected)
