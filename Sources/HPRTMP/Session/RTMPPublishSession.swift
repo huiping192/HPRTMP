@@ -136,6 +136,8 @@ public actor RTMPPublishSession: RTMPPublishSessionProtocol {
   }
 
   public func publishVideo(data: Data, delta: UInt32) async {
+    // Check header first to avoid timestamp accumulation without sending
+    guard videoHeaderSended, connection != nil else { return }
     lastVideoTimestamp = lastVideoTimestamp + Timestamp(delta)
     await publishVideo(data: data, timestamp: lastVideoTimestamp.value)
   }
@@ -151,6 +153,8 @@ public actor RTMPPublishSession: RTMPPublishSessionProtocol {
   }
 
   public func publishAudio(data: Data, delta: UInt32) async {
+    // Check header first to avoid timestamp accumulation without sending
+    guard audioHeaderSended, connection != nil else { return }
     lastAudioTimestamp = lastAudioTimestamp + Timestamp(delta)
     await publishAudio(data: data, timestamp: lastAudioTimestamp.value)
   }
