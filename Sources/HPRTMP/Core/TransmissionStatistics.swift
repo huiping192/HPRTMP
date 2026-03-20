@@ -10,8 +10,8 @@ import Foundation
 public struct TransmissionStatistics: Sendable {
   public let pendingMessageCount: Int
 
-  public let totalBytesReceived: UInt32
-  public let totalBytesSent: UInt32
+  public let totalBytesReceived: UInt64
+  public let totalBytesSent: UInt64
   public let unacknowledgedBytes: Int64
   public let windowSize: UInt32
   public let windowUtilization: Double
