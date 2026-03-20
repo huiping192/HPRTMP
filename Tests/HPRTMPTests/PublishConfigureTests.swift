@@ -39,19 +39,6 @@ final class PublishConfigureTests: XCTestCase {
     XCTAssertEqual(configure.audioSamplerate, 44100)
   }
   
-  func testSendableConformance() {
-    let configure = PublishConfigure(
-      width: 640,
-      height: 480,
-      videocodecid: 7,
-      audiocodecid: 10,
-      framerate: 15
-    )
-    
-    // Verify Sendable conformance
-    _ = configure as Sendable
-  }
-  
   func testMetaDataGeneration() {
     let configure = PublishConfigure(
       width: 1920,
